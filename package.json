@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --env-file=.env --import tsx scripts/apply-migrations.ts"
+    "db:migrate": "node --env-file=.env --import tsx scripts/apply-migrations.ts",
+    "db:seed": "node --env-file=.env --import tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@line/bot-sdk": "^11.0.0",
