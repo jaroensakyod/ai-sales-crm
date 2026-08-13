@@ -1,0 +1,41 @@
+{
+  "name": "ai-sales-crm",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file=.env --import tsx scripts/apply-migrations.ts"
+  },
+  "dependencies": {
+    "@line/bot-sdk": "^11.0.0",
+    "drizzle-orm": "^0.45.2",
+    "next": "^16.2.7",
+    "postgres": "^3.4.9",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.4.1",
+    "drizzle-kit": "^0.31.5",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5",
+    "vitest": "^4.1.4"
+  }
+}
