@@ -22,3 +22,18 @@ export function getDatabaseUrl(): string {
 export function getGeminiApiKey(): string {
   return required("GEMINI_API_KEY");
 }
+
+/**
+ * 32-byte AES-256 key for encrypting channel tokens at rest (risk #7).
+ * Stored as base64 in TOKEN_ENCRYPTION_KEY. Generate one with:
+ *   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+ */
+export function getTokenEncryptionKey(): Buffer {
+  const key = Buffer.from(required("TOKEN_ENCRYPTION_KEY"), "base64");
+  if (key.length !== 32) {
+    throw new Error(
+      "TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes (base64-encoded).",
+    );
+  }
+  return key;
+}

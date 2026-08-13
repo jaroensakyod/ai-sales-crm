@@ -9,5 +9,8 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.ts"],
+    setupFiles: ["tests/setup.ts"],
+    // DB integration tests hit a real Supabase pooler — give them room.
+    testTimeout: 20000,
   },
 });
