@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
 import { conversations, messages } from "@/db/schema";
@@ -13,6 +13,33 @@ export async function openConversation(
     .values({ ...input, tenantId })
     .returning();
   return row;
+}
+
+/**
+ * Reuse the customer's most recent non-closed conversation on this channel,
+ * or open a new one. Keeps an ongoing chat as a single thread.
+ */
+export async function getOrOpenConversation(
+  db: DbClient,
+  tenantId: string,
+  customerId: string,
+  channelId: string,
+) {
+  const [existing] = await db
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.tenantId, tenantId),
+        eq(conversations.customerId, customerId),
+        eq(conversations.channelId, channelId),
+        ne(conversations.status, "CLOSED"),
+      ),
+    )
+    .orderBy(desc(conversations.updatedAt))
+    .limit(1);
+  if (existing) return existing;
+  return openConversation(db, tenantId, { customerId, channelId });
 }
 
 /**
@@ -40,7 +67,15 @@ export async function recordInboundMessage(
         channelMessageId: input.channelMessageId,
         sentAt: at,
       })
+      // Idempotent: LINE/Meta may redeliver the same event. A duplicate
+      // channelMessageId hits the unique index and inserts nothing.
+      .onConflictDoNothing({
+        target: [messages.tenantId, messages.channelMessageId],
+      })
       .returning();
+
+    // Duplicate delivery — already processed, don't touch the window.
+    if (!message) return null;
 
     await tx
       .update(conversations)
