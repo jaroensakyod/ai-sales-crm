@@ -11,6 +11,26 @@ export async function getTenantAiSettings(db: DbClient, tenantId: string) {
   return row ?? null;
 }
 
+/** Create or update a tenant's AI guardrail settings (merchant-editable). */
+export async function updateTenantAiSettings(
+  db: DbClient,
+  tenantId: string,
+  input: {
+    discountAuthority?: string;
+    bannedPhrases?: string[];
+    systemPromptExtra?: string | null;
+    softCapUsd?: string | null;
+  },
+) {
+  await db
+    .insert(tenantAiSettings)
+    .values({ tenantId, ...input })
+    .onConflictDoUpdate({
+      target: tenantAiSettings.tenantId,
+      set: { ...input, updatedAt: new Date() },
+    });
+}
+
 export type AiRunInput = {
   conversationId?: string;
   model: string;

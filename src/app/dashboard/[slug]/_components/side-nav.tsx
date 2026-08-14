@@ -12,6 +12,7 @@ const ITEMS: {
   perm?: Permission;
 }[] = [
   { href: "", label: "ภาพรวม", icon: "📊" },
+  { href: "/products", label: "สินค้า", icon: "🛒", perm: "edit_sales" },
   { href: "/gaps", label: "คำถามที่ตอบไม่ได้", icon: "❓" },
   { href: "/analytics", label: "วิเคราะห์", icon: "📈" },
   { href: "/settings", label: "ตั้งค่า", icon: "⚙️", perm: "manage_settings" },

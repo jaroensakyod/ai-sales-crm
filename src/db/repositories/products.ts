@@ -1,7 +1,58 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
 import { crossSells, productVariants, products } from "@/db/schema";
+
+export async function listProducts(db: DbClient, tenantId: string) {
+  return db
+    .select()
+    .from(products)
+    .where(eq(products.tenantId, tenantId))
+    .orderBy(asc(products.name));
+}
+
+export async function createProduct(
+  db: DbClient,
+  tenantId: string,
+  input: {
+    name: string;
+    price: string;
+    stock?: number | null;
+    sku?: string | null;
+    description?: string | null;
+  },
+) {
+  const [row] = await db
+    .insert(products)
+    .values({ tenantId, ...input, currency: "THB" })
+    .returning();
+  return row;
+}
+
+export async function updateProduct(
+  db: DbClient,
+  tenantId: string,
+  id: string,
+  input: {
+    name?: string;
+    price?: string;
+    stock?: number | null;
+    sku?: string | null;
+    description?: string | null;
+    isActive?: boolean;
+  },
+) {
+  await db
+    .update(products)
+    .set({ ...input, updatedAt: new Date() })
+    .where(and(eq(products.tenantId, tenantId), eq(products.id, id)));
+}
+
+export async function deleteProduct(db: DbClient, tenantId: string, id: string) {
+  await db
+    .delete(products)
+    .where(and(eq(products.tenantId, tenantId), eq(products.id, id)));
+}
 
 export async function getProduct(db: DbClient, tenantId: string, id: string) {
   const [row] = await db

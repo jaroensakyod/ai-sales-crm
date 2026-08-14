@@ -4,6 +4,12 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
+import { updateTenantAiSettings } from "@/db/repositories/ai";
+import {
+  createProduct,
+  deleteProduct,
+  updateProduct,
+} from "@/db/repositories/products";
 import {
   createUser,
   getTenantBySlug,
@@ -195,6 +201,79 @@ export async function setUserPasswordAction(formData: FormData) {
     await setUserPassword(db, tenant.id, userId, hashPassword(password));
   }
   redirect(`/dashboard/${slug}/team?ok=pw`);
+}
+
+// ---- Products ------------------------------------------------------------
+
+function parsePrice(v: FormDataEntryValue | null): string {
+  const n = Number(String(v ?? "").replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+}
+function parseStock(v: FormDataEntryValue | null): number | null {
+  const s = String(v ?? "").trim();
+  if (s === "") return null;
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function tenantForSlug(slug: string) {
+  const db = createDbClient();
+  const tenant = await getTenantBySlug(db, slug);
+  if (!tenant) redirect("/dashboard");
+  return { db, tenant };
+}
+
+export async function createProductAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  const name = String(formData.get("name") ?? "").trim();
+  if (name) {
+    await createProduct(db, tenant.id, {
+      name,
+      price: parsePrice(formData.get("price")),
+      stock: parseStock(formData.get("stock")),
+      sku: String(formData.get("sku") ?? "").trim() || null,
+      description: String(formData.get("description") ?? "").trim() || null,
+    });
+  }
+  redirect(`/dashboard/${slug}/products?ok=1`);
+}
+
+export async function updateProductAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("productId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  await updateProduct(db, tenant.id, id, {
+    name: String(formData.get("name") ?? "").trim(),
+    price: parsePrice(formData.get("price")),
+    stock: parseStock(formData.get("stock")),
+    isActive: formData.get("isActive") === "on",
+  });
+  redirect(`/dashboard/${slug}/products?ok=1`);
+}
+
+export async function deleteProductAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("productId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  await deleteProduct(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/products?ok=1`);
+}
+
+export async function updateAiSettingsAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  const bannedPhrases = String(formData.get("bannedPhrases") ?? "")
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  await updateTenantAiSettings(db, tenant.id, {
+    discountAuthority: parsePrice(formData.get("discountAuthority")),
+    bannedPhrases,
+    systemPromptExtra:
+      String(formData.get("systemPromptExtra") ?? "").trim() || null,
+  });
+  redirect(`/dashboard/${slug}/settings?ok=ai`);
 }
 
 export async function addUserAction(formData: FormData) {
