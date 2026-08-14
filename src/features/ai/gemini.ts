@@ -8,8 +8,10 @@ import { getGeminiApiKey } from "@/lib/env";
  */
 export function normalizeModelId(name: string): string {
   const map: Record<string, string> = {
-    "gemini-flash-lite": "gemini-2.5-flash-lite",
-    "gemini-flash": "gemini-2.5-flash",
+    // Rolling aliases that track the latest stable flash tiers, so version
+    // rotation doesn't break us (pinned versions get retired for new users).
+    "gemini-flash-lite": "gemini-flash-lite-latest",
+    "gemini-flash": "gemini-flash-latest",
   };
   return map[name] ?? name;
 }
@@ -42,7 +44,7 @@ export const generateWithGemini: GenerateFn = async ({
     config: {
       systemInstruction,
       temperature: 0.3,
-      maxOutputTokens: 512,
+      maxOutputTokens: 1024,
     },
   });
   return {
@@ -57,6 +59,8 @@ export const generateWithGemini: GenerateFn = async ({
  * only — approximate is fine for the cost dashboard + soft-cap (docs/03).
  */
 const PRICE_PER_MTOK: Record<string, { input: number; output: number }> = {
+  "gemini-flash-lite-latest": { input: 0.1, output: 0.4 },
+  "gemini-flash-latest": { input: 0.3, output: 2.5 },
   "gemini-2.5-flash-lite": { input: 0.1, output: 0.4 },
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
 };

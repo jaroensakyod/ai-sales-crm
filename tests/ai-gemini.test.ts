@@ -5,8 +5,8 @@ import { buildSalesSystemPrompt } from "@/features/ai/sales-agent";
 
 describe("gemini helpers", () => {
   it("normalizes friendly model names", () => {
-    expect(normalizeModelId("gemini-flash")).toBe("gemini-2.5-flash");
-    expect(normalizeModelId("gemini-flash-lite")).toBe("gemini-2.5-flash-lite");
+    expect(normalizeModelId("gemini-flash")).toBe("gemini-flash-latest");
+    expect(normalizeModelId("gemini-flash-lite")).toBe("gemini-flash-lite-latest");
     expect(normalizeModelId("gemini-2.5-flash")).toBe("gemini-2.5-flash");
   });
 

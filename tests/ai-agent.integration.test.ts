@@ -55,7 +55,7 @@ describe.skipIf(!hasDb)("AI reason handler (integration, mocked Gemini)", () => 
 
     const run = await latestRun();
     expect(run.status).toBe("ok");
-    expect(run.model).toBe("gemini-2.5-flash");
+    expect(run.model).toBe("gemini-flash-latest");
     expect(run.routerLevel).toBe(3);
     expect(Number(run.costUsd)).toBeGreaterThan(0);
 
