@@ -23,6 +23,11 @@ export function getGeminiApiKey(): string {
   return required("GEMINI_API_KEY");
 }
 
+/** True if a Gemini key is configured — used to enable Level 3 gracefully. */
+export function hasGeminiApiKey(): boolean {
+  return !!process.env.GEMINI_API_KEY;
+}
+
 /**
  * 32-byte AES-256 key for encrypting channel tokens at rest (risk #7).
  * Stored as base64 in TOKEN_ENCRYPTION_KEY. Generate one with:
