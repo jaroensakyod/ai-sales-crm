@@ -18,6 +18,7 @@ export async function loadProducts(
       price: products.price,
       stock: products.stock,
       currency: products.currency,
+      description: products.description,
     })
     .from(products)
     .where(and(eq(products.tenantId, tenantId), eq(products.isActive, true)));

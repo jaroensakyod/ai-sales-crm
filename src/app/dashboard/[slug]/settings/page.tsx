@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { getTenantAiSettings } from "@/db/repositories/ai";
+import { listKnowledgeDocuments } from "@/db/repositories/knowledge";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { channels } from "@/db/schema";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
@@ -13,6 +14,7 @@ import {
   addKnowledgeAction,
   connectFacebookAction,
   connectLineAction,
+  deleteKnowledgeAction,
   updateAiSettingsAction,
 } from "../../actions";
 import { Shell } from "../_components/shell";
@@ -39,6 +41,7 @@ export default async function SettingsPage({
     .from(channels)
     .where(eq(channels.tenantId, tenant.id));
   const aiSettings = await getTenantAiSettings(db, tenant.id);
+  const knowledgeDocs = await listKnowledgeDocuments(db, tenant.id);
 
   const h = await headers();
   const proto = h.get("x-forwarded-proto") ?? "http";
@@ -167,7 +170,45 @@ export default async function SettingsPage({
           </button>
         </form>
 
-        <h2>อัปโหลดความรู้ (RAG)</h2>
+        <h2>คลังความรู้ (AI ใช้ค้นตอบ FAQ)</h2>
+        {knowledgeDocs.length === 0 ? (
+          <p className="muted">ยังไม่มีคลังความรู้ — เพิ่มด้านล่าง</p>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>หัวข้อ</th>
+                  <th>สถานะ</th>
+                  <th>ชิ้นข้อมูล</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {knowledgeDocs.map((d) => (
+                  <tr key={d.id}>
+                    <td>{d.title}</td>
+                    <td>
+                      <span className="badge open">{d.status}</span>
+                    </td>
+                    <td>{d.chunkCount}</td>
+                    <td>
+                      <form action={deleteKnowledgeAction}>
+                        <input type="hidden" name="slug" value={slug} />
+                        <input type="hidden" name="documentId" value={d.id} />
+                        <button type="submit" className="danger sm">
+                          ลบ
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <h2>เพิ่มความรู้ใหม่</h2>
         {!hasGeminiApiKey() ? (
           <p className="muted">ต้องตั้งค่า GEMINI_API_KEY ก่อนจึงจะอัปโหลดได้</p>
         ) : null}

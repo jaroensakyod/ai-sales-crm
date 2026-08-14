@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { updateTenantAiSettings } from "@/db/repositories/ai";
+import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import {
   createProduct,
   deleteProduct,
@@ -138,6 +139,14 @@ export async function addKnowledgeAction(formData: FormData) {
   redirect(`/dashboard/${slug}/settings?${ok ? "ok=knowledge" : "error=knowledge"}`);
 }
 
+export async function deleteKnowledgeAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const documentId = String(formData.get("documentId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  await deleteKnowledgeDocument(db, tenant.id, documentId);
+  redirect(`/dashboard/${slug}/settings?ok=knowledge-deleted`);
+}
+
 export async function answerGapAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const gapId = String(formData.get("gapId") ?? "");
@@ -247,6 +256,22 @@ export async function updateProductAction(formData: FormData) {
     name: String(formData.get("name") ?? "").trim(),
     price: parsePrice(formData.get("price")),
     stock: parseStock(formData.get("stock")),
+    isActive: formData.get("isActive") === "on",
+  });
+  redirect(`/dashboard/${slug}/products?ok=1`);
+}
+
+/** Full edit (incl. description + SKU) from the per-product page. */
+export async function editProductAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("productId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  await updateProduct(db, tenant.id, id, {
+    name: String(formData.get("name") ?? "").trim(),
+    price: parsePrice(formData.get("price")),
+    stock: parseStock(formData.get("stock")),
+    sku: String(formData.get("sku") ?? "").trim() || null,
+    description: String(formData.get("description") ?? "").trim() || null,
     isActive: formData.get("isActive") === "on",
   });
   redirect(`/dashboard/${slug}/products?ok=1`);

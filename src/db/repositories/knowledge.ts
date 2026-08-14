@@ -3,6 +3,40 @@ import { and, cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
 import type { DbClient } from "@/db/client";
 import { knowledgeChunks, knowledgeDocuments } from "@/db/schema";
 
+export async function listKnowledgeDocuments(db: DbClient, tenantId: string) {
+  return db
+    .select({
+      id: knowledgeDocuments.id,
+      title: knowledgeDocuments.title,
+      sourceType: knowledgeDocuments.sourceType,
+      status: knowledgeDocuments.status,
+      createdAt: knowledgeDocuments.createdAt,
+      chunkCount: sql<number>`(
+        select count(*)::int from ${knowledgeChunks}
+        where ${knowledgeChunks.documentId} = ${knowledgeDocuments.id}
+      )`,
+    })
+    .from(knowledgeDocuments)
+    .where(eq(knowledgeDocuments.tenantId, tenantId))
+    .orderBy(desc(knowledgeDocuments.createdAt));
+}
+
+/** Delete a document and its chunks (chunks cascade on document delete). */
+export async function deleteKnowledgeDocument(
+  db: DbClient,
+  tenantId: string,
+  documentId: string,
+) {
+  await db
+    .delete(knowledgeDocuments)
+    .where(
+      and(
+        eq(knowledgeDocuments.tenantId, tenantId),
+        eq(knowledgeDocuments.id, documentId),
+      ),
+    );
+}
+
 export async function createKnowledgeDocument(
   db: DbClient,
   tenantId: string,

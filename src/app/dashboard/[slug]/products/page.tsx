@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
@@ -51,6 +52,7 @@ export default async function ProductsPage({
                 <th>ขายอยู่</th>
                 <th></th>
                 <th></th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -98,6 +100,14 @@ export default async function ProductsPage({
                     <button form={`edit-${p.id}`} type="submit" className="sm">
                       บันทึก
                     </button>
+                  </td>
+                  <td>
+                    <Link
+                      href={`/dashboard/${slug}/products/${p.id}`}
+                      className="btn sm ghost"
+                    >
+                      รายละเอียด
+                    </Link>
                   </td>
                   <td>
                     <form action={deleteProductAction}>

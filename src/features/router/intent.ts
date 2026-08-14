@@ -83,6 +83,7 @@ export type ProductLike = {
   price: string;
   stock: number | null;
   currency: string;
+  description?: string | null;
 };
 
 /**

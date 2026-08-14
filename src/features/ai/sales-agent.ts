@@ -31,7 +31,13 @@ export function buildSalesSystemPrompt(args: {
 }): string {
   const discount = args.settings?.discountAuthority ?? "0";
   const catalogLines = args.catalog
-    .map((p) => `- ${p.name}: ${Number(p.price).toLocaleString("th-TH")} ${p.currency}`)
+    .map((p) => {
+      const price = `${Number(p.price).toLocaleString("th-TH")} ${p.currency}`;
+      const stock =
+        p.stock == null ? "" : p.stock > 0 ? ` (คงเหลือ ${p.stock})` : " (สินค้าหมด)";
+      const desc = p.description ? ` — ${p.description}` : "";
+      return `- ${p.name}: ${price}${stock}${desc}`;
+    })
     .join("\n");
 
   const rules = [
