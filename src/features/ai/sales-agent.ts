@@ -4,6 +4,8 @@ import {
   recordAiRun,
   recordUsageEvent,
 } from "@/db/repositories/ai";
+import { getMonthlyAiSpend } from "@/db/repositories/billing";
+import { resolveBudgetTier } from "@/features/billing/budget";
 import { loadProducts } from "@/features/router/rules";
 import type { LevelHandler } from "@/features/router/types";
 
@@ -67,7 +69,24 @@ export function createAiReasonHandler(
     const settings = await getTenantAiSettings(db, ctx.tenantId);
     const catalog = await loadProducts(db, ctx.tenantId);
     const systemInstruction = buildSalesSystemPrompt({ settings, catalog });
-    const model = settings?.escalationModel ?? "gemini-flash";
+
+    // Graceful soft-cap (Phase 2): degrade cost instead of blocking the customer.
+    const softCapUsd = settings?.softCapUsd ? Number(settings.softCapUsd) : null;
+    const spend = await getMonthlyAiSpend(db, ctx.tenantId);
+    const tier = resolveBudgetTier({ monthlySpendUsd: spend, softCapUsd });
+    if (tier === "l3_disabled") {
+      // Over the hard ceiling — skip L3 (router falls to a human handoff). L1/L2
+      // still answer, so the customer is never left without a reply (risk #6).
+      await recordUsageEvent(db, ctx.tenantId, {
+        type: "l3_skipped_budget",
+        meta: { spend, softCapUsd },
+      });
+      return null;
+    }
+    const model =
+      tier === "downgraded"
+        ? (settings?.defaultModel ?? "gemini-flash-lite")
+        : (settings?.escalationModel ?? "gemini-flash");
     const started = Date.now();
 
     let result;

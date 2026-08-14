@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
+import { getTenantAiSettings } from "@/db/repositories/ai";
 import {
   getTenantOverview,
   listRecentConversations,
   listRecentOrders,
 } from "@/db/repositories/analytics";
+import { getMonthlyAiSpend } from "@/db/repositories/billing";
 import { getTenantBySlug } from "@/db/repositories/tenants";
+import { resolveBudgetTier } from "@/features/billing/budget";
 
 export const dynamic = "force-dynamic";
 
@@ -34,11 +37,22 @@ export default async function TenantOverview({
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
 
-  const [overview, conversations, orders] = await Promise.all([
-    getTenantOverview(db, tenant.id),
-    listRecentConversations(db, tenant.id, 10),
-    listRecentOrders(db, tenant.id, 10),
-  ]);
+  const [overview, conversations, orders, settings, monthlySpend] =
+    await Promise.all([
+      getTenantOverview(db, tenant.id),
+      listRecentConversations(db, tenant.id, 10),
+      listRecentOrders(db, tenant.id, 10),
+      getTenantAiSettings(db, tenant.id),
+      getMonthlyAiSpend(db, tenant.id),
+    ]);
+  const softCapUsd = settings?.softCapUsd ? Number(settings.softCapUsd) : null;
+  const budgetTier = resolveBudgetTier({ monthlySpendUsd: monthlySpend, softCapUsd });
+  const budgetLabel =
+    budgetTier === "normal"
+      ? "ปกติ"
+      : budgetTier === "downgraded"
+        ? "ลดต้นทุน (เกินงบ)"
+        : "หยุด L3 ชั่วคราว";
 
   return (
     <>
@@ -99,6 +113,15 @@ export default async function TenantOverview({
             <div className="label">ต้นทุน AI</div>
             <div className="value">${overview.ai.costUsd.toFixed(4)}</div>
             <div className="sub">สะสมทั้งหมด</div>
+          </div>
+          <div className="card kpi">
+            <div className="label">งบ AI เดือนนี้</div>
+            <div className="value">${monthlySpend.toFixed(4)}</div>
+            <div className="sub">
+              {softCapUsd
+                ? `งบ $${softCapUsd.toFixed(2)} · ${budgetLabel}`
+                : "ไม่จำกัด"}
+            </div>
           </div>
         </div>
 
