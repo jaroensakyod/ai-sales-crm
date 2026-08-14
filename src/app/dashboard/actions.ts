@@ -4,7 +4,13 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
-import { getTenantBySlug } from "@/db/repositories/tenants";
+import {
+  createUser,
+  getTenantBySlug,
+  removeUser,
+  updateUserRole,
+} from "@/db/repositories/tenants";
+import { ROLES, type Role } from "@/features/team/roles";
 import { setPlan } from "@/db/repositories/subscriptions";
 import { ingestKnowledge } from "@/features/ai/rag";
 import { answerGap } from "@/features/knowledge/answer-gap";
@@ -150,4 +156,39 @@ export async function changePlanAction(formData: FormData) {
     await setPlan(db, tenant.id, plan);
   }
   redirect(`/dashboard/${slug}?plan=${plan}`);
+}
+
+export async function addUserAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const email = String(formData.get("email") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const role = String(formData.get("role") ?? "VIEWER") as Role;
+  const db = createDbClient();
+  const tenant = await getTenantBySlug(db, slug);
+  if (!tenant) redirect("/dashboard");
+  if (email && ROLES.includes(role)) {
+    await createUser(db, tenant.id, { email, name: name || undefined, role });
+  }
+  redirect(`/dashboard/${slug}/team`);
+}
+
+export async function changeRoleAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const role = String(formData.get("role") ?? "") as Role;
+  const db = createDbClient();
+  const tenant = await getTenantBySlug(db, slug);
+  if (!tenant) redirect("/dashboard");
+  if (ROLES.includes(role)) await updateUserRole(db, tenant.id, userId, role);
+  redirect(`/dashboard/${slug}/team`);
+}
+
+export async function removeUserAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const db = createDbClient();
+  const tenant = await getTenantBySlug(db, slug);
+  if (!tenant) redirect("/dashboard");
+  await removeUser(db, tenant.id, userId);
+  redirect(`/dashboard/${slug}/team`);
 }

@@ -87,6 +87,12 @@ export default async function TenantOverview({
             style={{ fontSize: "0.9rem", fontWeight: 400 }}
           >
             · วิเคราะห์
+          </Link>{" "}
+          <Link
+            href={`/dashboard/${slug}/team`}
+            style={{ fontSize: "0.9rem", fontWeight: 400 }}
+          >
+            · ทีม
           </Link>
         </h1>
 

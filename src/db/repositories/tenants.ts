@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
 import { tenants, users } from "@/db/schema";
@@ -29,6 +29,37 @@ export async function createUser(
   const [row] = await db
     .insert(users)
     .values({ ...input, tenantId })
+    .onConflictDoNothing({ target: [users.tenantId, users.email] })
     .returning();
-  return row;
+  return row ?? null;
+}
+
+export async function listUsers(db: DbClient, tenantId: string) {
+  return db
+    .select()
+    .from(users)
+    .where(eq(users.tenantId, tenantId))
+    .orderBy(asc(users.createdAt));
+}
+
+export async function updateUserRole(
+  db: DbClient,
+  tenantId: string,
+  userId: string,
+  role: (typeof users.role.enumValues)[number],
+) {
+  await db
+    .update(users)
+    .set({ role, updatedAt: new Date() })
+    .where(and(eq(users.tenantId, tenantId), eq(users.id, userId)));
+}
+
+export async function removeUser(
+  db: DbClient,
+  tenantId: string,
+  userId: string,
+) {
+  await db
+    .delete(users)
+    .where(and(eq(users.tenantId, tenantId), eq(users.id, userId)));
 }

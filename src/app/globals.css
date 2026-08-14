@@ -204,6 +204,14 @@ form label.inline {
   gap: 8px;
   margin: 8px 0;
 }
+form select {
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: #fff;
+}
 form input[type="text"],
 form input:not([type]),
 form input[type="password"],
