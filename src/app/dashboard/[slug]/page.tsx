@@ -55,6 +55,12 @@ export default async function TenantOverview({
             style={{ fontSize: "0.9rem", fontWeight: 400 }}
           >
             · ตั้งค่า/เชื่อมช่องทาง
+          </Link>{" "}
+          <Link
+            href={`/dashboard/${slug}/gaps`}
+            style={{ fontSize: "0.9rem", fontWeight: 400 }}
+          >
+            · คำถามที่ตอบไม่ได้
           </Link>
         </h1>
 

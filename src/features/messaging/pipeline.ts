@@ -8,6 +8,7 @@ import {
   getCustomer,
   resolveCustomerByIdentity,
 } from "@/db/repositories/customers";
+import { createKnowledgeGap, findOpenGap } from "@/db/repositories/gaps";
 import { addLeadEvent } from "@/db/repositories/leads";
 import {
   applyConsentReply,
@@ -125,6 +126,18 @@ export async function handleInboundText(
     await addLeadEvent(db, args.tenantId, sync.leadId, "handoff", {
       reason: decision.handoffReason,
     });
+    // A "fallback" handoff means nothing could answer — log it to the Knowledge
+    // Gap Inbox so an admin can teach the bot once (docs/01). Intentional
+    // handoffs (refund/dispute keywords) are not gaps.
+    if (decision.source === "fallback") {
+      const existing = await findOpenGap(db, args.tenantId, args.text);
+      if (!existing) {
+        await createKnowledgeGap(db, args.tenantId, {
+          question: args.text,
+          conversationId: conversation.id,
+        });
+      }
+    }
   }
   return { status: "processed", replied: true };
 }

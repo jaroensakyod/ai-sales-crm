@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createDbClient } from "@/db/client";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { ingestKnowledge } from "@/features/ai/rag";
+import { answerGap } from "@/features/knowledge/answer-gap";
 import {
   connectFacebookChannel,
   connectLineChannel,
@@ -115,4 +116,24 @@ export async function addKnowledgeAction(formData: FormData) {
     // embedding/ingest failed
   }
   redirect(`/dashboard/${slug}/settings?${ok ? "ok=knowledge" : "error=knowledge"}`);
+}
+
+export async function answerGapAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const gapId = String(formData.get("gapId") ?? "");
+  const answer = String(formData.get("answer") ?? "").trim();
+  const db = createDbClient();
+  const tenant = await getTenantBySlug(db, slug);
+  if (!tenant) redirect("/dashboard");
+
+  if (!hasGeminiApiKey()) {
+    redirect(`/dashboard/${slug}/gaps?error=nokey`);
+  }
+  let ok = false;
+  try {
+    if (answer) ok = await answerGap(db, tenant.id, gapId, answer);
+  } catch {
+    // ingest failed
+  }
+  redirect(`/dashboard/${slug}/gaps?${ok ? "ok=1" : "error=1"}`);
 }
