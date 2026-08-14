@@ -48,7 +48,15 @@ export default async function TenantOverview({
         </span>
       </div>
       <div className="container">
-        <h1>ภาพรวม</h1>
+        <h1>
+          ภาพรวม{" "}
+          <Link
+            href={`/dashboard/${slug}/settings`}
+            style={{ fontSize: "0.9rem", fontWeight: 400 }}
+          >
+            · ตั้งค่า/เชื่อมช่องทาง
+          </Link>
+        </h1>
 
         <div className="grid">
           <div className="card kpi">

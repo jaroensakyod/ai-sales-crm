@@ -17,6 +17,11 @@ export default async function DashboardHome() {
       </div>
       <div className="container">
         <h1>ร้านค้า</h1>
+        <p>
+          <Link href="/dashboard/new" className="btn-link">
+            + เปิดร้านใหม่
+          </Link>
+        </p>
         {rows.length === 0 ? (
           <p className="muted">
             ยังไม่มีร้าน — รัน <code>npm run db:seed</code> เพื่อสร้างร้านตัวอย่าง
