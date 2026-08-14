@@ -1,15 +1,23 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextPlugin from "@next/eslint-plugin-next";
+import tseslint from "typescript-eslint";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({ baseDirectory: __dirname });
-
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-  { ignores: [".next/**", "node_modules/**", "drizzle/**"] },
+/**
+ * Flat config using the Next plugin directly (FlatCompat + eslint-config-next
+ * hit a circular-JSON bug on ESLint 9). TypeScript type-checking is handled by
+ * `tsc --noEmit`; here we catch Next-specific issues.
+ */
+export default [
+  { ignores: [".next/**", "node_modules/**", "drizzle/**", "out/**"] },
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+    plugins: { "@next/next": nextPlugin },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs["core-web-vitals"].rules,
+    },
+  },
 ];
-
-export default eslintConfig;
