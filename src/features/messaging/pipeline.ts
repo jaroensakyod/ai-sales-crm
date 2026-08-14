@@ -19,6 +19,7 @@ import {
 } from "@/features/consent/service";
 import { routeMessage } from "@/features/router/router";
 import type { RouterHandlers } from "@/features/router/types";
+import { tryCheckout } from "@/features/sales/checkout";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 
 /** Deliver a reply to the given channel-user. LINE ignores the id (uses a reply
@@ -80,6 +81,26 @@ export async function handleInboundText(
   });
 
   if (!args.send) return { status: "processed", replied: false };
+
+  // Checkout: a clear "buy this product" message creates the order + sends the
+  // payment instruction (DB prices only, payment stays unconfirmed — risk #5/#9).
+  const checkout = await tryCheckout(db, {
+    tenantId: args.tenantId,
+    customerId,
+    conversationId: conversation.id,
+    text: args.text,
+  });
+  if (checkout) {
+    await args.send(args.externalId, checkout.reply);
+    await recordOutboundMessage(db, args.tenantId, conversation.id, {
+      body: checkout.reply,
+      category: "TRANSACTIONAL",
+    });
+    await addLeadEvent(db, args.tenantId, sync.leadId, "order_created", {
+      orderId: checkout.orderId,
+    });
+    return { status: "processed", replied: true };
+  }
 
   // PDPA profiling opt-in (risk #3): if the customer hasn't decided yet and this
   // message is a yes/no, capture it and reply with an acknowledgment.
