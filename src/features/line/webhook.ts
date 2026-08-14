@@ -1,16 +1,8 @@
 import type { DbClient } from "@/db/client";
-import { resolveCustomerByIdentity } from "@/db/repositories/customers";
-import {
-  getOrOpenConversation,
-  recordInboundMessage,
-  recordOutboundMessage,
-} from "@/db/repositories/conversations";
 import { getLineChannelContext } from "@/db/repositories/line";
-import { addLeadEvent } from "@/db/repositories/leads";
 import { decryptSecret } from "@/lib/crypto";
-import { routeMessage } from "@/features/router/router";
+import { handleInboundText } from "@/features/messaging/pipeline";
 import type { RouterHandlers } from "@/features/router/types";
-import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 
 import { createLineClient, replyText } from "./client";
 import { verifyLineSignature } from "./signature";
@@ -39,12 +31,7 @@ export type LineWebhookResult =
   | { ok: false; status: 400 | 401 | 404 | 409; error: string }
   | { ok: true; status: 200; processed: number; skipped: number; replied: number };
 
-/**
- * End-to-end LINE inbound handling, independent of HTTP:
- *   verify signature → for each text message, resolve customer + thread the
- *   conversation → record inbound (opens 24h window) → route through the
- *   Message Router → reply and record the outbound message.
- */
+/** Verify signature, then run each text message through the shared pipeline. */
 export async function processLineWebhook(
   db: DbClient,
   channelId: string,
@@ -99,56 +86,27 @@ export async function processLineWebhook(
       continue;
     }
 
-    const { customerId } = await resolveCustomerByIdentity(
-      db,
+    // LINE replies via the event's single-use token, not the user id.
+    const replyToken = event.replyToken;
+    const result = await handleInboundText(db, {
       tenantId,
       channelId,
-      userId,
-    );
-    const conversation = await getOrOpenConversation(
-      db,
-      tenantId,
-      customerId,
-      channelId,
-    );
-    const message = await recordInboundMessage(db, tenantId, conversation.id, {
-      body: event.message.text,
+      externalId: userId,
+      text: event.message.text ?? "",
       channelMessageId: event.message.id,
       at: event.timestamp ? new Date(event.timestamp) : undefined,
+      routerHandlers: deps.routerHandlers,
+      send: replyToken
+        ? (_to, text) => getReply()(replyToken, text)
+        : undefined,
     });
-    if (!message) {
-      skipped++; // duplicate redelivery
+
+    if (result.status === "duplicate") {
+      skipped++;
       continue;
     }
     processed++;
-
-    // CRM sync on every inbound: lead upsert, objection classification, rescore.
-    const sync = await syncLeadOnInbound(db, {
-      tenantId,
-      customerId,
-      conversationId: conversation.id,
-      text: event.message.text ?? "",
-    });
-
-    // Route and reply. Requires a reply token (single-use, present on real
-    // message events); without one there's nothing to answer to.
-    if (!event.replyToken) continue;
-
-    const decision = await routeMessage(
-      db,
-      { tenantId, conversationId: conversation.id, text: event.message.text ?? "" },
-      deps.routerHandlers,
-    );
-    await getReply()(event.replyToken, decision.replyText);
-    await recordOutboundMessage(db, tenantId, conversation.id, {
-      body: decision.replyText,
-    });
-    if (decision.action === "handoff") {
-      await addLeadEvent(db, tenantId, sync.leadId, "handoff", {
-        reason: decision.handoffReason,
-      });
-    }
-    replied++;
+    if (result.replied) replied++;
   }
 
   return { ok: true, status: 200, processed, skipped, replied };
