@@ -1,4 +1,5 @@
 import type { DbClient } from "@/db/client";
+import { recordAudit } from "@/db/repositories/audit";
 import { confirmPayment, getPaymentAnyTenant } from "@/db/repositories/orders";
 import { safeEqual } from "@/lib/crypto";
 
@@ -54,5 +55,11 @@ export async function processPaymentWebhook(
   }
 
   const { orderPaid } = await confirmPayment(db, payment.tenantId, payment.id);
+  await recordAudit(db, payment.tenantId, {
+    action: "payment.confirmed",
+    entity: "payment",
+    entityId: payment.id,
+    data: { orderId: payment.orderId, orderPaid },
+  });
   return { ok: true, status: 200, orderPaid, alreadyConfirmed: false };
 }

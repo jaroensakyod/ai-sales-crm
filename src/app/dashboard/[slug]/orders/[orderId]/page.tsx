@@ -10,7 +10,10 @@ import { requireTenantAuth } from "@/features/auth/session";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
 import { buildPromptPayPayload } from "@/features/payment/promptpay";
 
-import { updateOrderStatusAction } from "../../../actions";
+import {
+  applyDiscountAction,
+  updateOrderStatusAction,
+} from "../../../actions";
 import { Shell } from "../../_components/shell";
 
 export const dynamic = "force-dynamic";
@@ -27,10 +30,13 @@ function statusClass(s: string) {
 
 export default async function OrderDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; orderId: string }>;
+  searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
   const { slug, orderId } = await params;
+  const { ok, error } = await searchParams;
   const session = await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
@@ -90,6 +96,28 @@ export default async function OrderDetailPage({
         {baht(Number(order.discount))} ·{" "}
         <strong>รวมสุทธิ {baht(Number(order.total))}</strong>
       </p>
+
+      {order.status !== "PAID" && order.status !== "FULFILLED" ? (
+        <form action={applyDiscountAction} className="row" style={{ marginTop: 6 }}>
+          <input type="hidden" name="slug" value={slug} />
+          <input type="hidden" name="orderId" value={order.id} />
+          <input
+            name="amount"
+            type="number"
+            step="0.01"
+            placeholder="ส่วนลด (บาท)"
+            style={{ width: 160 }}
+          />
+          <button type="submit" className="ghost sm">
+            ใส่ส่วนลด
+          </button>
+          {error === "discount" ? (
+            <span className="error">ส่วนลดเกินสิทธิ์ที่ตั้งไว้</span>
+          ) : ok === "discount" ? (
+            <span className="ok">ใส่ส่วนลดแล้ว</span>
+          ) : null}
+        </form>
+      ) : null}
 
       <h2>การชำระเงิน</h2>
       {payments.length === 0 ? (

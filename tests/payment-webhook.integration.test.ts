@@ -9,8 +9,9 @@ import {
   getOrder,
 } from "@/db/repositories/orders";
 import { createTenant, deleteTenant } from "@/db/repositories/tenants";
-import { products } from "@/db/schema";
+import { auditLogs, products } from "@/db/schema";
 import { processPaymentWebhook } from "@/features/payment/webhook";
+import { eq } from "drizzle-orm";
 
 const hasDb = !!process.env.DATABASE_URL;
 const SECRET = "pay-secret-123";
@@ -89,6 +90,13 @@ describe.skipIf(!hasDb)("payment webhook (integration)", () => {
     expect(res.ok && res.orderPaid).toBe(true);
     const result = await getOrder(db, tenantId, orderId);
     expect(result?.order.status).toBe("PAID");
+
+    // Audit trail written (risk #5).
+    const logs = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.tenantId, tenantId));
+    expect(logs.some((l) => l.action === "payment.confirmed")).toBe(true);
   });
 
   it("is idempotent on redelivery", async () => {

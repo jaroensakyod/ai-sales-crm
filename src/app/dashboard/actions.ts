@@ -5,9 +5,10 @@ import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { updateTenantAiSettings } from "@/db/repositories/ai";
+import { recordAudit } from "@/db/repositories/audit";
 import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import { moveLeadStage } from "@/db/repositories/leads";
-import { updateOrderStatus } from "@/db/repositories/orders";
+import { applyDiscount, updateOrderStatus } from "@/db/repositories/orders";
 import { upsertPaymentSettings } from "@/db/repositories/payment-settings";
 import {
   createPromotion,
@@ -171,10 +172,15 @@ export async function answerGapAction(formData: FormData) {
 export async function changePlanAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const plan = String(formData.get("plan") ?? "") as "FREE" | "STARTER" | "PRO";
-  const { db, tenant } = await tenantForSlug(slug, "manage_billing");
+  const { db, tenant, session } = await tenantForSlug(slug, "manage_billing");
   if (["FREE", "STARTER", "PRO"].includes(plan)) {
     // NOTE: no real payment yet — Omise/2C2P wires in here later.
     await setPlan(db, tenant.id, plan);
+    await recordAudit(db, tenant.id, {
+      actorUserId: session.userId,
+      action: "plan.change",
+      data: { plan },
+    });
   }
   redirect(`/dashboard/${slug}?plan=${plan}`);
 }
@@ -202,9 +208,15 @@ export async function setUserPasswordAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const userId = String(formData.get("userId") ?? "");
   const password = String(formData.get("password") ?? "");
-  const { db, tenant } = await tenantForSlug(slug, "manage_team");
+  const { db, tenant, session } = await tenantForSlug(slug, "manage_team");
   if (password.length >= 6) {
     await setUserPassword(db, tenant.id, userId, hashPassword(password));
+    await recordAudit(db, tenant.id, {
+      actorUserId: session.userId,
+      action: "user.password_set",
+      entity: "user",
+      entityId: userId,
+    });
   }
   redirect(`/dashboard/${slug}/team?ok=pw`);
 }
@@ -331,9 +343,13 @@ export async function removeCrossSellAction(formData: FormData) {
 
 export async function updatePaymentSettingsAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
-  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  const { db, tenant, session } = await tenantForSlug(slug, "manage_settings");
   const str = (k: string) => String(formData.get(k) ?? "").trim() || null;
   const hours = parseInt(String(formData.get("paymentWindowHours") ?? "12"), 10);
+  await recordAudit(db, tenant.id, {
+    actorUserId: session.userId,
+    action: "payment.settings_change",
+  });
   await upsertPaymentSettings(db, tenant.id, {
     shopName: str("shopName"),
     bankName: str("bankName"),
@@ -420,12 +436,40 @@ export async function updateOrderStatusAction(formData: FormData) {
     | "FULFILLED"
     | "CANCELLED"
     | "REFUNDED";
-  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const { db, tenant, session } = await tenantForSlug(slug, "edit_sales");
   const allowed = ["FULFILLED", "CANCELLED", "PAID", "PENDING_PAYMENT", "REFUNDED"];
   if (allowed.includes(status)) {
     await updateOrderStatus(db, tenant.id, orderId, status);
+    await recordAudit(db, tenant.id, {
+      actorUserId: session.userId,
+      action: "order.status_change",
+      entity: "order",
+      entityId: orderId,
+      data: { status },
+    });
   }
   redirect(`/dashboard/${slug}/orders/${orderId}`);
+}
+
+export async function applyDiscountAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const orderId = String(formData.get("orderId") ?? "");
+  const amount = Number(toMoney(formData.get("amount")));
+  const { db, tenant, session } = await tenantForSlug(slug, "edit_sales");
+  // Enforces the tenant's discount authority in code (risk #5).
+  const result = await applyDiscount(db, tenant.id, orderId, amount);
+  if (result.ok) {
+    await recordAudit(db, tenant.id, {
+      actorUserId: session.userId,
+      action: "order.discount",
+      entity: "order",
+      entityId: orderId,
+      data: { amount },
+    });
+  }
+  redirect(
+    `/dashboard/${slug}/orders/${orderId}?${result.ok ? "ok=discount" : "error=discount"}`,
+  );
 }
 
 export async function moveLeadStageAction(formData: FormData) {
@@ -453,8 +497,17 @@ export async function changeRoleAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "") as Role;
-  const { db, tenant } = await tenantForSlug(slug, "manage_team");
-  if (ROLES.includes(role)) await updateUserRole(db, tenant.id, userId, role);
+  const { db, tenant, session } = await tenantForSlug(slug, "manage_team");
+  if (ROLES.includes(role)) {
+    await updateUserRole(db, tenant.id, userId, role);
+    await recordAudit(db, tenant.id, {
+      actorUserId: session.userId,
+      action: "user.role_change",
+      entity: "user",
+      entityId: userId,
+      data: { role },
+    });
+  }
   redirect(`/dashboard/${slug}/team`);
 }
 

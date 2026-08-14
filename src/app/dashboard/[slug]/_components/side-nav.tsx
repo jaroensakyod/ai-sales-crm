@@ -19,6 +19,7 @@ const ITEMS: {
   { href: "/gaps", label: "คำถามที่ตอบไม่ได้", icon: "❓" },
   { href: "/analytics", label: "วิเคราะห์", icon: "📈" },
   { href: "/settings", label: "ตั้งค่า", icon: "⚙️", perm: "manage_settings" },
+  { href: "/audit", label: "บันทึกการทำงาน", icon: "📜", perm: "manage_settings" },
   { href: "/team", label: "ทีม", icon: "👥", perm: "manage_team" },
 ];
 
