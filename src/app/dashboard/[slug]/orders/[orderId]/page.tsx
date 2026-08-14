@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -7,6 +8,7 @@ import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requireTenantAuth } from "@/features/auth/session";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
+import { buildPromptPayPayload } from "@/features/payment/promptpay";
 
 import { updateOrderStatusAction } from "../../../actions";
 import { Shell } from "../../_components/shell";
@@ -38,9 +40,15 @@ export default async function OrderDetailPage({
   if (!detail) notFound();
   const { order, items, payments, customerName } = detail;
   const paySettings = await getPaymentSettings(db, tenant.id);
-  const instruction = buildPaymentInstruction(paySettings, {
-    total: Number(order.total),
-  });
+  const total = Number(order.total);
+  const instruction = buildPaymentInstruction(paySettings, { total });
+  const promptpayQr =
+    paySettings?.promptpayId && total > 0
+      ? await QRCode.toDataURL(
+          buildPromptPayPayload(paySettings.promptpayId, total),
+          { margin: 1, width: 220 },
+        )
+      : null;
 
   return (
     <Shell slug={slug} tenantName={tenant.name} role={session.role}>
@@ -112,6 +120,19 @@ export default async function OrderDetailPage({
           </table>
         </div>
       )}
+
+      {promptpayQr ? (
+        <>
+          <h2>PromptPay QR (สแกนจ่ายยอดนี้)</h2>
+          <div className="card" style={{ display: "inline-block", textAlign: "center" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={promptpayQr} alt="PromptPay QR" width={220} height={220} />
+            <div className="muted" style={{ fontSize: "0.85rem" }}>
+              ยอด {total.toLocaleString("th-TH")} บาท
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <h2>ข้อความแจ้งโอนเงิน</h2>
       {!paySettings?.bankAccountNo && !paySettings?.promptpayId ? (

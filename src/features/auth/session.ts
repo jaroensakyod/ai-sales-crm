@@ -28,13 +28,25 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySession(token);
 }
 
+/** Per-user login is gated by AUTH_ENABLED so it can be flipped on for
+ *  production without a code change. Default OFF (open dashboard). */
+export function isAuthEnabled(): boolean {
+  return process.env.AUTH_ENABLED === "1" || process.env.AUTH_ENABLED === "true";
+}
+
 /**
- * Require a valid session for this tenant.
- *
- * NOTE: login is temporarily DISABLED — everyone is treated as OWNER so the
- * dashboard is open. To re-enable, restore the cookie check below.
+ * Require a valid session for this tenant. When AUTH_ENABLED is off (default)
+ * everyone is treated as OWNER so the dashboard is open; when on, a valid
+ * per-tenant session cookie is required.
  */
 export async function requireTenantAuth(slug: string): Promise<SessionPayload> {
+  if (isAuthEnabled()) {
+    const session = await getSession();
+    if (!session || session.tenantSlug !== slug) {
+      redirect(`/dashboard/${slug}/login`);
+    }
+    return session;
+  }
   return {
     userId: "",
     tenantId: "",
@@ -42,13 +54,6 @@ export async function requireTenantAuth(slug: string): Promise<SessionPayload> {
     role: "OWNER",
     exp: Date.now() + 365 * 24 * 60 * 60 * 1000,
   };
-
-  // --- re-enable per-user login by removing the return above ---
-  // const session = await getSession();
-  // if (!session || session.tenantSlug !== slug) {
-  //   redirect(`/dashboard/${slug}/login`);
-  // }
-  // return session;
 }
 
 /** Require a permission; bounce to the tenant overview if the role lacks it. */
