@@ -23,3 +23,16 @@ export async function replyText(
     messages: [{ type: "text", text }],
   });
 }
+
+/** Proactively push to a user. Counts toward the monthly quota (risk #4) — only
+ *  used by the Follow-up Engine after the 24h-window gate passes (risk #1). */
+export async function pushText(
+  client: LineClient,
+  toUserId: string,
+  text: string,
+): Promise<void> {
+  await client.pushMessage({
+    to: toUserId,
+    messages: [{ type: "text", text }],
+  });
+}
