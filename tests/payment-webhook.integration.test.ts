@@ -47,6 +47,19 @@ describe.skipIf(!hasDb)("payment webhook (integration)", () => {
     await createDbSqlClient().end();
   });
 
+  it("fails closed when no secret is configured", async () => {
+    const saved = process.env.PAYMENT_WEBHOOK_SECRET;
+    delete process.env.PAYMENT_WEBHOOK_SECRET;
+    const res = await processPaymentWebhook(
+      db,
+      JSON.stringify({ paymentId, event: "paid" }),
+      "anything",
+    );
+    process.env.PAYMENT_WEBHOOK_SECRET = saved;
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.status).toBe(401);
+  });
+
   it("rejects a bad secret", async () => {
     const res = await processPaymentWebhook(
       db,

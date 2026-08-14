@@ -29,9 +29,16 @@ export function hasGeminiApiKey(): boolean {
 }
 
 /** Secret for signing dashboard session cookies. Falls back to the token
- *  encryption key so dev works without extra config. */
+ *  encryption key so dev works without extra config. Fails loud if neither is
+ *  set — an empty key would let anyone forge a session cookie. */
 export function getSessionSecret(): string {
-  return process.env.SESSION_SECRET ?? process.env.TOKEN_ENCRYPTION_KEY ?? "";
+  const secret = process.env.SESSION_SECRET || process.env.TOKEN_ENCRYPTION_KEY;
+  if (!secret || secret.length < 16) {
+    throw new Error(
+      "SESSION_SECRET (or TOKEN_ENCRYPTION_KEY) must be set to a strong value for session signing.",
+    );
+  }
+  return secret;
 }
 
 /**

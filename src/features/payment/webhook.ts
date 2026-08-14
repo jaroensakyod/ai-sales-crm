@@ -18,11 +18,15 @@ export async function processPaymentWebhook(
   rawBody: string,
   signature: string | null | undefined,
 ): Promise<PaymentWebhookResult> {
+  // Fail closed: with no secret configured the endpoint would flip any order to
+  // PAID, so reject rather than run open. (Replace this shared-secret check with
+  // the provider's real HMAC-over-body when wiring Omise/2C2P.)
   const secret = process.env.PAYMENT_WEBHOOK_SECRET;
-  if (secret) {
-    if (!signature || !safeEqual(signature, secret)) {
-      return { ok: false, status: 401, error: "invalid signature" };
-    }
+  if (!secret) {
+    return { ok: false, status: 401, error: "payment webhook not configured" };
+  }
+  if (!signature || !safeEqual(signature, secret)) {
+    return { ok: false, status: 401, error: "invalid signature" };
   }
 
   let payload: { paymentId?: string; event?: string };

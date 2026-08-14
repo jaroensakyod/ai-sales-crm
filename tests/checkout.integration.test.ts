@@ -103,4 +103,38 @@ describe.skipIf(!hasDb)("chat checkout (integration)", () => {
       .where(eq(orders.tenantId, tenantId));
     expect(rows).toHaveLength(1); // still just the one from the buy test
   });
+
+  it("a cancellation message does NOT create an order (C1)", async () => {
+    await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: `Ucancel-${suffix}`,
+      text: "ขอยกเลิกคำสั่งซื้อลิปสติกค่ะ",
+      channelMessageId: `co3-${suffix}`,
+      send,
+    });
+    const rows = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.tenantId, tenantId));
+    expect(rows).toHaveLength(1); // unchanged — routed to handoff, not checkout
+  });
+
+  it("a repeated buy reuses the open order (C3, no duplicate)", async () => {
+    sent.length = 0;
+    await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: `Ubuy-${suffix}`, // same customer as the first buy
+      text: "ขอสั่งลิปสติกสีแดงอีกครั้งค่ะ",
+      channelMessageId: `co4-${suffix}`,
+      send,
+    });
+    expect(sent[0]).toContain("ออเดอร์เดิม");
+    const rows = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.tenantId, tenantId));
+    expect(rows).toHaveLength(1); // still one order, reused
+  });
 });

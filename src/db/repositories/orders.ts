@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
 import { getTenantAiSettings } from "@/db/repositories/ai";
@@ -70,6 +70,28 @@ export async function createOrder(
     .values({ tenantId, ...input })
     .returning();
   return row;
+}
+
+/** Latest unpaid (DRAFT / PENDING_PAYMENT) order on a conversation, if any —
+ *  used to avoid creating duplicate orders from repeated buy messages. */
+export async function getOpenOrderForConversation(
+  db: DbClient,
+  tenantId: string,
+  conversationId: string,
+) {
+  const [row] = await db
+    .select()
+    .from(orders)
+    .where(
+      and(
+        eq(orders.tenantId, tenantId),
+        eq(orders.conversationId, conversationId),
+        inArray(orders.status, ["DRAFT", "PENDING_PAYMENT"]),
+      ),
+    )
+    .orderBy(desc(orders.createdAt))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function getOrder(db: DbClient, tenantId: string, orderId: string) {

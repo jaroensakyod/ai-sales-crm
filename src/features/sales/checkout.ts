@@ -2,11 +2,12 @@ import type { DbClient } from "@/db/client";
 import {
   addOrderItem,
   createOrder,
+  getOpenOrderForConversation,
   getOrder,
   updateOrderStatus,
 } from "@/db/repositories/orders";
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
-import { matchProduct } from "@/features/router/intent";
+import { matchHandoff, matchProduct } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
 
@@ -30,10 +31,33 @@ export async function tryCheckout(
     text: string;
   },
 ): Promise<CheckoutResult> {
+  // Cancel/refund/dispute messages ("ยกเลิกคำสั่งซื้อ") contain buy words but
+  // must go to a human, never create an order.
+  if (matchHandoff(ctx.text)) return null;
   if (!hasBuyIntent(ctx.text)) return null;
 
   const product = matchProduct(ctx.text, await loadProducts(db, ctx.tenantId));
   if (!product) return null;
+
+  // Idempotency: if this conversation already has an unpaid order, re-send its
+  // instruction instead of creating a duplicate (guards repeated buy messages
+  // and webhook redelivery).
+  const existing = await getOpenOrderForConversation(
+    db,
+    ctx.tenantId,
+    ctx.conversationId,
+  );
+  const paySettings = await getPaymentSettings(db, ctx.tenantId);
+
+  if (existing) {
+    const total = Number(existing.total);
+    return {
+      orderId: existing.id,
+      reply:
+        `ออเดอร์เดิมของคุณยอดรวม ${total.toLocaleString("th-TH")} บาทค่ะ ✅\n\n` +
+        buildPaymentInstruction(paySettings, { total }),
+    };
+  }
 
   const quantity = parseQuantity(ctx.text);
   const order = await createOrder(db, ctx.tenantId, {
@@ -48,7 +72,6 @@ export async function tryCheckout(
 
   const detail = await getOrder(db, ctx.tenantId, order.id);
   const total = Number(detail?.order.total ?? 0);
-  const paySettings = await getPaymentSettings(db, ctx.tenantId);
 
   const reply =
     `รับ ${product.name} จำนวน ${quantity} ชิ้น ` +

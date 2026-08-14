@@ -34,9 +34,11 @@ import {
 import { authenticate } from "@/features/auth/service";
 import {
   clearSessionCookie,
+  requirePermission,
+  requireTenantAuth,
   setSessionCookie,
 } from "@/features/auth/session";
-import { ROLES, type Role } from "@/features/team/roles";
+import { ROLES, type Permission, type Role } from "@/features/team/roles";
 import { hashPassword } from "@/lib/password";
 import { toMoney, toSlug, toStock } from "@/lib/validation";
 import { setPlan } from "@/db/repositories/subscriptions";
@@ -84,9 +86,7 @@ export async function createStoreAction(formData: FormData) {
 
 export async function connectLineAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
-  const db = createDbClient();
-  const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) redirect("/dashboard");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
 
   let ok = false;
   try {
@@ -105,9 +105,7 @@ export async function connectLineAction(formData: FormData) {
 
 export async function connectFacebookAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
-  const db = createDbClient();
-  const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) redirect("/dashboard");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
 
   let ok = false;
   try {
@@ -127,9 +125,7 @@ export async function addKnowledgeAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const title = String(formData.get("title") ?? "").trim();
   const text = String(formData.get("text") ?? "").trim();
-  const db = createDbClient();
-  const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) redirect("/dashboard");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
 
   if (!hasGeminiApiKey()) {
     redirect(`/dashboard/${slug}/settings?error=nokey`);
@@ -149,7 +145,7 @@ export async function addKnowledgeAction(formData: FormData) {
 export async function deleteKnowledgeAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const documentId = String(formData.get("documentId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   await deleteKnowledgeDocument(db, tenant.id, documentId);
   redirect(`/dashboard/${slug}/settings?ok=knowledge-deleted`);
 }
@@ -158,9 +154,7 @@ export async function answerGapAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const gapId = String(formData.get("gapId") ?? "");
   const answer = String(formData.get("answer") ?? "").trim();
-  const db = createDbClient();
-  const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) redirect("/dashboard");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
 
   if (!hasGeminiApiKey()) {
     redirect(`/dashboard/${slug}/gaps?error=nokey`);
@@ -177,9 +171,7 @@ export async function answerGapAction(formData: FormData) {
 export async function changePlanAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const plan = String(formData.get("plan") ?? "") as "FREE" | "STARTER" | "PRO";
-  const db = createDbClient();
-  const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) redirect("/dashboard");
+  const { db, tenant } = await tenantForSlug(slug, "manage_billing");
   if (["FREE", "STARTER", "PRO"].includes(plan)) {
     // NOTE: no real payment yet — Omise/2C2P wires in here later.
     await setPlan(db, tenant.id, plan);
@@ -210,9 +202,7 @@ export async function setUserPasswordAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const userId = String(formData.get("userId") ?? "");
   const password = String(formData.get("password") ?? "");
-  const db = createDbClient();
-  const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) redirect("/dashboard");
+  const { db, tenant } = await tenantForSlug(slug, "manage_team");
   if (password.length >= 6) {
     await setUserPassword(db, tenant.id, userId, hashPassword(password));
   }
@@ -224,16 +214,25 @@ export async function setUserPasswordAction(formData: FormData) {
 const parsePrice = (v: FormDataEntryValue | null) => toMoney(v);
 const parseStock = (v: FormDataEntryValue | null) => toStock(v);
 
-async function tenantForSlug(slug: string) {
+/**
+ * Resolve the tenant for a mutating action AND enforce auth/permission at the
+ * action layer (server actions are independently-invocable POST endpoints — the
+ * page-level guard does not protect them). When AUTH_ENABLED is off this returns
+ * an OWNER session (open); when on it requires a session whose tenant matches
+ * the slug, plus the given permission.
+ */
+async function tenantForSlug(slug: string, permission?: Permission) {
+  const session = await requireTenantAuth(slug);
+  if (permission) await requirePermission(session, permission);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) redirect("/dashboard");
-  return { db, tenant };
+  return { db, tenant, session };
 }
 
 export async function createProductAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   const name = String(formData.get("name") ?? "").trim();
   if (name) {
     await createProduct(db, tenant.id, {
@@ -250,7 +249,7 @@ export async function createProductAction(formData: FormData) {
 export async function updateProductAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const id = String(formData.get("productId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await updateProduct(db, tenant.id, id, {
     name: String(formData.get("name") ?? "").trim(),
     price: parsePrice(formData.get("price")),
@@ -264,7 +263,7 @@ export async function updateProductAction(formData: FormData) {
 export async function editProductAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const id = String(formData.get("productId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await updateProduct(db, tenant.id, id, {
     name: String(formData.get("name") ?? "").trim(),
     price: parsePrice(formData.get("price")),
@@ -279,7 +278,7 @@ export async function editProductAction(formData: FormData) {
 export async function deleteProductAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const id = String(formData.get("productId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deleteProduct(db, tenant.id, id);
   redirect(`/dashboard/${slug}/products?ok=1`);
 }
@@ -288,7 +287,7 @@ export async function addVariantAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const productId = String(formData.get("productId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   if (name) {
     const priceRaw = String(formData.get("price") ?? "").trim();
     await addVariant(db, tenant.id, productId, {
@@ -304,7 +303,7 @@ export async function deleteVariantAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const productId = String(formData.get("productId") ?? "");
   const id = String(formData.get("variantId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deleteVariant(db, tenant.id, id);
   redirect(`/dashboard/${slug}/products/${productId}`);
 }
@@ -314,7 +313,7 @@ export async function addCrossSellAction(formData: FormData) {
   const productId = String(formData.get("productId") ?? "");
   const suggestedProductId = String(formData.get("suggestedProductId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim() || null;
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   if (productId && suggestedProductId) {
     await addCrossSell(db, tenant.id, productId, suggestedProductId, reason);
   }
@@ -325,14 +324,14 @@ export async function removeCrossSellAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const productId = String(formData.get("productId") ?? "");
   const id = String(formData.get("crossSellId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await removeCrossSell(db, tenant.id, id);
   redirect(`/dashboard/${slug}/products/${productId}`);
 }
 
 export async function updatePaymentSettingsAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   const str = (k: string) => String(formData.get(k) ?? "").trim() || null;
   const hours = parseInt(String(formData.get("paymentWindowHours") ?? "12"), 10);
   await upsertPaymentSettings(db, tenant.id, {
@@ -350,7 +349,7 @@ export async function updatePaymentSettingsAction(formData: FormData) {
 
 export async function updateStoreInfoAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   const name = String(formData.get("name") ?? "").trim();
   const businessTypes = formData.getAll("businessTypes").map(String) as (
     | "CATALOG"
@@ -366,7 +365,7 @@ export async function updateStoreInfoAction(formData: FormData) {
 
 export async function createPromotionAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   const type = String(formData.get("type") ?? "PERCENT") as "PERCENT" | "FIXED";
   const value = parsePrice(formData.get("value"));
   if (Number(value) > 0) {
@@ -382,7 +381,7 @@ export async function createPromotionAction(formData: FormData) {
 export async function togglePromotionAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const id = String(formData.get("promotionId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await togglePromotion(db, tenant.id, id);
   redirect(`/dashboard/${slug}/promotions`);
 }
@@ -390,14 +389,14 @@ export async function togglePromotionAction(formData: FormData) {
 export async function deletePromotionAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const id = String(formData.get("promotionId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deletePromotion(db, tenant.id, id);
   redirect(`/dashboard/${slug}/promotions`);
 }
 
 export async function updateAiSettingsAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   const bannedPhrases = String(formData.get("bannedPhrases") ?? "")
     .split(/[\n,]/)
     .map((s) => s.trim())
@@ -421,7 +420,7 @@ export async function updateOrderStatusAction(formData: FormData) {
     | "FULFILLED"
     | "CANCELLED"
     | "REFUNDED";
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   const allowed = ["FULFILLED", "CANCELLED", "PAID", "PENDING_PAYMENT", "REFUNDED"];
   if (allowed.includes(status)) {
     await updateOrderStatus(db, tenant.id, orderId, status);
@@ -433,7 +432,7 @@ export async function moveLeadStageAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const leadId = String(formData.get("leadId") ?? "");
   const stageId = String(formData.get("stageId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug);
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   if (leadId && stageId) await moveLeadStage(db, tenant.id, leadId, stageId);
   redirect(`/dashboard/${slug}/leads`);
 }
@@ -443,9 +442,7 @@ export async function addUserAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const name = String(formData.get("name") ?? "").trim();
   const role = String(formData.get("role") ?? "VIEWER") as Role;
-  const db = createDbClient();
-  const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) redirect("/dashboard");
+  const { db, tenant } = await tenantForSlug(slug, "manage_team");
   if (email && ROLES.includes(role)) {
     await createUser(db, tenant.id, { email, name: name || undefined, role });
   }
@@ -456,9 +453,7 @@ export async function changeRoleAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "") as Role;
-  const db = createDbClient();
-  const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) redirect("/dashboard");
+  const { db, tenant } = await tenantForSlug(slug, "manage_team");
   if (ROLES.includes(role)) await updateUserRole(db, tenant.id, userId, role);
   redirect(`/dashboard/${slug}/team`);
 }
@@ -466,9 +461,7 @@ export async function changeRoleAction(formData: FormData) {
 export async function removeUserAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const userId = String(formData.get("userId") ?? "");
-  const db = createDbClient();
-  const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) redirect("/dashboard");
+  const { db, tenant } = await tenantForSlug(slug, "manage_team");
   await removeUser(db, tenant.id, userId);
   redirect(`/dashboard/${slug}/team`);
 }

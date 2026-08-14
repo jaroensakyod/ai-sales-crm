@@ -21,7 +21,7 @@ export type FbProcessDeps = {
 };
 
 export type FbWebhookResult =
-  | { ok: false; status: 401 | 404 | 409 | 500; error: string }
+  | { ok: false; status: 400 | 401 | 404 | 409 | 500; error: string }
   | { ok: true; status: 200; processed: number; skipped: number; replied: number };
 
 /**
@@ -54,7 +54,7 @@ export async function processFacebookWebhook(
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    return { ok: false, status: 401, error: "invalid json" };
+    return { ok: false, status: 400, error: "invalid json" };
   }
 
   // Send transport: injected spy in tests, else the Graph API with the page token.
@@ -76,7 +76,9 @@ export async function processFacebookWebhook(
     for (const m of entry.messaging ?? []) {
       const psid = m.sender?.id;
       const text = m.message?.text;
-      if (!psid || !text || m.message?.is_echo) {
+      // Require mid for dedup: without it, redelivered events would re-process
+      // (NULL channelMessageId never matches the unique index).
+      if (!psid || !text || !m.message?.mid || m.message?.is_echo) {
         skipped++;
         continue;
       }
