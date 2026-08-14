@@ -66,6 +66,8 @@ export const users = pgTable(
     email: text("email").notNull(),
     name: text("name"),
     role: userRoleEnum("role").notNull().default("VIEWER"),
+    // scrypt hash ("scrypt$salt$hash"); null until the user sets a password.
+    passwordHash: text("password_hash"),
     ...timestamps,
   },
   (t) => [

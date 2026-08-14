@@ -28,6 +28,12 @@ export function hasGeminiApiKey(): boolean {
   return !!process.env.GEMINI_API_KEY;
 }
 
+/** Secret for signing dashboard session cookies. Falls back to the token
+ *  encryption key so dev works without extra config. */
+export function getSessionSecret(): string {
+  return process.env.SESSION_SECRET ?? process.env.TOKEN_ENCRYPTION_KEY ?? "";
+}
+
 /**
  * 32-byte AES-256 key for encrypting channel tokens at rest (risk #7).
  * Stored as base64 in TOKEN_ENCRYPTION_KEY. Generate one with:

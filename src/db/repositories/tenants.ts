@@ -42,6 +42,30 @@ export async function listUsers(db: DbClient, tenantId: string) {
     .orderBy(asc(users.createdAt));
 }
 
+export async function getUserByEmail(
+  db: DbClient,
+  tenantId: string,
+  email: string,
+) {
+  const [row] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.tenantId, tenantId), eq(users.email, email)));
+  return row ?? null;
+}
+
+export async function setUserPassword(
+  db: DbClient,
+  tenantId: string,
+  userId: string,
+  passwordHash: string,
+) {
+  await db
+    .update(users)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(and(eq(users.tenantId, tenantId), eq(users.id, userId)));
+}
+
 export async function updateUserRole(
   db: DbClient,
   tenantId: string,
