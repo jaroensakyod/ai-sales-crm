@@ -91,6 +91,25 @@ export async function recordInboundMessage(
   });
 }
 
+export async function setConversationStatus(
+  db: DbClient,
+  tenantId: string,
+  conversationId: string,
+  status: (typeof conversations.status.enumValues)[number],
+) {
+  const [row] = await db
+    .update(conversations)
+    .set({ status, updatedAt: new Date() })
+    .where(
+      and(
+        eq(conversations.tenantId, tenantId),
+        eq(conversations.id, conversationId),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 /**
  * Is the Meta 24-hour messaging window currently open for this conversation?
  * True iff the customer messaged within the last 24h (risk #1). Promotional
