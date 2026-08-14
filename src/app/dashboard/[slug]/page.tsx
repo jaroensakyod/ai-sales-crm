@@ -81,6 +81,12 @@ export default async function TenantOverview({
             style={{ fontSize: "0.9rem", fontWeight: 400 }}
           >
             · คำถามที่ตอบไม่ได้
+          </Link>{" "}
+          <Link
+            href={`/dashboard/${slug}/analytics`}
+            style={{ fontSize: "0.9rem", fontWeight: 400 }}
+          >
+            · วิเคราะห์
           </Link>
         </h1>
 

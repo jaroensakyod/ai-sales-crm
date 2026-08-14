@@ -7,6 +7,7 @@ import {
   customers,
   leads,
   messages,
+  objections,
   orders,
 } from "@/db/schema";
 
@@ -121,6 +122,32 @@ export async function getConversationThread(
     .orderBy(asc(messages.createdAt));
 
   return { conversation, messages: thread };
+}
+
+/** Objection breakdown by type (Objection Engine analytics — Pro, docs/01). */
+export async function getObjectionBreakdown(db: DbClient, tenantId: string) {
+  return db
+    .select({
+      type: objections.type,
+      total: sql<number>`count(*)::int`,
+      open: sql<number>`(count(*) filter (where ${objections.resolved} = false))::int`,
+    })
+    .from(objections)
+    .where(eq(objections.tenantId, tenantId))
+    .groupBy(objections.type)
+    .orderBy(desc(sql`count(*)`));
+}
+
+export async function getLeadScoreStats(db: DbClient, tenantId: string) {
+  const [row] = await db
+    .select({
+      count: sql<number>`count(*)::int`,
+      avgScore: sql<number>`coalesce(round(avg(${leads.score})), 0)::int`,
+      hot: sql<number>`(count(*) filter (where ${leads.score} >= 60))::int`,
+    })
+    .from(leads)
+    .where(eq(leads.tenantId, tenantId));
+  return row ?? { count: 0, avgScore: 0, hot: 0 };
 }
 
 export async function listRecentOrders(
