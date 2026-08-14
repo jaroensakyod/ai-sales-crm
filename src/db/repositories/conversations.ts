@@ -91,6 +91,43 @@ export async function recordInboundMessage(
   });
 }
 
+/** Record an outbound reply and stamp lastOutboundAt (for analytics + threading). */
+export async function recordOutboundMessage(
+  db: DbClient,
+  tenantId: string,
+  conversationId: string,
+  input: {
+    body: string;
+    category?: (typeof messages.category.enumValues)[number];
+    at?: Date;
+  },
+) {
+  const at = input.at ?? new Date();
+  return db.transaction(async (tx) => {
+    const [message] = await tx
+      .insert(messages)
+      .values({
+        tenantId,
+        conversationId,
+        direction: "OUTBOUND",
+        category: input.category ?? "CONVERSATIONAL",
+        body: input.body,
+        sentAt: at,
+      })
+      .returning();
+    await tx
+      .update(conversations)
+      .set({ lastOutboundAt: at, updatedAt: new Date() })
+      .where(
+        and(
+          eq(conversations.tenantId, tenantId),
+          eq(conversations.id, conversationId),
+        ),
+      );
+    return message;
+  });
+}
+
 export async function setConversationStatus(
   db: DbClient,
   tenantId: string,
