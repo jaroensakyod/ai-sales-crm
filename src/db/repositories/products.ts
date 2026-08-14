@@ -72,6 +72,60 @@ export async function getVariant(db: DbClient, tenantId: string, id: string) {
   return row ?? null;
 }
 
+/** Cross-sell rows for management UI (includes the join row id for removal). */
+export async function listCrossSells(
+  db: DbClient,
+  tenantId: string,
+  productId: string,
+) {
+  return db
+    .select({
+      id: crossSells.id,
+      suggestedProductId: crossSells.suggestedProductId,
+      name: products.name,
+      reason: crossSells.reason,
+    })
+    .from(crossSells)
+    .innerJoin(products, eq(products.id, crossSells.suggestedProductId))
+    .where(
+      and(
+        eq(crossSells.tenantId, tenantId),
+        eq(crossSells.productId, productId),
+      ),
+    )
+    .orderBy(desc(crossSells.weight));
+}
+
+export async function addCrossSell(
+  db: DbClient,
+  tenantId: string,
+  productId: string,
+  suggestedProductId: string,
+  reason?: string | null,
+) {
+  if (productId === suggestedProductId) return; // no self-pairing
+  await db
+    .insert(crossSells)
+    .values({ tenantId, productId, suggestedProductId, reason, weight: 10 })
+    .onConflictDoNothing({
+      target: [
+        crossSells.tenantId,
+        crossSells.productId,
+        crossSells.suggestedProductId,
+      ],
+    });
+}
+
+export async function removeCrossSell(
+  db: DbClient,
+  tenantId: string,
+  id: string,
+) {
+  await db
+    .delete(crossSells)
+    .where(and(eq(crossSells.tenantId, tenantId), eq(crossSells.id, id)));
+}
+
 /** Curated cross-sell suggestions for a product (not AI guesses — docs/01). */
 export async function suggestCrossSells(
   db: DbClient,

@@ -75,6 +75,26 @@ describe.skipIf(!hasDb)("message router (integration)", () => {
     expect(d.replyText).toContain("390");
   });
 
+  it("L1: appends a cross-sell suggestion on a price question", async () => {
+    const { addCrossSell } = await import("@/db/repositories/products");
+    const [lip] = await db
+      .select()
+      .from(products)
+      .where(eq(products.sku, `LIP-${suffix}`));
+    const [foundation] = await db
+      .select()
+      .from(products)
+      .where(eq(products.sku, `FOUND-${suffix}`));
+    await addCrossSell(db, tenantId, lip.id, foundation.id, "แต่งหน้าครบลุค");
+
+    const d = await routeMessage(db, {
+      tenantId,
+      text: "ลิปสติกสีแดง ราคาเท่าไหร่คะ",
+    });
+    expect(d.replyText).toContain("คู่กัน");
+    expect(d.replyText).toContain("รองพื้น");
+  });
+
   it("L1: answers stock, including out-of-stock", async () => {
     const inStock = await routeMessage(db, {
       tenantId,

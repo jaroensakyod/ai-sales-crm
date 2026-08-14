@@ -7,6 +7,8 @@ import {
   matchHandoff,
   matchProduct,
 } from "./intent";
+import { suggestCrossSells } from "@/db/repositories/products";
+
 import { loadProducts, priceAnswer, stockAnswer } from "./rules";
 import type { RouterContext, RouterDecision, RouterHandlers } from "./types";
 
@@ -50,10 +52,21 @@ export async function routeMessage(
       const parts: string[] = [];
       if (priceIntent) parts.push(priceAnswer(product));
       if (stockIntent) parts.push(stockAnswer(product));
+      let replyText = parts.join(" ");
+
+      // Cross-sell on a buying signal (price intent) — the docs' hero use case:
+      // curated pairs, not AI guesses.
+      if (priceIntent) {
+        const cross = await suggestCrossSells(db, ctx.tenantId, product.id);
+        if (cross.length > 0) {
+          replyText += ` 💡 ลูกค้าส่วนใหญ่ซื้อ "${cross[0].name}" คู่กันด้วยค่ะ`;
+        }
+      }
+
       return {
         level: 1,
         action: "answer",
-        replyText: parts.join(" "),
+        replyText,
         source: priceIntent ? "rule:price" : "rule:stock",
       };
     }

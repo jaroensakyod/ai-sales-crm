@@ -2,11 +2,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
-import { getProduct, suggestCrossSells } from "@/db/repositories/products";
+import {
+  getProduct,
+  listCrossSells,
+  listProducts,
+} from "@/db/repositories/products";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requireTenantAuth } from "@/features/auth/session";
 
-import { editProductAction } from "../../../actions";
+import {
+  addCrossSellAction,
+  editProductAction,
+  removeCrossSellAction,
+} from "../../../actions";
 import { Shell } from "../../_components/shell";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +32,9 @@ export default async function EditProductPage({
 
   const product = await getProduct(db, tenant.id, productId);
   if (!product) notFound();
-  const crossSells = await suggestCrossSells(db, tenant.id, productId);
+  const crossSells = await listCrossSells(db, tenant.id, productId);
+  const allProducts = await listProducts(db, tenant.id);
+  const others = allProducts.filter((p) => p.id !== productId);
 
   return (
     <Shell slug={slug} tenantName={tenant.name} role={session.role}>
@@ -90,17 +100,54 @@ export default async function EditProductPage({
       </form>
 
       <h2>สินค้าที่ AI แนะนำคู่ (Cross-sell)</h2>
+      <p className="muted">
+        เมื่อลูกค้าถามซื้อสินค้านี้ AI จะเสนอสินค้าคู่ให้อัตโนมัติ
+      </p>
       {crossSells.length === 0 ? (
         <p className="muted">ยังไม่มีสินค้าแนะนำคู่</p>
       ) : (
-        <ul>
+        <div className="stack-sm" style={{ marginBottom: 14 }}>
           {crossSells.map((c) => (
-            <li key={c.productId}>
-              {c.name} {c.reason ? <span className="muted">— {c.reason}</span> : null}
-            </li>
+            <div key={c.id} className="row" style={{ justifyContent: "space-between" }}>
+              <span>
+                🔗 {c.name}{" "}
+                {c.reason ? <span className="muted">— {c.reason}</span> : null}
+              </span>
+              <form action={removeCrossSellAction}>
+                <input type="hidden" name="slug" value={slug} />
+                <input type="hidden" name="productId" value={productId} />
+                <input type="hidden" name="crossSellId" value={c.id} />
+                <button type="submit" className="danger sm">
+                  ลบ
+                </button>
+              </form>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
+      {others.length > 0 ? (
+        <form action={addCrossSellAction} className="card">
+          <input type="hidden" name="slug" value={slug} />
+          <input type="hidden" name="productId" value={productId} />
+          <label>
+            เพิ่มสินค้าแนะนำคู่
+            <select name="suggestedProductId" required>
+              {others.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            เหตุผล (ไม่บังคับ)
+            <input name="reason" placeholder="เช่น โทนสีเข้ากัน แต่งหน้าครบลุค" />
+          </label>
+          <button type="submit" style={{ marginTop: 10 }}>
+            เพิ่มคู่แนะนำ
+          </button>
+        </form>
+      ) : null}
     </Shell>
   );
 }

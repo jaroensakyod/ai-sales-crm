@@ -7,8 +7,10 @@ import { createDbClient } from "@/db/client";
 import { updateTenantAiSettings } from "@/db/repositories/ai";
 import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import {
+  addCrossSell,
   createProduct,
   deleteProduct,
+  removeCrossSell,
   updateProduct,
 } from "@/db/repositories/products";
 import {
@@ -283,6 +285,27 @@ export async function deleteProductAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug);
   await deleteProduct(db, tenant.id, id);
   redirect(`/dashboard/${slug}/products?ok=1`);
+}
+
+export async function addCrossSellAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const productId = String(formData.get("productId") ?? "");
+  const suggestedProductId = String(formData.get("suggestedProductId") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim() || null;
+  const { db, tenant } = await tenantForSlug(slug);
+  if (productId && suggestedProductId) {
+    await addCrossSell(db, tenant.id, productId, suggestedProductId, reason);
+  }
+  redirect(`/dashboard/${slug}/products/${productId}`);
+}
+
+export async function removeCrossSellAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const productId = String(formData.get("productId") ?? "");
+  const id = String(formData.get("crossSellId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  await removeCrossSell(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/products/${productId}`);
 }
 
 export async function updateAiSettingsAction(formData: FormData) {
