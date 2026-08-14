@@ -5,6 +5,7 @@ import {
   recordUsageEvent,
 } from "@/db/repositories/ai";
 import { getMonthlyAiSpend } from "@/db/repositories/billing";
+import { getActivePromotions } from "@/db/repositories/promotions";
 import { resolveBudgetTier } from "@/features/billing/budget";
 import { loadProducts } from "@/features/router/rules";
 import type { LevelHandler } from "@/features/router/types";
@@ -18,6 +19,7 @@ import {
 
 type AiSettings = Awaited<ReturnType<typeof getTenantAiSettings>> | null;
 type Catalog = Awaited<ReturnType<typeof loadProducts>>;
+type Promotions = Awaited<ReturnType<typeof getActivePromotions>>;
 
 /**
  * System prompt with hard guardrails baked in. These are instructions to the
@@ -28,6 +30,7 @@ type Catalog = Awaited<ReturnType<typeof loadProducts>>;
 export function buildSalesSystemPrompt(args: {
   settings: AiSettings;
   catalog: Catalog;
+  promotions?: Promotions;
 }): string {
   const discount = args.settings?.discountAuthority ?? "0";
   const catalogLines = args.catalog
@@ -48,9 +51,20 @@ export function buildSalesSystemPrompt(args: {
     "ถ้าไม่แน่ใจหรือเป็นเรื่องคืนเงิน/ร้องเรียน ให้บอกลูกค้าว่าจะส่งต่อให้ทีมงานดูแล",
   ];
 
+  const promoLines = (args.promotions ?? [])
+    .map((p) => {
+      const val =
+        p.type === "PERCENT"
+          ? `ลด ${Number(p.value)}%`
+          : `ลด ${Number(p.value).toLocaleString("th-TH")} บาท`;
+      return `- ${p.code ? `โค้ด ${p.code}: ` : ""}${val}`;
+    })
+    .join("\n");
+
   return [
     rules.join("\n"),
     args.catalog.length ? `\nสินค้าในร้าน:\n${catalogLines}` : "",
+    promoLines ? `\nโปรโมชั่นที่ใช้ได้ตอนนี้ (เสนอลูกค้าได้):\n${promoLines}` : "",
     args.settings?.systemPromptExtra
       ? `\nข้อมูลเพิ่มเติมจากร้าน:\n${args.settings.systemPromptExtra}`
       : "",
@@ -74,7 +88,12 @@ export function createAiReasonHandler(
   return async (ctx) => {
     const settings = await getTenantAiSettings(db, ctx.tenantId);
     const catalog = await loadProducts(db, ctx.tenantId);
-    const systemInstruction = buildSalesSystemPrompt({ settings, catalog });
+    const promotions = await getActivePromotions(db, ctx.tenantId);
+    const systemInstruction = buildSalesSystemPrompt({
+      settings,
+      catalog,
+      promotions,
+    });
 
     // Graceful soft-cap (Phase 2): degrade cost instead of blocking the customer.
     const softCapUsd = settings?.softCapUsd ? Number(settings.softCapUsd) : null;

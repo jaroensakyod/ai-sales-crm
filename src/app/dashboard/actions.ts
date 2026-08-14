@@ -9,6 +9,11 @@ import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import { moveLeadStage } from "@/db/repositories/leads";
 import { updateOrderStatus } from "@/db/repositories/orders";
 import {
+  createPromotion,
+  deletePromotion,
+  togglePromotion,
+} from "@/db/repositories/promotions";
+import {
   addCrossSell,
   createProduct,
   deleteProduct,
@@ -20,6 +25,7 @@ import {
   getTenantBySlug,
   removeUser,
   setUserPassword,
+  updateTenant,
   updateUserRole,
 } from "@/db/repositories/tenants";
 import { authenticate } from "@/features/auth/service";
@@ -308,6 +314,53 @@ export async function removeCrossSellAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug);
   await removeCrossSell(db, tenant.id, id);
   redirect(`/dashboard/${slug}/products/${productId}`);
+}
+
+export async function updateStoreInfoAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  const name = String(formData.get("name") ?? "").trim();
+  const businessTypes = formData.getAll("businessTypes").map(String) as (
+    | "CATALOG"
+    | "BOOKING"
+    | "COURSE"
+  )[];
+  await updateTenant(db, tenant.id, {
+    name: name || tenant.name,
+    businessTypes,
+  });
+  redirect(`/dashboard/${slug}/settings?ok=store`);
+}
+
+export async function createPromotionAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  const type = String(formData.get("type") ?? "PERCENT") as "PERCENT" | "FIXED";
+  const value = parsePrice(formData.get("value"));
+  if (Number(value) > 0) {
+    await createPromotion(db, tenant.id, {
+      code: String(formData.get("code") ?? "").trim().toUpperCase() || null,
+      type,
+      value,
+    });
+  }
+  redirect(`/dashboard/${slug}/promotions`);
+}
+
+export async function togglePromotionAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("promotionId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  await togglePromotion(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/promotions`);
+}
+
+export async function deletePromotionAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("promotionId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  await deletePromotion(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/promotions`);
 }
 
 export async function updateAiSettingsAction(formData: FormData) {

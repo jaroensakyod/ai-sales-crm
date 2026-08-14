@@ -16,6 +16,20 @@ export async function getTenantBySlug(db: DbClient, slug: string) {
   return row ?? null;
 }
 
+export async function updateTenant(
+  db: DbClient,
+  tenantId: string,
+  input: {
+    name?: string;
+    businessTypes?: (typeof tenants.businessTypes.enumValues)[number][];
+  },
+) {
+  await db
+    .update(tenants)
+    .set({ ...input, updatedAt: new Date() })
+    .where(eq(tenants.id, tenantId));
+}
+
 /** Cascade-deletes every tenant-scoped row (used in tests + tenant offboarding). */
 export async function deleteTenant(db: DbClient, tenantId: string) {
   await db.delete(tenants).where(eq(tenants.id, tenantId));

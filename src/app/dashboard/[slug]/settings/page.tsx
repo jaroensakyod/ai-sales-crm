@@ -16,6 +16,7 @@ import {
   connectLineAction,
   deleteKnowledgeAction,
   updateAiSettingsAction,
+  updateStoreInfoAction,
 } from "../../actions";
 import { Shell } from "../_components/shell";
 
@@ -57,6 +58,36 @@ export default async function SettingsPage({
         ) : error ? (
           <p className="error">เกิดข้อผิดพลาด ({error}) — ตรวจข้อมูลแล้วลองใหม่</p>
         ) : null}
+
+        <h2>ข้อมูลร้าน</h2>
+        <form action={updateStoreInfoAction} className="card">
+          <input type="hidden" name="slug" value={slug} />
+          <label>
+            ชื่อร้าน
+            <input name="name" defaultValue={tenant.name} required />
+          </label>
+          <fieldset style={{ border: "none", padding: 0, margin: "10px 0" }}>
+            <legend className="muted">ประเภทธุรกิจ</legend>
+            {(
+              [
+                ["CATALOG", "ขายสินค้า"],
+                ["BOOKING", "นัดหมาย/บริการ"],
+                ["COURSE", "คอร์ส/สมาชิก"],
+              ] as const
+            ).map(([val, label]) => (
+              <label key={val} className="inline">
+                <input
+                  type="checkbox"
+                  name="businessTypes"
+                  value={val}
+                  defaultChecked={tenant.businessTypes.includes(val)}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+          <button type="submit">บันทึกข้อมูลร้าน</button>
+        </form>
 
         <h2>ช่องทางที่เชื่อมแล้ว</h2>
         {chans.length === 0 ? (
