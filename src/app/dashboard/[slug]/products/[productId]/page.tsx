@@ -6,12 +6,15 @@ import {
   getProduct,
   listCrossSells,
   listProducts,
+  listVariants,
 } from "@/db/repositories/products";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requireTenantAuth } from "@/features/auth/session";
 
 import {
   addCrossSellAction,
+  addVariantAction,
+  deleteVariantAction,
   editProductAction,
   removeCrossSellAction,
 } from "../../../actions";
@@ -35,6 +38,7 @@ export default async function EditProductPage({
   const crossSells = await listCrossSells(db, tenant.id, productId);
   const allProducts = await listProducts(db, tenant.id);
   const others = allProducts.filter((p) => p.id !== productId);
+  const variants = await listVariants(db, tenant.id, productId);
 
   return (
     <Shell slug={slug} tenantName={tenant.name} role={session.role}>
@@ -96,6 +100,56 @@ export default async function EditProductPage({
         </label>
         <button type="submit" style={{ marginTop: 12 }}>
           บันทึก
+        </button>
+      </form>
+
+      <h2>ตัวเลือกสินค้า (สี / ไซซ์ / รุ่น)</h2>
+      {variants.length === 0 ? (
+        <p className="muted">ยังไม่มีตัวเลือก — ใช้ราคา/สต็อกหลักของสินค้า</p>
+      ) : (
+        <div className="stack-sm" style={{ marginBottom: 14 }}>
+          {variants.map((v) => (
+            <div key={v.id} className="row" style={{ justifyContent: "space-between" }}>
+              <span>
+                🎨 {v.name}
+                {v.price != null ? (
+                  <span className="muted"> — {Number(v.price).toLocaleString("th-TH")} บาท</span>
+                ) : null}
+                {v.stock != null ? (
+                  <span className="muted"> · คงเหลือ {v.stock}</span>
+                ) : null}
+              </span>
+              <form action={deleteVariantAction}>
+                <input type="hidden" name="slug" value={slug} />
+                <input type="hidden" name="productId" value={productId} />
+                <input type="hidden" name="variantId" value={v.id} />
+                <button type="submit" className="danger sm">
+                  ลบ
+                </button>
+              </form>
+            </div>
+          ))}
+        </div>
+      )}
+      <form action={addVariantAction} className="card">
+        <input type="hidden" name="slug" value={slug} />
+        <input type="hidden" name="productId" value={productId} />
+        <div className="row">
+          <label style={{ flex: 2 }}>
+            ชื่อตัวเลือก
+            <input name="name" required placeholder="เช่น สีแดง / ไซซ์ L" />
+          </label>
+          <label style={{ flex: 1 }}>
+            ราคา (เว้นว่าง = ใช้ราคาหลัก)
+            <input name="price" type="number" step="0.01" />
+          </label>
+          <label style={{ flex: 1 }}>
+            สต็อก
+            <input name="stock" type="number" />
+          </label>
+        </div>
+        <button type="submit" style={{ marginTop: 10 }}>
+          เพิ่มตัวเลือก
         </button>
       </form>
 

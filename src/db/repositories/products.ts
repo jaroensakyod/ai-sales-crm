@@ -62,6 +62,41 @@ export async function getProduct(db: DbClient, tenantId: string, id: string) {
   return row ?? null;
 }
 
+export async function listVariants(
+  db: DbClient,
+  tenantId: string,
+  productId: string,
+) {
+  return db
+    .select()
+    .from(productVariants)
+    .where(
+      and(
+        eq(productVariants.tenantId, tenantId),
+        eq(productVariants.productId, productId),
+      ),
+    );
+}
+
+export async function addVariant(
+  db: DbClient,
+  tenantId: string,
+  productId: string,
+  input: { name: string; price?: string | null; stock?: number | null },
+) {
+  await db
+    .insert(productVariants)
+    .values({ tenantId, productId, ...input });
+}
+
+export async function deleteVariant(db: DbClient, tenantId: string, id: string) {
+  await db
+    .delete(productVariants)
+    .where(
+      and(eq(productVariants.tenantId, tenantId), eq(productVariants.id, id)),
+    );
+}
+
 export async function getVariant(db: DbClient, tenantId: string, id: string) {
   const [row] = await db
     .select()

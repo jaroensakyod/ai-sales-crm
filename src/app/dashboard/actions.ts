@@ -15,8 +15,10 @@ import {
 } from "@/db/repositories/promotions";
 import {
   addCrossSell,
+  addVariant,
   createProduct,
   deleteProduct,
+  deleteVariant,
   removeCrossSell,
   updateProduct,
 } from "@/db/repositories/products";
@@ -293,6 +295,31 @@ export async function deleteProductAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug);
   await deleteProduct(db, tenant.id, id);
   redirect(`/dashboard/${slug}/products?ok=1`);
+}
+
+export async function addVariantAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const productId = String(formData.get("productId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const { db, tenant } = await tenantForSlug(slug);
+  if (name) {
+    const priceRaw = String(formData.get("price") ?? "").trim();
+    await addVariant(db, tenant.id, productId, {
+      name,
+      price: priceRaw ? parsePrice(formData.get("price")) : null,
+      stock: parseStock(formData.get("stock")),
+    });
+  }
+  redirect(`/dashboard/${slug}/products/${productId}`);
+}
+
+export async function deleteVariantAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const productId = String(formData.get("productId") ?? "");
+  const id = String(formData.get("variantId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  await deleteVariant(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/products/${productId}`);
 }
 
 export async function addCrossSellAction(formData: FormData) {
