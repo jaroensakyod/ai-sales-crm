@@ -1,3 +1,5 @@
+import { after } from "next/server";
+
 import { createDbClient } from "@/db/client";
 import { createKnowledgeSearchHandler } from "@/features/ai/rag";
 import { createAiReasonHandler } from "@/features/ai/sales-agent";
@@ -31,17 +33,15 @@ export async function POST(
         aiReason: createAiReasonHandler(db),
       }
     : {};
-  const result = await processFacebookWebhook(db, channelId, rawBody, signature, {
-    routerHandlers,
+  // Ack immediately (Meta expects a fast 200), then process in the background.
+  after(async () => {
+    try {
+      await processFacebookWebhook(db, channelId, rawBody, signature, {
+        routerHandlers,
+      });
+    } catch (err) {
+      console.error("Facebook webhook processing failed:", err);
+    }
   });
-
-  if (!result.ok) {
-    return Response.json({ error: result.error }, { status: result.status });
-  }
-  return Response.json({
-    ok: true,
-    processed: result.processed,
-    skipped: result.skipped,
-    replied: result.replied,
-  });
+  return Response.json({ ok: true });
 }

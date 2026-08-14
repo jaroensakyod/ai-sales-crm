@@ -1,3 +1,5 @@
+import { after } from "next/server";
+
 import { createDbClient } from "@/db/client";
 import { createKnowledgeSearchHandler } from "@/features/ai/rag";
 import { createAiReasonHandler } from "@/features/ai/sales-agent";
@@ -24,16 +26,16 @@ export async function POST(
         aiReason: createAiReasonHandler(db),
       }
     : {};
-  const result = await processLineWebhook(db, channelId, rawBody, signature, {
-    routerHandlers,
+  // Ack immediately, then process (route -> Gemini -> reply) in the background
+  // so a slow AI call never makes LINE time out and redeliver the event.
+  after(async () => {
+    try {
+      await processLineWebhook(db, channelId, rawBody, signature, {
+        routerHandlers,
+      });
+    } catch (err) {
+      console.error("LINE webhook processing failed:", err);
+    }
   });
-
-  if (!result.ok) {
-    return Response.json({ error: result.error }, { status: result.status });
-  }
-  return Response.json({
-    ok: true,
-    processed: result.processed,
-    skipped: result.skipped,
-  });
+  return Response.json({ ok: true });
 }
