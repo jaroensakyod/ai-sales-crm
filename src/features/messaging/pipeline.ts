@@ -4,8 +4,18 @@ import {
   recordInboundMessage,
   recordOutboundMessage,
 } from "@/db/repositories/conversations";
-import { resolveCustomerByIdentity } from "@/db/repositories/customers";
+import {
+  getCustomer,
+  resolveCustomerByIdentity,
+} from "@/db/repositories/customers";
 import { addLeadEvent } from "@/db/repositories/leads";
+import {
+  applyConsentReply,
+  CONSENT_PROMPT,
+  detectConsentReply,
+  getConsentState,
+  markConsentPrompted,
+} from "@/features/consent/service";
 import { routeMessage } from "@/features/router/router";
 import type { RouterHandlers } from "@/features/router/types";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
@@ -70,14 +80,46 @@ export async function handleInboundText(
 
   if (!args.send) return { status: "processed", replied: false };
 
+  // PDPA profiling opt-in (risk #3): if the customer hasn't decided yet and this
+  // message is a yes/no, capture it and reply with an acknowledgment.
+  const customer = await getCustomer(db, args.tenantId, customerId);
+  const consent = await getConsentState(
+    db,
+    args.tenantId,
+    customerId,
+    customer?.profilingConsent ?? false,
+  );
+  const consentReply = detectConsentReply(args.text);
+  if (!consent.decided && consentReply) {
+    const ack = await applyConsentReply(
+      db,
+      args.tenantId,
+      customerId,
+      consentReply,
+    );
+    await args.send(args.externalId, ack);
+    await recordOutboundMessage(db, args.tenantId, conversation.id, {
+      body: ack,
+    });
+    return { status: "processed", replied: true };
+  }
+
   const decision = await routeMessage(
     db,
     { tenantId: args.tenantId, conversationId: conversation.id, text: args.text },
     args.routerHandlers,
   );
-  await args.send(args.externalId, decision.replyText);
+
+  // Append the one-time consent prompt to the first bot reply.
+  let replyText = decision.replyText;
+  if (!consent.decided && !consent.prompted) {
+    replyText = `${replyText}\n\n${CONSENT_PROMPT}`;
+    await markConsentPrompted(db, args.tenantId, customerId);
+  }
+
+  await args.send(args.externalId, replyText);
   await recordOutboundMessage(db, args.tenantId, conversation.id, {
-    body: decision.replyText,
+    body: replyText,
   });
   if (decision.action === "handoff") {
     await addLeadEvent(db, args.tenantId, sync.leadId, "handoff", {
