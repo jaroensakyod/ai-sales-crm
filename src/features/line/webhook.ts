@@ -6,9 +6,11 @@ import {
   recordOutboundMessage,
 } from "@/db/repositories/conversations";
 import { getLineChannelContext } from "@/db/repositories/line";
+import { addLeadEvent } from "@/db/repositories/leads";
 import { decryptSecret } from "@/lib/crypto";
 import { routeMessage } from "@/features/router/router";
 import type { RouterHandlers } from "@/features/router/types";
+import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 
 import { createLineClient, replyText } from "./client";
 import { verifyLineSignature } from "./signature";
@@ -120,6 +122,14 @@ export async function processLineWebhook(
     }
     processed++;
 
+    // CRM sync on every inbound: lead upsert, objection classification, rescore.
+    const sync = await syncLeadOnInbound(db, {
+      tenantId,
+      customerId,
+      conversationId: conversation.id,
+      text: event.message.text ?? "",
+    });
+
     // Route and reply. Requires a reply token (single-use, present on real
     // message events); without one there's nothing to answer to.
     if (!event.replyToken) continue;
@@ -133,6 +143,11 @@ export async function processLineWebhook(
     await recordOutboundMessage(db, tenantId, conversation.id, {
       body: decision.replyText,
     });
+    if (decision.action === "handoff") {
+      await addLeadEvent(db, tenantId, sync.leadId, "handoff", {
+        reason: decision.handoffReason,
+      });
+    }
     replied++;
   }
 
