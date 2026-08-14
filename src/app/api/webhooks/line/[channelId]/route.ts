@@ -1,4 +1,5 @@
 import { createDbClient } from "@/db/client";
+import { createKnowledgeSearchHandler } from "@/features/ai/rag";
 import { createAiReasonHandler } from "@/features/ai/sales-agent";
 import { processLineWebhook } from "@/features/line/webhook";
 import { hasGeminiApiKey } from "@/lib/env";
@@ -15,10 +16,13 @@ export async function POST(
   const signature = req.headers.get("x-line-signature");
 
   const db = createDbClient();
-  // Level 3 (Gemini) is enabled only when a key is configured; otherwise the
-  // router runs L1 rules and falls back to handoff (risk #6).
+  // Levels 2 (RAG) and 3 (Gemini) are enabled only when a key is configured;
+  // otherwise the router runs L1 rules and falls back to handoff (risk #6).
   const routerHandlers = hasGeminiApiKey()
-    ? { aiReason: createAiReasonHandler(db) }
+    ? {
+        knowledgeSearch: createKnowledgeSearchHandler(db),
+        aiReason: createAiReasonHandler(db),
+      }
     : {};
   const result = await processLineWebhook(db, channelId, rawBody, signature, {
     routerHandlers,
