@@ -7,6 +7,7 @@ import { createDbClient } from "@/db/client";
 import { updateTenantAiSettings } from "@/db/repositories/ai";
 import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import { moveLeadStage } from "@/db/repositories/leads";
+import { updateOrderStatus } from "@/db/repositories/orders";
 import {
   addCrossSell,
   createProduct,
@@ -323,6 +324,24 @@ export async function updateAiSettingsAction(formData: FormData) {
       String(formData.get("systemPromptExtra") ?? "").trim() || null,
   });
   redirect(`/dashboard/${slug}/settings?ok=ai`);
+}
+
+export async function updateOrderStatusAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const orderId = String(formData.get("orderId") ?? "");
+  const status = String(formData.get("status") ?? "") as
+    | "DRAFT"
+    | "PENDING_PAYMENT"
+    | "PAID"
+    | "FULFILLED"
+    | "CANCELLED"
+    | "REFUNDED";
+  const { db, tenant } = await tenantForSlug(slug);
+  const allowed = ["FULFILLED", "CANCELLED", "PAID", "PENDING_PAYMENT", "REFUNDED"];
+  if (allowed.includes(status)) {
+    await updateOrderStatus(db, tenant.id, orderId, status);
+  }
+  redirect(`/dashboard/${slug}/orders/${orderId}`);
 }
 
 export async function moveLeadStageAction(formData: FormData) {

@@ -1,9 +1,60 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
 import { getTenantAiSettings } from "@/db/repositories/ai";
 import { getProduct, getVariant } from "@/db/repositories/products";
-import { orderItems, orders, payments } from "@/db/schema";
+import { customers, orderItems, orders, payments } from "@/db/schema";
+
+export async function listOrders(db: DbClient, tenantId: string) {
+  return db
+    .select({
+      id: orders.id,
+      status: orders.status,
+      total: orders.total,
+      currency: orders.currency,
+      createdAt: orders.createdAt,
+      customerName: customers.displayName,
+    })
+    .from(orders)
+    .innerJoin(customers, eq(customers.id, orders.customerId))
+    .where(eq(orders.tenantId, tenantId))
+    .orderBy(desc(orders.createdAt));
+}
+
+export async function getOrderDetail(
+  db: DbClient,
+  tenantId: string,
+  orderId: string,
+) {
+  const base = await getOrder(db, tenantId, orderId);
+  if (!base) return null;
+  const [customer] = await db
+    .select({ name: customers.displayName })
+    .from(customers)
+    .where(
+      and(
+        eq(customers.tenantId, tenantId),
+        eq(customers.id, base.order.customerId),
+      ),
+    );
+  const pays = await db
+    .select()
+    .from(payments)
+    .where(and(eq(payments.tenantId, tenantId), eq(payments.orderId, orderId)));
+  return { ...base, customerName: customer?.name ?? null, payments: pays };
+}
+
+export async function updateOrderStatus(
+  db: DbClient,
+  tenantId: string,
+  orderId: string,
+  status: (typeof orders.status.enumValues)[number],
+) {
+  await db
+    .update(orders)
+    .set({ status, updatedAt: new Date() })
+    .where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId)));
+}
 
 function money(n: number): string {
   return (Math.round(n * 100) / 100).toFixed(2);

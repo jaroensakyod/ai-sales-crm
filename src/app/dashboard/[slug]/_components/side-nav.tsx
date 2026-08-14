@@ -14,6 +14,7 @@ const ITEMS: {
   { href: "", label: "ภาพรวม", icon: "📊" },
   { href: "/products", label: "สินค้า", icon: "🛒", perm: "edit_sales" },
   { href: "/leads", label: "Pipeline", icon: "🎯" },
+  { href: "/orders", label: "ออเดอร์", icon: "🧾", perm: "edit_sales" },
   { href: "/gaps", label: "คำถามที่ตอบไม่ได้", icon: "❓" },
   { href: "/analytics", label: "วิเคราะห์", icon: "📈" },
   { href: "/settings", label: "ตั้งค่า", icon: "⚙️", perm: "manage_settings" },
