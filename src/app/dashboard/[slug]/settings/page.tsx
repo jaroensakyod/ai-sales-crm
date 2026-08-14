@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { createDbClient } from "@/db/client";
 import { getTenantAiSettings } from "@/db/repositories/ai";
 import { listKnowledgeDocuments } from "@/db/repositories/knowledge";
+import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { channels } from "@/db/schema";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
@@ -16,6 +17,7 @@ import {
   connectLineAction,
   deleteKnowledgeAction,
   updateAiSettingsAction,
+  updatePaymentSettingsAction,
   updateStoreInfoAction,
 } from "../../actions";
 import { Shell } from "../_components/shell";
@@ -43,6 +45,7 @@ export default async function SettingsPage({
     .where(eq(channels.tenantId, tenant.id));
   const aiSettings = await getTenantAiSettings(db, tenant.id);
   const knowledgeDocs = await listKnowledgeDocuments(db, tenant.id);
+  const pay = await getPaymentSettings(db, tenant.id);
 
   const h = await headers();
   const proto = h.get("x-forwarded-proto") ?? "http";
@@ -121,6 +124,53 @@ export default async function SettingsPage({
           </table>
           </div>
         )}
+
+        <h2>บัญชีรับเงิน / การชำระเงิน</h2>
+        <p className="muted">
+          ใช้สร้างข้อความ “แจ้งโอน” ให้ลูกค้าอัตโนมัติ (ในหน้าออเดอร์ + AI บอกได้)
+        </p>
+        <form action={updatePaymentSettingsAction} className="card">
+          <input type="hidden" name="slug" value={slug} />
+          <label>
+            ชื่อร้าน (แสดงในข้อความแจ้งโอน)
+            <input name="shopName" defaultValue={pay?.shopName ?? ""} placeholder="เช่น ร้านยาหอม" />
+          </label>
+          <div className="row" style={{ marginTop: 4 }}>
+            <label style={{ flex: 1 }}>
+              ธนาคาร
+              <input name="bankName" defaultValue={pay?.bankName ?? ""} placeholder="กสิกร" />
+            </label>
+            <label style={{ flex: 1 }}>
+              เลขบัญชี
+              <input name="bankAccountNo" defaultValue={pay?.bankAccountNo ?? ""} placeholder="054-1-99123-9" />
+            </label>
+          </div>
+          <label>
+            ชื่อบัญชี
+            <input name="bankAccountName" defaultValue={pay?.bankAccountName ?? ""} placeholder="ธฤษวรรณ ญาณะเครื่อง" />
+          </label>
+          <div className="row" style={{ marginTop: 4 }}>
+            <label style={{ flex: 1 }}>
+              พร้อมเพย์ (ถ้ามี)
+              <input name="promptpayId" defaultValue={pay?.promptpayId ?? ""} placeholder="เบอร์/เลขบัตร" />
+            </label>
+            <label style={{ flex: 1 }}>
+              โอนภายใน (ชั่วโมง)
+              <input name="paymentWindowHours" type="number" defaultValue={pay?.paymentWindowHours ?? 12} />
+            </label>
+          </div>
+          <label>
+            ขนส่ง
+            <input name="shippingNote" defaultValue={pay?.shippingNote ?? ""} placeholder="Flash Express / ไปรษณีย์ EMS" />
+          </label>
+          <label>
+            ข้อความเพิ่มเติม (ต่อท้าย)
+            <textarea name="instructionExtra" rows={2} defaultValue={pay?.instructionExtra ?? ""} placeholder="ขอบคุณค่ะ 🙏" />
+          </label>
+          <button type="submit" style={{ marginTop: 12 }}>
+            บันทึกบัญชีรับเงิน
+          </button>
+        </form>
 
         <h2>ตั้งค่าผู้ช่วยขาย AI</h2>
         <form action={updateAiSettingsAction} className="card">

@@ -8,6 +8,7 @@ import { updateTenantAiSettings } from "@/db/repositories/ai";
 import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import { moveLeadStage } from "@/db/repositories/leads";
 import { updateOrderStatus } from "@/db/repositories/orders";
+import { upsertPaymentSettings } from "@/db/repositories/payment-settings";
 import {
   createPromotion,
   deletePromotion,
@@ -341,6 +342,24 @@ export async function removeCrossSellAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug);
   await removeCrossSell(db, tenant.id, id);
   redirect(`/dashboard/${slug}/products/${productId}`);
+}
+
+export async function updatePaymentSettingsAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  const str = (k: string) => String(formData.get(k) ?? "").trim() || null;
+  const hours = parseInt(String(formData.get("paymentWindowHours") ?? "12"), 10);
+  await upsertPaymentSettings(db, tenant.id, {
+    shopName: str("shopName"),
+    bankName: str("bankName"),
+    bankAccountNo: str("bankAccountNo"),
+    bankAccountName: str("bankAccountName"),
+    promptpayId: str("promptpayId"),
+    shippingNote: str("shippingNote"),
+    paymentWindowHours: Number.isFinite(hours) ? hours : 12,
+    instructionExtra: str("instructionExtra"),
+  });
+  redirect(`/dashboard/${slug}/settings?ok=payment`);
 }
 
 export async function updateStoreInfoAction(formData: FormData) {

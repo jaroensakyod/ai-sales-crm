@@ -6,8 +6,10 @@ import {
 } from "@/db/repositories/ai";
 import { getMonthlyAiSpend } from "@/db/repositories/billing";
 import { getActivePromotions } from "@/db/repositories/promotions";
+import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { resolveBudgetTier } from "@/features/billing/budget";
 import { loadProducts } from "@/features/router/rules";
+import { paymentSummaryForAi } from "@/features/payment/instruction";
 import type { LevelHandler } from "@/features/router/types";
 
 import {
@@ -31,6 +33,7 @@ export function buildSalesSystemPrompt(args: {
   settings: AiSettings;
   catalog: Catalog;
   promotions?: Promotions;
+  paymentInfo?: string | null;
 }): string {
   const discount = args.settings?.discountAuthority ?? "0";
   const catalogLines = args.catalog
@@ -65,6 +68,9 @@ export function buildSalesSystemPrompt(args: {
     rules.join("\n"),
     args.catalog.length ? `\nสินค้าในร้าน:\n${catalogLines}` : "",
     promoLines ? `\nโปรโมชั่นที่ใช้ได้ตอนนี้ (เสนอลูกค้าได้):\n${promoLines}` : "",
+    args.paymentInfo
+      ? `\nช่องทางชำระเงินของร้าน (บอกลูกค้าได้เมื่อถูกถาม ห้ามแก้เลขบัญชี):\n${args.paymentInfo}`
+      : "",
     args.settings?.systemPromptExtra
       ? `\nข้อมูลเพิ่มเติมจากร้าน:\n${args.settings.systemPromptExtra}`
       : "",
@@ -89,10 +95,14 @@ export function createAiReasonHandler(
     const settings = await getTenantAiSettings(db, ctx.tenantId);
     const catalog = await loadProducts(db, ctx.tenantId);
     const promotions = await getActivePromotions(db, ctx.tenantId);
+    const paymentInfo = paymentSummaryForAi(
+      await getPaymentSettings(db, ctx.tenantId),
+    );
     const systemInstruction = buildSalesSystemPrompt({
       settings,
       catalog,
       promotions,
+      paymentInfo,
     });
 
     // Graceful soft-cap (Phase 2): degrade cost instead of blocking the customer.

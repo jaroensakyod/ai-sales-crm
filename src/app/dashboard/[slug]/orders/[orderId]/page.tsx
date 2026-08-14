@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { getOrderDetail } from "@/db/repositories/orders";
+import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requireTenantAuth } from "@/features/auth/session";
+import { buildPaymentInstruction } from "@/features/payment/instruction";
 
 import { updateOrderStatusAction } from "../../../actions";
 import { Shell } from "../../_components/shell";
@@ -35,6 +37,10 @@ export default async function OrderDetailPage({
   const detail = await getOrderDetail(db, tenant.id, orderId);
   if (!detail) notFound();
   const { order, items, payments, customerName } = detail;
+  const paySettings = await getPaymentSettings(db, tenant.id);
+  const instruction = buildPaymentInstruction(paySettings, {
+    total: Number(order.total),
+  });
 
   return (
     <Shell slug={slug} tenantName={tenant.name} role={session.role}>
@@ -105,6 +111,23 @@ export default async function OrderDetailPage({
             </tbody>
           </table>
         </div>
+      )}
+
+      <h2>ข้อความแจ้งโอนเงิน</h2>
+      {!paySettings?.bankAccountNo && !paySettings?.promptpayId ? (
+        <p className="muted">
+          ยังไม่ได้ตั้งบัญชีรับเงิน — ไปที่ ตั้งค่า → บัญชีรับเงิน
+        </p>
+      ) : (
+        <>
+          <p className="muted">คัดลอกส่งลูกค้าได้เลย</p>
+          <textarea
+            readOnly
+            rows={12}
+            defaultValue={instruction}
+            style={{ fontFamily: "inherit" }}
+          />
+        </>
       )}
 
       <h2>เปลี่ยนสถานะ</h2>
