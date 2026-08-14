@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createDbClient } from "@/db/client";
 import { updateTenantAiSettings } from "@/db/repositories/ai";
 import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
+import { moveLeadStage } from "@/db/repositories/leads";
 import {
   addCrossSell,
   createProduct,
@@ -322,6 +323,15 @@ export async function updateAiSettingsAction(formData: FormData) {
       String(formData.get("systemPromptExtra") ?? "").trim() || null,
   });
   redirect(`/dashboard/${slug}/settings?ok=ai`);
+}
+
+export async function moveLeadStageAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const leadId = String(formData.get("leadId") ?? "");
+  const stageId = String(formData.get("stageId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug);
+  if (leadId && stageId) await moveLeadStage(db, tenant.id, leadId, stageId);
+  redirect(`/dashboard/${slug}/leads`);
 }
 
 export async function addUserAction(formData: FormData) {

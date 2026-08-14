@@ -1,7 +1,37 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
-import { leadEvents, leads, objections } from "@/db/schema";
+import {
+  customers,
+  leadEvents,
+  leads,
+  objections,
+  salesStages,
+} from "@/db/schema";
+
+export async function listSalesStages(db: DbClient, tenantId: string) {
+  return db
+    .select()
+    .from(salesStages)
+    .where(eq(salesStages.tenantId, tenantId))
+    .orderBy(asc(salesStages.sortOrder));
+}
+
+export async function listLeads(db: DbClient, tenantId: string) {
+  return db
+    .select({
+      id: leads.id,
+      score: leads.score,
+      stageId: leads.stageId,
+      estimatedValue: leads.estimatedValue,
+      customerId: leads.customerId,
+      customerName: customers.displayName,
+    })
+    .from(leads)
+    .innerJoin(customers, eq(customers.id, leads.customerId))
+    .where(eq(leads.tenantId, tenantId))
+    .orderBy(desc(leads.score));
+}
 
 /** Find the customer's existing lead or create one (one active lead per customer). */
 export async function ensureLead(
