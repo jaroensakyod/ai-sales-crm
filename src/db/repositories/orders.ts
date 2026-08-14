@@ -141,6 +141,16 @@ export async function applyDiscount(
   return { ok: true };
 }
 
+/** Look up a payment by id without a tenant filter — for provider webhooks
+ *  (system scope). The returned tenantId scopes all downstream writes. */
+export async function getPaymentAnyTenant(db: DbClient, paymentId: string) {
+  const [row] = await db
+    .select()
+    .from(payments)
+    .where(eq(payments.id, paymentId));
+  return row ?? null;
+}
+
 export async function createPayment(
   db: DbClient,
   tenantId: string,
