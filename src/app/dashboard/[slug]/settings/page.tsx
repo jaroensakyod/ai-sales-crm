@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { createDbClient } from "@/db/client";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { channels } from "@/db/schema";
+import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 import { hasGeminiApiKey } from "@/lib/env";
 
 import {
@@ -25,6 +26,8 @@ export default async function SettingsPage({
 }) {
   const { slug } = await params;
   const { ok, error } = await searchParams;
+  const session = await requireTenantAuth(slug);
+  await requirePermission(session, "manage_settings");
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();

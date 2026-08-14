@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { getTenantBySlug, listUsers } from "@/db/repositories/tenants";
+import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 import { ROLES } from "@/features/team/roles";
 
 import {
   addUserAction,
   changeRoleAction,
   removeUserAction,
+  setUserPasswordAction,
 } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +21,8 @@ export default async function TeamPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const session = await requireTenantAuth(slug);
+  await requirePermission(session, "manage_team");
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
@@ -46,16 +50,22 @@ export default async function TeamPage({
             <thead>
               <tr>
                 <th>อีเมล</th>
-                <th>ชื่อ</th>
                 <th>บทบาท</th>
+                <th>ตั้งรหัสผ่าน</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {members.map((u) => (
                 <tr key={u.id}>
-                  <td>{u.email}</td>
-                  <td>{u.name ?? "-"}</td>
+                  <td>
+                    {u.email}
+                    <br />
+                    <span className="muted" style={{ fontSize: "0.78rem" }}>
+                      {u.name ?? "-"}
+                      {u.passwordHash ? " · ตั้งรหัสแล้ว" : " · ยังไม่ตั้งรหัส"}
+                    </span>
+                  </td>
                   <td>
                     <form action={changeRoleAction} style={{ display: "flex", gap: 6 }}>
                       <input type="hidden" name="slug" value={slug} />
@@ -68,6 +78,20 @@ export default async function TeamPage({
                         ))}
                       </select>
                       <button type="submit">บันทึก</button>
+                    </form>
+                  </td>
+                  <td>
+                    <form action={setUserPasswordAction} style={{ display: "flex", gap: 6 }}>
+                      <input type="hidden" name="slug" value={slug} />
+                      <input type="hidden" name="userId" value={u.id} />
+                      <input
+                        type="password"
+                        name="password"
+                        placeholder="≥ 6 ตัว"
+                        minLength={6}
+                        required
+                      />
+                      <button type="submit">ตั้ง</button>
                     </form>
                   </td>
                   <td>

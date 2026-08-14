@@ -8,9 +8,16 @@ import {
   createUser,
   getTenantBySlug,
   removeUser,
+  setUserPassword,
   updateUserRole,
 } from "@/db/repositories/tenants";
+import { authenticate } from "@/features/auth/service";
+import {
+  clearSessionCookie,
+  setSessionCookie,
+} from "@/features/auth/session";
 import { ROLES, type Role } from "@/features/team/roles";
+import { hashPassword } from "@/lib/password";
 import { setPlan } from "@/db/repositories/subscriptions";
 import { ingestKnowledge } from "@/features/ai/rag";
 import { answerGap } from "@/features/knowledge/answer-gap";
@@ -158,9 +165,41 @@ export async function changePlanAction(formData: FormData) {
   redirect(`/dashboard/${slug}?plan=${plan}`);
 }
 
-export async function addUserAction(formData: FormData) {
+export async function loginAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const db = createDbClient();
+  const session = await authenticate(db, slug, email, password);
+  if (!session) {
+    redirect(`/dashboard/${slug}/login?error=1`);
+  }
+  await setSessionCookie(session);
+  redirect(`/dashboard/${slug}`);
+}
+
+export async function logoutAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  await clearSessionCookie();
+  redirect(`/dashboard/${slug}/login`);
+}
+
+export async function setUserPasswordAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const userId = String(formData.get("userId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const db = createDbClient();
+  const tenant = await getTenantBySlug(db, slug);
+  if (!tenant) redirect("/dashboard");
+  if (password.length >= 6) {
+    await setUserPassword(db, tenant.id, userId, hashPassword(password));
+  }
+  redirect(`/dashboard/${slug}/team?ok=pw`);
+}
+
+export async function addUserAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const name = String(formData.get("name") ?? "").trim();
   const role = String(formData.get("role") ?? "VIEWER") as Role;
   const db = createDbClient();

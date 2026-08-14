@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createDbClient } from "@/db/client";
 import { getConversationThread } from "@/db/repositories/analytics";
 import { getTenantBySlug } from "@/db/repositories/tenants";
+import { requireTenantAuth } from "@/features/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function InboxThread({
   params: Promise<{ slug: string; conversationId: string }>;
 }) {
   const { slug, conversationId } = await params;
+  await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();

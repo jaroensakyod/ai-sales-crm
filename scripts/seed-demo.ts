@@ -10,6 +10,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { createDbClient, createDbSqlClient } from "@/db/client";
+import { hashPassword } from "@/lib/password";
 import {
   channels,
   crossSells,
@@ -59,6 +60,20 @@ async function main() {
       role: "OWNER",
     })
     .onConflictDoNothing({ target: [users.tenantId, users.email] });
+
+  // Set a demo password so per-tenant login works (owner@demo-store.local / demo1234).
+  const [owner] = await db
+    .select()
+    .from(users)
+    .where(
+      and(eq(users.tenantId, tenantId), eq(users.email, "owner@demo-store.local")),
+    );
+  if (owner && !owner.passwordHash) {
+    await db
+      .update(users)
+      .set({ passwordHash: hashPassword("demo1234") })
+      .where(eq(users.id, owner.id));
+  }
 
   // 3. AI settings (discount authority 0 by default — risk #5) -------------
   await db

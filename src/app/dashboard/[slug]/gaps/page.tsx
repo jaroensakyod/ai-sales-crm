@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createDbClient } from "@/db/client";
 import { listOpenGaps } from "@/db/repositories/gaps";
 import { getTenantBySlug } from "@/db/repositories/tenants";
+import { requireTenantAuth } from "@/features/auth/session";
 import { hasGeminiApiKey } from "@/lib/env";
 
 import { answerGapAction } from "../../actions";
@@ -19,6 +20,7 @@ export default async function GapsPage({
 }) {
   const { slug } = await params;
   const { ok, error } = await searchParams;
+  await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();

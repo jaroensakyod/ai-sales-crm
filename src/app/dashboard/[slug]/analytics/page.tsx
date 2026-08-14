@@ -7,6 +7,7 @@ import {
   getObjectionBreakdown,
 } from "@/db/repositories/analytics";
 import { getTenantBySlug } from "@/db/repositories/tenants";
+import { requireTenantAuth } from "@/features/auth/session";
 import { getEntitlements } from "@/features/billing/entitlements";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export default async function AnalyticsPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();

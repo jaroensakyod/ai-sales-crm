@@ -11,10 +11,11 @@ import {
 import { getMonthlyAiSpend } from "@/db/repositories/billing";
 import { getSubscription } from "@/db/repositories/subscriptions";
 import { getTenantBySlug } from "@/db/repositories/tenants";
+import { requireTenantAuth } from "@/features/auth/session";
 import { resolveBudgetTier } from "@/features/billing/budget";
 import { PLAN_PRICE_THB, type Plan } from "@/features/billing/plans";
 
-import { changePlanAction } from "../actions";
+import { changePlanAction, logoutAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function TenantOverview({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const session = await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
@@ -65,6 +67,15 @@ export default async function TenantOverview({
       <div className="topbar">
         <span className="brand">
           <Link href="/dashboard">AI Sales CRM</Link> / {tenant.name}
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span className="muted" style={{ fontSize: "0.85rem" }}>
+            {session.role}
+          </span>
+          <form action={logoutAction}>
+            <input type="hidden" name="slug" value={slug} />
+            <button type="submit">ออกจากระบบ</button>
+          </form>
         </span>
       </div>
       <div className="container">
