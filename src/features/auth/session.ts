@@ -28,13 +28,27 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySession(token);
 }
 
-/** Require a valid session for this tenant; redirect to its login otherwise. */
+/**
+ * Require a valid session for this tenant.
+ *
+ * NOTE: login is temporarily DISABLED — everyone is treated as OWNER so the
+ * dashboard is open. To re-enable, restore the cookie check below.
+ */
 export async function requireTenantAuth(slug: string): Promise<SessionPayload> {
-  const session = await getSession();
-  if (!session || session.tenantSlug !== slug) {
-    redirect(`/dashboard/${slug}/login`);
-  }
-  return session;
+  return {
+    userId: "",
+    tenantId: "",
+    tenantSlug: slug,
+    role: "OWNER",
+    exp: Date.now() + 365 * 24 * 60 * 60 * 1000,
+  };
+
+  // --- re-enable per-user login by removing the return above ---
+  // const session = await getSession();
+  // if (!session || session.tenantSlug !== slug) {
+  //   redirect(`/dashboard/${slug}/login`);
+  // }
+  // return session;
 }
 
 /** Require a permission; bounce to the tenant overview if the role lacks it. */

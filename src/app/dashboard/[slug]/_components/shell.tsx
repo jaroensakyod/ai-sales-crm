@@ -1,8 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { logoutAction } from "@/app/dashboard/actions";
-
 import { SideNav } from "./side-nav";
 
 /** Authenticated dashboard shell: sidebar nav + sticky header + content. */
@@ -29,13 +27,10 @@ export function Shell({
 
       <div className="content">
         <header className="header">
-          <span className="role-chip">{role}</span>
-          <form action={logoutAction}>
-            <input type="hidden" name="slug" value={slug} />
-            <button type="submit" className="ghost sm">
-              ออกจากระบบ
-            </button>
-          </form>
+          <span style={{ marginRight: "auto", fontWeight: 600 }}>
+            {tenantName}
+          </span>
+          <span className="role-chip">โหมดเดโม</span>
         </header>
         <main className="main">{children}</main>
       </div>
