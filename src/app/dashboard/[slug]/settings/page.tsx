@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
@@ -14,6 +13,7 @@ import {
   connectFacebookAction,
   connectLineAction,
 } from "../../actions";
+import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
 
@@ -43,15 +43,8 @@ export default async function SettingsPage({
   const base = `${proto}://${host}`;
 
   return (
-    <>
-      <div className="topbar">
-        <span className="brand">
-          <Link href="/dashboard">AI Sales CRM</Link> /{" "}
-          <Link href={`/dashboard/${slug}`}>{tenant.name}</Link> / ตั้งค่า
-        </span>
-      </div>
-      <div className="container" style={{ maxWidth: 640 }}>
-        <h1>ตั้งค่าร้าน</h1>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+      <h1>ตั้งค่าร้าน</h1>
         {ok ? <p className="ok">บันทึกแล้ว ({ok})</p> : null}
         {error === "nokey" ? (
           <p className="error">ยังไม่ได้ตั้งค่า GEMINI_API_KEY — อัปโหลดความรู้ไม่ได้</p>
@@ -63,6 +56,7 @@ export default async function SettingsPage({
         {chans.length === 0 ? (
           <p className="muted">ยังไม่ได้เชื่อมช่องทาง</p>
         ) : (
+          <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -88,6 +82,7 @@ export default async function SettingsPage({
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         <h2>เชื่อม LINE OA</h2>
@@ -152,7 +147,6 @@ export default async function SettingsPage({
             เพิ่มความรู้
           </button>
         </form>
-      </div>
-    </>
+    </Shell>
   );
 }

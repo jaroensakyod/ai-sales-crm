@@ -6,6 +6,8 @@ import { getConversationThread } from "@/db/repositories/analytics";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requireTenantAuth } from "@/features/auth/session";
 
+import { Shell } from "../../_components/shell";
+
 export const dynamic = "force-dynamic";
 
 function when(d: Date | null) {
@@ -18,7 +20,7 @@ export default async function InboxThread({
   params: Promise<{ slug: string; conversationId: string }>;
 }) {
   const { slug, conversationId } = await params;
-  await requireTenantAuth(slug);
+  const session = await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
@@ -27,22 +29,18 @@ export default async function InboxThread({
   if (!thread) notFound();
 
   return (
-    <>
-      <div className="topbar">
-        <span className="brand">
-          <Link href="/dashboard">AI Sales CRM</Link> /{" "}
-          <Link href={`/dashboard/${slug}`}>{tenant.name}</Link> / บทสนทนา
+    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+      <p className="muted" style={{ marginBottom: 4 }}>
+        <Link href={`/dashboard/${slug}`}>← กลับหน้าภาพรวม</Link>
+      </p>
+      <h1>
+        บทสนทนา{" "}
+        <span className={`badge ${thread.conversation.status.toLowerCase()}`}>
+          {thread.conversation.status}
         </span>
-      </div>
-      <div className="container">
-        <h1>
-          บทสนทนา{" "}
-          <span className={`badge ${thread.conversation.status.toLowerCase()}`}>
-            {thread.conversation.status}
-          </span>
-        </h1>
+      </h1>
 
-        <div className="chat">
+      <div className="chat">
           {thread.messages.map((m) => (
             <div
               key={m.id}
@@ -55,11 +53,10 @@ export default async function InboxThread({
               </span>
             </div>
           ))}
-          {thread.messages.length === 0 ? (
-            <p className="muted">ยังไม่มีข้อความ</p>
-          ) : null}
-        </div>
+        {thread.messages.length === 0 ? (
+          <p className="muted">ยังไม่มีข้อความ</p>
+        ) : null}
       </div>
-    </>
+    </Shell>
   );
 }

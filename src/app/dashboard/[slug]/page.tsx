@@ -15,7 +15,9 @@ import { requireTenantAuth } from "@/features/auth/session";
 import { resolveBudgetTier } from "@/features/billing/budget";
 import { PLAN_PRICE_THB, type Plan } from "@/features/billing/plans";
 
-import { changePlanAction, logoutAction } from "../actions";
+import { changePlanAction } from "../actions";
+
+import { Shell } from "./_components/shell";
 
 export const dynamic = "force-dynamic";
 
@@ -63,51 +65,13 @@ export default async function TenantOverview({
         : "หยุด L3 ชั่วคราว";
 
   return (
-    <>
-      <div className="topbar">
-        <span className="brand">
-          <Link href="/dashboard">AI Sales CRM</Link> / {tenant.name}
-        </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span className="muted" style={{ fontSize: "0.85rem" }}>
-            {session.role}
-          </span>
-          <form action={logoutAction}>
-            <input type="hidden" name="slug" value={slug} />
-            <button type="submit">ออกจากระบบ</button>
-          </form>
-        </span>
-      </div>
-      <div className="container">
-        <h1>
-          ภาพรวม{" "}
-          <Link
-            href={`/dashboard/${slug}/settings`}
-            style={{ fontSize: "0.9rem", fontWeight: 400 }}
-          >
-            · ตั้งค่า/เชื่อมช่องทาง
-          </Link>{" "}
-          <Link
-            href={`/dashboard/${slug}/gaps`}
-            style={{ fontSize: "0.9rem", fontWeight: 400 }}
-          >
-            · คำถามที่ตอบไม่ได้
-          </Link>{" "}
-          <Link
-            href={`/dashboard/${slug}/analytics`}
-            style={{ fontSize: "0.9rem", fontWeight: 400 }}
-          >
-            · วิเคราะห์
-          </Link>{" "}
-          <Link
-            href={`/dashboard/${slug}/team`}
-            style={{ fontSize: "0.9rem", fontWeight: 400 }}
-          >
-            · ทีม
-          </Link>
-        </h1>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+      <h1>ภาพรวม</h1>
+      <p className="muted" style={{ marginTop: 0 }}>
+        สรุปร้าน {tenant.name}
+      </p>
 
-        <div className="grid">
+      <div className="grid">
           <div className="card kpi">
             <div className="label">บทสนทนา</div>
             <div className="value">{overview.conversations.total}</div>
@@ -179,10 +143,11 @@ export default async function TenantOverview({
           </p>
         </div>
 
-        <h2>บทสนทนาล่าสุด</h2>
-        {conversations.length === 0 ? (
-          <p className="muted">ยังไม่มีบทสนทนา</p>
-        ) : (
+      <h2>บทสนทนาล่าสุด</h2>
+      {conversations.length === 0 ? (
+        <p className="muted">ยังไม่มีบทสนทนา</p>
+      ) : (
+        <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -209,12 +174,14 @@ export default async function TenantOverview({
               ))}
             </tbody>
           </table>
-        )}
+        </div>
+      )}
 
-        <h2>ออเดอร์ล่าสุด</h2>
-        {orders.length === 0 ? (
-          <p className="muted">ยังไม่มีออเดอร์</p>
-        ) : (
+      <h2>ออเดอร์ล่าสุด</h2>
+      {orders.length === 0 ? (
+        <p className="muted">ยังไม่มีออเดอร์</p>
+      ) : (
+        <div className="table-wrap">
           <table>
             <thead>
               <tr>
@@ -239,8 +206,8 @@ export default async function TenantOverview({
               ))}
             </tbody>
           </table>
-        )}
-      </div>
-    </>
+        </div>
+      )}
+    </Shell>
   );
 }

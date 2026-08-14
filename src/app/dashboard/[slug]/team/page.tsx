@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
@@ -12,6 +11,7 @@ import {
   removeUserAction,
   setUserPasswordAction,
 } from "../../actions";
+import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
 
@@ -30,15 +30,8 @@ export default async function TeamPage({
   const members = await listUsers(db, tenant.id);
 
   return (
-    <>
-      <div className="topbar">
-        <span className="brand">
-          <Link href="/dashboard">AI Sales CRM</Link> /{" "}
-          <Link href={`/dashboard/${slug}`}>{tenant.name}</Link> / ทีม
-        </span>
-      </div>
-      <div className="container" style={{ maxWidth: 720 }}>
-        <h1>ทีมงาน</h1>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+      <h1>ทีมงาน</h1>
         <p className="muted">
           สิทธิ์: OWNER/ADMIN จัดการทั้งหมด · SALES แก้การขาย · SUPPORT ตอบแชท · VIEWER ดูอย่างเดียว
         </p>
@@ -46,7 +39,8 @@ export default async function TeamPage({
         {members.length === 0 ? (
           <p className="muted">ยังไม่มีสมาชิก</p>
         ) : (
-          <table>
+          <div className="table-wrap">
+            <table>
             <thead>
               <tr>
                 <th>อีเมล</th>
@@ -104,7 +98,8 @@ export default async function TeamPage({
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
 
         <h2>เพิ่มสมาชิก</h2>
@@ -133,9 +128,9 @@ export default async function TeamPage({
           </button>
         </form>
         <p className="muted" style={{ fontSize: "0.8rem" }}>
-          * เดโม — ยังใช้รหัสผ่านรวมเข้าแดชบอร์ด ระบบล็อกอินรายบุคคลจะเพิ่มภายหลัง
+          สมาชิกเข้าสู่ระบบที่ <code className="url">/dashboard/{slug}/login</code>{" "}
+          ด้วยอีเมล + รหัสที่ตั้งให้
         </p>
-      </div>
-    </>
+    </Shell>
   );
 }

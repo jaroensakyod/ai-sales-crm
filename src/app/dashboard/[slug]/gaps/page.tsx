@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
@@ -8,6 +7,7 @@ import { requireTenantAuth } from "@/features/auth/session";
 import { hasGeminiApiKey } from "@/lib/env";
 
 import { answerGapAction } from "../../actions";
+import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,7 @@ export default async function GapsPage({
 }) {
   const { slug } = await params;
   const { ok, error } = await searchParams;
-  await requireTenantAuth(slug);
+  const session = await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
@@ -28,15 +28,8 @@ export default async function GapsPage({
   const gaps = await listOpenGaps(db, tenant.id);
 
   return (
-    <>
-      <div className="topbar">
-        <span className="brand">
-          <Link href="/dashboard">AI Sales CRM</Link> /{" "}
-          <Link href={`/dashboard/${slug}`}>{tenant.name}</Link> / คำถามที่ตอบไม่ได้
-        </span>
-      </div>
-      <div className="container" style={{ maxWidth: 720 }}>
-        <h1>Knowledge Gap Inbox</h1>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+      <h1>Knowledge Gap Inbox</h1>
         <p className="muted">
           คำถามที่ AI ตอบไม่ได้ ตอบครั้งเดียวแล้วระบบจะเรียนรู้ (เพิ่มเข้าคลังความรู้อัตโนมัติ)
         </p>
@@ -73,7 +66,6 @@ export default async function GapsPage({
             </form>
           ))
         )}
-      </div>
-    </>
+    </Shell>
   );
 }

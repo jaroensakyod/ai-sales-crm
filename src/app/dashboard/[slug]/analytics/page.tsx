@@ -10,6 +10,8 @@ import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requireTenantAuth } from "@/features/auth/session";
 import { getEntitlements } from "@/features/billing/entitlements";
 
+import { Shell } from "../_components/shell";
+
 export const dynamic = "force-dynamic";
 
 const OBJECTION_LABEL: Record<string, string> = {
@@ -28,36 +30,24 @@ export default async function AnalyticsPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  await requireTenantAuth(slug);
+  const session = await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
 
   const entitlements = await getEntitlements(db, tenant.id);
 
-  const header = (
-    <div className="topbar">
-      <span className="brand">
-        <Link href="/dashboard">AI Sales CRM</Link> /{" "}
-        <Link href={`/dashboard/${slug}`}>{tenant.name}</Link> / วิเคราะห์
-      </span>
-    </div>
-  );
-
   if (!entitlements.fullAnalytics) {
     return (
-      <>
-        {header}
-        <div className="container">
-          <h1>วิเคราะห์เชิงลึก</h1>
-          <div className="card">
-            <p>📊 การวิเคราะห์ Objection breakdown และ Lead scoring เป็นฟีเจอร์ของแพ็กเกจ Pro</p>
-            <Link href={`/dashboard/${slug}`} className="btn-link">
-              ไปอัปเกรดแพ็กเกจ
-            </Link>
-          </div>
+      <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+        <h1>วิเคราะห์เชิงลึก</h1>
+        <div className="card">
+          <p>📊 การวิเคราะห์ Objection breakdown และ Lead scoring เป็นฟีเจอร์ของแพ็กเกจ Pro</p>
+          <Link href={`/dashboard/${slug}`} className="btn-link">
+            ไปอัปเกรดแพ็กเกจ
+          </Link>
         </div>
-      </>
+      </Shell>
     );
   }
 
@@ -68,10 +58,8 @@ export default async function AnalyticsPage({
   const maxTotal = Math.max(1, ...objections.map((o) => o.total));
 
   return (
-    <>
-      {header}
-      <div className="container">
-        <h1>วิเคราะห์เชิงลึก</h1>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+      <h1>วิเคราะห์เชิงลึก</h1>
 
         <div className="grid">
           <div className="card kpi">
@@ -108,28 +96,16 @@ export default async function AnalyticsPage({
                     {o.total} ครั้ง · ค้าง {o.open}
                   </span>
                 </div>
-                <div
-                  style={{
-                    height: 10,
-                    background: "#eef2ff",
-                    borderRadius: 6,
-                    marginTop: 4,
-                  }}
-                >
+                <div className="bar-track">
                   <div
-                    style={{
-                      width: `${(o.total / maxTotal) * 100}%`,
-                      height: "100%",
-                      background: "var(--primary)",
-                      borderRadius: 6,
-                    }}
+                    className="bar-fill"
+                    style={{ width: `${(o.total / maxTotal) * 100}%` }}
                   />
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
-    </>
+    </Shell>
   );
 }
