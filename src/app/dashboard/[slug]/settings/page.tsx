@@ -20,6 +20,7 @@ import {
   updatePaymentSettingsAction,
   updateStoreInfoAction,
 } from "../../actions";
+import { ConnectGuide } from "../_components/connect-guide";
 import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
@@ -92,7 +93,10 @@ export default async function SettingsPage({
           <button type="submit">บันทึกข้อมูลร้าน</button>
         </form>
 
-        <h2>ช่องทางที่เชื่อมแล้ว</h2>
+        <h2>เชื่อมช่องทาง (LINE / Facebook)</h2>
+        <ConnectGuide webhookBase={base} />
+
+        <h3 style={{ margin: "18px 0 8px" }}>ช่องทางที่เชื่อมแล้ว</h3>
         {chans.length === 0 ? (
           <p className="muted">ยังไม่ได้เชื่อมช่องทาง</p>
         ) : (
