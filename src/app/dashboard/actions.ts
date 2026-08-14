@@ -38,6 +38,7 @@ import {
 } from "@/features/auth/session";
 import { ROLES, type Role } from "@/features/team/roles";
 import { hashPassword } from "@/lib/password";
+import { toMoney, toSlug, toStock } from "@/lib/validation";
 import { setPlan } from "@/db/repositories/subscriptions";
 import { ingestKnowledge } from "@/features/ai/rag";
 import { answerGap } from "@/features/knowledge/answer-gap";
@@ -48,17 +49,10 @@ import {
 } from "@/features/onboarding/service";
 import { hasGeminiApiKey } from "@/lib/env";
 
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 export async function createStoreAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  const slug = slugify(String(formData.get("slug") || name));
+  const slug = toSlug(String(formData.get("slug") || name));
   const businessTypes = formData.getAll("businessTypes").map(String) as (
     | "CATALOG"
     | "BOOKING"
@@ -227,16 +221,8 @@ export async function setUserPasswordAction(formData: FormData) {
 
 // ---- Products ------------------------------------------------------------
 
-function parsePrice(v: FormDataEntryValue | null): string {
-  const n = Number(String(v ?? "").replace(/[^0-9.]/g, ""));
-  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
-}
-function parseStock(v: FormDataEntryValue | null): number | null {
-  const s = String(v ?? "").trim();
-  if (s === "") return null;
-  const n = parseInt(s, 10);
-  return Number.isFinite(n) ? n : null;
-}
+const parsePrice = (v: FormDataEntryValue | null) => toMoney(v);
+const parseStock = (v: FormDataEntryValue | null) => toStock(v);
 
 async function tenantForSlug(slug: string) {
   const db = createDbClient();
