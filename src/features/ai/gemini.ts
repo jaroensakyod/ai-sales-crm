@@ -1,6 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 
 import { getGeminiApiKey } from "@/lib/env";
+import { withRetry } from "@/lib/retry";
+
+/** Transient Gemini errors worth retrying (rate limit / overloaded / 5xx). */
+export function isTransientGeminiError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /(\b429\b|\b500\b|\b503\b|RESOURCE_EXHAUSTED|UNAVAILABLE|overloaded|deadline)/i.test(
+    msg,
+  );
+}
 
 /**
  * Map friendly model names stored in tenant_ai_settings to concrete API IDs.
@@ -38,15 +47,19 @@ export const generateWithGemini: GenerateFn = async ({
   userText,
 }) => {
   const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
-  const response = await ai.models.generateContent({
-    model: normalizeModelId(model),
-    contents: userText,
-    config: {
-      systemInstruction,
-      temperature: 0.3,
-      maxOutputTokens: 1024,
-    },
-  });
+  const response = await withRetry(
+    () =>
+      ai.models.generateContent({
+        model: normalizeModelId(model),
+        contents: userText,
+        config: {
+          systemInstruction,
+          temperature: 0.3,
+          maxOutputTokens: 1024,
+        },
+      }),
+    { retries: 2, shouldRetry: isTransientGeminiError },
+  );
   return {
     text: response.text ?? "",
     inputTokens: response.usageMetadata?.promptTokenCount,

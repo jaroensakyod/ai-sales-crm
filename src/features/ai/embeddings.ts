@@ -1,6 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 
 import { getGeminiApiKey } from "@/lib/env";
+import { withRetry } from "@/lib/retry";
+
+import { isTransientGeminiError } from "./gemini";
 
 /** RAG embedding dimension — must match the vector(768) column. */
 export const EMBEDDING_DIM = 768;
@@ -20,11 +23,15 @@ export function normalize(vec: number[]): number[] {
 /** Real Gemini embedding at 768 dims, normalized. Injectable via EmbedFn. */
 export const embedWithGemini: EmbedFn = async (text: string) => {
   const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
-  const res = await ai.models.embedContent({
-    model: EMBEDDING_MODEL,
-    contents: text,
-    config: { outputDimensionality: EMBEDDING_DIM },
-  });
+  const res = await withRetry(
+    () =>
+      ai.models.embedContent({
+        model: EMBEDDING_MODEL,
+        contents: text,
+        config: { outputDimensionality: EMBEDDING_DIM },
+      }),
+    { retries: 2, shouldRetry: isTransientGeminiError },
+  );
   const values = res.embeddings?.[0]?.values;
   if (!values || values.length !== EMBEDDING_DIM) {
     throw new Error(
