@@ -11,6 +11,7 @@ import {
 } from "@/db/repositories/followups";
 import { getLineChannelContext } from "@/db/repositories/line";
 import { channels, customerIdentities } from "@/db/schema";
+import { getEntitlements } from "@/features/billing/entitlements";
 import { createLineClient, pushText } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
 
@@ -105,6 +106,19 @@ export async function processDueFollowups(
       });
       result.skipped++;
       continue;
+    }
+
+    // Automated promotional follow-up is a Pro feature; transactional order
+    // updates work on any plan.
+    if (f.category !== "TRANSACTIONAL") {
+      const ent = await getEntitlements(db, f.tenantId);
+      if (!ent.followupAutomation) {
+        await markFollowup(db, f.tenantId, f.id, "SKIPPED", {
+          reason: "plan_no_followup_automation",
+        });
+        result.skipped++;
+        continue;
+      }
     }
 
     const [identity] = await db

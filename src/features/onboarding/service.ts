@@ -2,12 +2,15 @@ import type { DbClient } from "@/db/client";
 import { recordAgreement } from "@/db/repositories/agreements";
 import { upsertFacebookConnection } from "@/db/repositories/facebook";
 import { upsertLineConnection } from "@/db/repositories/line";
+import { countChannels } from "@/db/repositories/subscriptions";
 import {
   channels,
   salesStages,
+  subscriptions,
   tenantAiSettings,
   tenants,
 } from "@/db/schema";
+import { getEntitlements } from "@/features/billing/entitlements";
 
 /** Current DPA version presented at onboarding (bump when the contract changes). */
 export const DPA_VERSION = "2026-08-01";
@@ -47,6 +50,7 @@ export async function createStore(
     .returning();
 
   await db.insert(tenantAiSettings).values({ tenantId: tenant.id });
+  await db.insert(subscriptions).values({ tenantId: tenant.id }); // FREE / TRIALING
   await db
     .insert(salesStages)
     .values(DEFAULT_STAGES.map((s) => ({ tenantId: tenant.id, ...s })));
@@ -70,6 +74,7 @@ export async function connectLineChannel(
     accessToken: string;
   },
 ) {
+  await assertChannelQuota(db, tenantId);
   const [channel] = await db
     .insert(channels)
     .values({
@@ -92,11 +97,21 @@ export async function connectLineChannel(
   return channel;
 }
 
+/** Enforce the plan's channel limit before adding a channel (Pro = FB+LINE). */
+async function assertChannelQuota(db: DbClient, tenantId: string) {
+  const ent = await getEntitlements(db, tenantId);
+  const count = await countChannels(db, tenantId);
+  if (count >= ent.maxChannels) {
+    throw new Error("plan_limit_channels");
+  }
+}
+
 export async function connectFacebookChannel(
   db: DbClient,
   tenantId: string,
   input: { displayName: string; pageId: string; accessToken: string },
 ) {
+  await assertChannelQuota(db, tenantId);
   const [channel] = await db
     .insert(channels)
     .values({

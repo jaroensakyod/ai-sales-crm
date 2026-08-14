@@ -9,8 +9,12 @@ import {
   listRecentOrders,
 } from "@/db/repositories/analytics";
 import { getMonthlyAiSpend } from "@/db/repositories/billing";
+import { getSubscription } from "@/db/repositories/subscriptions";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { resolveBudgetTier } from "@/features/billing/budget";
+import { PLAN_PRICE_THB, type Plan } from "@/features/billing/plans";
+
+import { changePlanAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +49,8 @@ export default async function TenantOverview({
       getTenantAiSettings(db, tenant.id),
       getMonthlyAiSpend(db, tenant.id),
     ]);
+  const subscription = await getSubscription(db, tenant.id);
+  const currentPlan: Plan = (subscription?.plan as Plan) ?? "FREE";
   const softCapUsd = settings?.softCapUsd ? Number(settings.softCapUsd) : null;
   const budgetTier = resolveBudgetTier({ monthlySpendUsd: monthlySpend, softCapUsd });
   const budgetLabel =
@@ -123,6 +129,31 @@ export default async function TenantOverview({
                 : "ไม่จำกัด"}
             </div>
           </div>
+        </div>
+
+        <h2>แพ็กเกจ</h2>
+        <div className="card">
+          <p style={{ marginTop: 0 }}>
+            แพ็กเกจปัจจุบัน: <strong>{currentPlan}</strong>
+            {currentPlan !== "FREE"
+              ? ` · ${PLAN_PRICE_THB[currentPlan]} บาท/เดือน`
+              : " (ทดลองใช้)"}
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(["STARTER", "PRO"] as Plan[]).map((p) => (
+              <form key={p} action={changePlanAction}>
+                <input type="hidden" name="slug" value={slug} />
+                <input type="hidden" name="plan" value={p} />
+                <button type="submit" disabled={currentPlan === p}>
+                  {currentPlan === p ? `กำลังใช้ ${p}` : `เปลี่ยนเป็น ${p}`} (
+                  {PLAN_PRICE_THB[p]}฿)
+                </button>
+              </form>
+            ))}
+          </div>
+          <p className="muted" style={{ fontSize: "0.8rem", marginBottom: 0 }}>
+            * เดโม — ยังไม่ตัดเงินจริง (เชื่อม Omise/2C2P ภายหลัง)
+          </p>
         </div>
 
         <h2>บทสนทนาล่าสุด</h2>

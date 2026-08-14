@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { getTenantBySlug } from "@/db/repositories/tenants";
+import { setPlan } from "@/db/repositories/subscriptions";
 import { ingestKnowledge } from "@/features/ai/rag";
 import { answerGap } from "@/features/knowledge/answer-gap";
 import {
@@ -136,4 +137,17 @@ export async function answerGapAction(formData: FormData) {
     // ingest failed
   }
   redirect(`/dashboard/${slug}/gaps?${ok ? "ok=1" : "error=1"}`);
+}
+
+export async function changePlanAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const plan = String(formData.get("plan") ?? "") as "FREE" | "STARTER" | "PRO";
+  const db = createDbClient();
+  const tenant = await getTenantBySlug(db, slug);
+  if (!tenant) redirect("/dashboard");
+  if (["FREE", "STARTER", "PRO"].includes(plan)) {
+    // NOTE: no real payment yet — Omise/2C2P wires in here later.
+    await setPlan(db, tenant.id, plan);
+  }
+  redirect(`/dashboard/${slug}?plan=${plan}`);
 }

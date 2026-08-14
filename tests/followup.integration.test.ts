@@ -8,6 +8,7 @@ import {
   recordInboundMessage,
 } from "@/db/repositories/conversations";
 import { scheduleFollowup } from "@/db/repositories/followups";
+import { setPlan } from "@/db/repositories/subscriptions";
 import { createTenant, deleteTenant } from "@/db/repositories/tenants";
 import { channels, customerIdentities, followups } from "@/db/schema";
 import { processDueFollowups, type PushFn } from "@/features/followup/engine";
@@ -31,6 +32,7 @@ describe.skipIf(!hasDb)("follow-up engine (integration)", () => {
       slug: `fu-${suffix}`,
     });
     tenantId = tenant.id;
+    await setPlan(db, tenantId, "PRO"); // promotional follow-up automation is Pro
 
     const [line] = await db
       .insert(channels)

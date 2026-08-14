@@ -15,6 +15,13 @@
       "when": 1786618569513,
       "tag": "0001_knowledge_hnsw",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786681466845,
+      "tag": "0002_subscriptions",
+      "breakpoints": true
     }
   ]
 }
