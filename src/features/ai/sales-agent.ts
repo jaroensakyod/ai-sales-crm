@@ -5,6 +5,7 @@ import {
   recordUsageEvent,
 } from "@/db/repositories/ai";
 import { getMonthlyAiSpend } from "@/db/repositories/billing";
+import { listServices } from "@/db/repositories/booking";
 import { getActivePromotions } from "@/db/repositories/promotions";
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { resolveBudgetTier } from "@/features/billing/budget";
@@ -22,6 +23,7 @@ import {
 type AiSettings = Awaited<ReturnType<typeof getTenantAiSettings>> | null;
 type Catalog = Awaited<ReturnType<typeof loadProducts>>;
 type Promotions = Awaited<ReturnType<typeof getActivePromotions>>;
+type Services = Awaited<ReturnType<typeof listServices>>;
 
 /**
  * System prompt with hard guardrails baked in. These are instructions to the
@@ -34,6 +36,7 @@ export function buildSalesSystemPrompt(args: {
   catalog: Catalog;
   promotions?: Promotions;
   paymentInfo?: string | null;
+  services?: Services;
 }): string {
   const discount = args.settings?.discountAuthority ?? "0";
   const catalogLines = args.catalog
@@ -64,9 +67,20 @@ export function buildSalesSystemPrompt(args: {
     })
     .join("\n");
 
+  const serviceLines = (args.services ?? [])
+    .filter((s) => s.isActive)
+    .map(
+      (s) =>
+        `- ${s.name}: ${Number(s.price).toLocaleString("th-TH")} ${s.currency} (${s.durationMin} นาที)`,
+    )
+    .join("\n");
+
   return [
     rules.join("\n"),
     args.catalog.length ? `\nสินค้าในร้าน:\n${catalogLines}` : "",
+    serviceLines
+      ? `\nบริการที่จองได้ (ลูกค้าถามได้ ให้แนะนำแล้วบอกให้แจ้งวันเวลาที่สะดวก):\n${serviceLines}`
+      : "",
     promoLines ? `\nโปรโมชั่นที่ใช้ได้ตอนนี้ (เสนอลูกค้าได้):\n${promoLines}` : "",
     args.paymentInfo
       ? `\nช่องทางชำระเงินของร้าน (บอกลูกค้าได้เมื่อถูกถาม ห้ามแก้เลขบัญชี):\n${args.paymentInfo}`
@@ -98,11 +112,13 @@ export function createAiReasonHandler(
     const paymentInfo = paymentSummaryForAi(
       await getPaymentSettings(db, ctx.tenantId),
     );
+    const services = await listServices(db, ctx.tenantId);
     const systemInstruction = buildSalesSystemPrompt({
       settings,
       catalog,
       promotions,
       paymentInfo,
+      services,
     });
 
     // Graceful soft-cap (Phase 2): degrade cost instead of blocking the customer.

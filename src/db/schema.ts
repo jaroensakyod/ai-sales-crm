@@ -17,3 +17,4 @@ export * from "./tables/knowledge";
 export * from "./tables/ops";
 export * from "./tables/billing";
 export * from "./tables/payment";
+export * from "./tables/booking";

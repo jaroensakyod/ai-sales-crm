@@ -11,6 +11,13 @@ import {
   deleteRule,
   toggleRule,
 } from "@/db/repositories/automation";
+import {
+  createAppointment,
+  createService,
+  deleteService,
+  getService,
+  setAppointmentStatus,
+} from "@/db/repositories/booking";
 import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import { moveLeadStage } from "@/db/repositories/leads";
 import { applyDiscount, updateOrderStatus } from "@/db/repositories/orders";
@@ -518,6 +525,79 @@ export async function deleteAutomationAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   await deleteRule(db, tenant.id, id);
   redirect(`/dashboard/${slug}/automation`);
+}
+
+// ---- Booking -------------------------------------------------------------
+
+export async function createServiceAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const name = String(formData.get("name") ?? "").trim();
+  const durationMin = Math.max(
+    5,
+    parseInt(String(formData.get("durationMin") ?? "60"), 10) || 60,
+  );
+  if (name) {
+    await createService(db, tenant.id, {
+      name,
+      durationMin,
+      price: toMoney(formData.get("price")),
+      description: String(formData.get("description") ?? "").trim() || null,
+    });
+  }
+  redirect(`/dashboard/${slug}/booking?ok=service`);
+}
+
+export async function deleteServiceAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("serviceId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  await deleteService(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/booking?ok=service`);
+}
+
+export async function createAppointmentAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const serviceId = String(formData.get("serviceId") ?? "") || null;
+  const customerId = String(formData.get("customerId") ?? "");
+  const startRaw = String(formData.get("startAt") ?? "");
+  const startAt = startRaw ? new Date(startRaw) : null;
+  if (!customerId || !startAt || Number.isNaN(startAt.getTime())) {
+    redirect(`/dashboard/${slug}/booking?error=appointment`);
+  }
+  // Duration from the chosen service (default 60m).
+  let durationMin = 60;
+  if (serviceId) {
+    const svc = await getService(db, tenant.id, serviceId);
+    if (svc) durationMin = svc.durationMin;
+  }
+  const endAt = new Date(startAt.getTime() + durationMin * 60 * 1000);
+  const result = await createAppointment(db, tenant.id, {
+    serviceId,
+    customerId,
+    startAt,
+    endAt,
+    note: String(formData.get("note") ?? "").trim() || null,
+  });
+  redirect(
+    `/dashboard/${slug}/booking?${result.ok ? "ok=appointment" : "error=slot"}`,
+  );
+}
+
+export async function setAppointmentStatusAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("appointmentId") ?? "");
+  const status = String(formData.get("status") ?? "") as
+    | "PENDING"
+    | "CONFIRMED"
+    | "CANCELLED"
+    | "COMPLETED";
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  if (["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"].includes(status)) {
+    await setAppointmentStatus(db, tenant.id, id, status);
+  }
+  redirect(`/dashboard/${slug}/booking`);
 }
 
 export async function moveLeadStageAction(formData: FormData) {
