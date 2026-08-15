@@ -88,8 +88,11 @@ drizzle/              # generated SQL migrations
 
 ## Deploy
 
-Deploy บน **Vercel Pro** (cron ต้องถี่กว่าวันละครั้ง) — ขั้นตอนเต็มใน [docs/06-deploy.md](docs/06-deploy.md):
-เชื่อม Supabase, ตั้ง env, สร้าง LINE OA / Facebook App จริง, เอา webhook URL จากหน้า Settings ไปวางในคอนโซลของแต่ละช่องทาง
+Repo: **https://github.com/jaroensakyod/ai-sales-crm** (CI: lint + typecheck + test + build on every push)
+
+Deploy บน **Vercel Pro** (cron ต้องถี่กว่าวันละครั้ง) — checklist ครบใน
+[docs/07-go-live.md](docs/07-go-live.md) (import repo → ตั้ง env → deploy → เชื่อม LINE/FB);
+รายละเอียดการเชื่อมช่องทางใน [docs/06-deploy.md](docs/06-deploy.md)
 
 ## เอกสาร
 
@@ -101,3 +104,4 @@ Deploy บน **Vercel Pro** (cron ต้องถี่กว่าวันล
 | [docs/04-risks.md](docs/04-risks.md) | Risk register (จัดการในโค้ดแล้ว #1-#9) |
 | [docs/05-db-setup.md](docs/05-db-setup.md) | ตั้งค่า Supabase |
 | [docs/06-deploy.md](docs/06-deploy.md) | Deploy + เชื่อมช่องทางจริง |
+| [docs/07-go-live.md](docs/07-go-live.md) | Go-live checklist (Vercel + env) |
