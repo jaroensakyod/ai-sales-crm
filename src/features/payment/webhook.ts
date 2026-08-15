@@ -1,6 +1,10 @@
+import { and, eq } from "drizzle-orm";
+
 import type { DbClient } from "@/db/client";
 import { recordAudit } from "@/db/repositories/audit";
 import { confirmPayment, getPaymentAnyTenant } from "@/db/repositories/orders";
+import { conversations, orders } from "@/db/schema";
+import { runAutomations } from "@/features/automation/engine";
 import { safeEqual } from "@/lib/crypto";
 
 /**
@@ -61,5 +65,34 @@ export async function processPaymentWebhook(
     entityId: payment.id,
     data: { orderId: payment.orderId, orderPaid },
   });
+
+  // Fire ORDER_PAID automations (e.g. thank-you / re-order follow-up).
+  if (orderPaid) {
+    const [order] = await db
+      .select({
+        customerId: orders.customerId,
+        conversationId: orders.conversationId,
+      })
+      .from(orders)
+      .where(
+        and(eq(orders.tenantId, payment.tenantId), eq(orders.id, payment.orderId)),
+      );
+    if (order) {
+      let channelId: string | undefined;
+      if (order.conversationId) {
+        const [conv] = await db
+          .select({ channelId: conversations.channelId })
+          .from(conversations)
+          .where(eq(conversations.id, order.conversationId));
+        channelId = conv?.channelId;
+      }
+      await runAutomations(db, payment.tenantId, "ORDER_PAID", {
+        customerId: order.customerId,
+        conversationId: order.conversationId ?? undefined,
+        channelId,
+      });
+    }
+  }
+
   return { ok: true, status: 200, orderPaid, alreadyConfirmed: false };
 }

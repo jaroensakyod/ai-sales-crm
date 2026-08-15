@@ -7,6 +7,7 @@ import {
   updateOrderStatus,
 } from "@/db/repositories/orders";
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
+import { runAutomations } from "@/features/automation/engine";
 import { matchHandoff, matchProduct } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
@@ -28,6 +29,7 @@ export async function tryCheckout(
     tenantId: string;
     customerId: string;
     conversationId: string;
+    channelId?: string;
     text: string;
   },
 ): Promise<CheckoutResult> {
@@ -72,6 +74,12 @@ export async function tryCheckout(
 
   const detail = await getOrder(db, ctx.tenantId, order.id);
   const total = Number(detail?.order.total ?? 0);
+
+  await runAutomations(db, ctx.tenantId, "ORDER_CREATED", {
+    customerId: ctx.customerId,
+    conversationId: ctx.conversationId,
+    channelId: ctx.channelId,
+  });
 
   const reply =
     `รับ ${product.name} จำนวน ${quantity} ชิ้น ` +

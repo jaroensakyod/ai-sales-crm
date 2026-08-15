@@ -88,6 +88,7 @@ export async function handleInboundText(
     tenantId: args.tenantId,
     customerId,
     conversationId: conversation.id,
+    channelId: args.channelId,
     text: args.text,
   });
   if (checkout) {

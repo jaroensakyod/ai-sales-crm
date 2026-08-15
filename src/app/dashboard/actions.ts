@@ -6,6 +6,11 @@ import { redirect } from "next/navigation";
 import { createDbClient } from "@/db/client";
 import { updateTenantAiSettings } from "@/db/repositories/ai";
 import { recordAudit } from "@/db/repositories/audit";
+import {
+  createRule,
+  deleteRule,
+  toggleRule,
+} from "@/db/repositories/automation";
 import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import { moveLeadStage } from "@/db/repositories/leads";
 import { applyDiscount, updateOrderStatus } from "@/db/repositories/orders";
@@ -470,6 +475,49 @@ export async function applyDiscountAction(formData: FormData) {
   redirect(
     `/dashboard/${slug}/orders/${orderId}?${result.ok ? "ok=discount" : "error=discount"}`,
   );
+}
+
+export async function createAutomationAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  const triggerType = String(formData.get("trigger") ?? "") as
+    | "ORDER_CREATED"
+    | "ORDER_PAID";
+  const delayHours = Math.max(
+    0,
+    parseInt(String(formData.get("delayHours") ?? "0"), 10) || 0,
+  );
+  const message = String(formData.get("message") ?? "").trim();
+  const category = String(formData.get("category") ?? "PROMOTIONAL") as
+    | "TRANSACTIONAL"
+    | "PROMOTIONAL";
+  if (
+    ["ORDER_CREATED", "ORDER_PAID"].includes(triggerType) &&
+    message
+  ) {
+    await createRule(db, tenant.id, {
+      name: String(formData.get("name") ?? "").trim() || "กฎอัตโนมัติ",
+      trigger: { type: triggerType },
+      action: { type: "SCHEDULE_FOLLOWUP", delayHours, message, category },
+    });
+  }
+  redirect(`/dashboard/${slug}/automation`);
+}
+
+export async function toggleAutomationAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("ruleId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  await toggleRule(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/automation`);
+}
+
+export async function deleteAutomationAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("ruleId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  await deleteRule(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/automation`);
 }
 
 export async function moveLeadStageAction(formData: FormData) {
