@@ -26,6 +26,7 @@ import { loadProducts } from "@/features/router/rules";
 import { routeMessage } from "@/features/router/router";
 import type { RouterHandlers } from "@/features/router/types";
 import { tryCheckout } from "@/features/sales/checkout";
+import { tryBooking } from "@/features/booking/book-from-chat";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 import { wantsProductImage } from "@/features/sales/order-intent";
 import { getRecentMessages } from "@/db/repositories/conversations";
@@ -180,6 +181,29 @@ export async function handleInboundText(
     await addLeadEvent(db, args.tenantId, sync.leadId, "order_created", {
       orderId: checkout.orderId,
     });
+    return { status: "processed", replied: true };
+  }
+
+  // Booking: a clear "book service X at time Y" creates a real appointment
+  // (same double-booking guard as the dashboard) and confirms.
+  const booking = await tryBooking(db, {
+    tenantId: args.tenantId,
+    customerId,
+    conversationId: conversation.id,
+    channelId: args.channelId,
+    text: args.text,
+  });
+  if (booking) {
+    await args.send(args.externalId, booking.reply);
+    await recordOutboundMessage(db, args.tenantId, conversation.id, {
+      body: booking.reply,
+      category: "TRANSACTIONAL",
+    });
+    if (booking.appointmentId) {
+      await addLeadEvent(db, args.tenantId, sync.leadId, "appointment_created", {
+        appointmentId: booking.appointmentId,
+      });
+    }
     return { status: "processed", replied: true };
   }
 
