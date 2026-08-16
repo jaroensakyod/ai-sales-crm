@@ -8,6 +8,7 @@ import {
 } from "@/db/repositories/knowledge";
 import type { knowledgeDocuments } from "@/db/schema";
 import type { LevelHandler } from "@/features/router/types";
+import { toPlainText } from "@/lib/validation";
 
 import { embedWithGemini, type EmbedFn } from "./embeddings";
 import {
@@ -184,7 +185,7 @@ export function createKnowledgeSearchHandler(
       meta: { model: normalizeModelId(RAG_MODEL), level: 2 },
     });
 
-    const text = result.text.trim();
+    const text = toPlainText(result.text.trim());
     return text || null;
   };
 }

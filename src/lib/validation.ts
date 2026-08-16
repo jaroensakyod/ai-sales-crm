@@ -43,3 +43,19 @@ export function toSlug(v: unknown): string | null {
   const r = slugSchema.safeParse(String(v ?? ""));
   return r.success ? r.data : null;
 }
+
+/**
+ * Strip Markdown so AI replies read like a human typed them in LINE/Messenger
+ * (which show `**` and `#` literally, making the bot obvious). Keeps the text.
+ */
+export function toPlainText(input: string): string {
+  return input
+    .replace(/\*\*([^*]+)\*\*/g, "$1") // **bold**
+    .replace(/__([^_]+)__/g, "$1") // __bold__
+    .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1$2") // *italic*
+    .replace(/`{1,3}([^`]*)`{1,3}/g, "$1") // `code`
+    .replace(/^#{1,6}\s+/gm, "") // # headings
+    .replace(/^\s*[-*•]\s+/gm, "") // - bullet points -> plain lines
+    .replace(/\n{3,}/g, "\n\n") // collapse blank runs
+    .trim();
+}

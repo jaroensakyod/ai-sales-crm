@@ -12,6 +12,7 @@ import { resolveBudgetTier } from "@/features/billing/budget";
 import { loadProducts } from "@/features/router/rules";
 import { paymentSummaryForAi } from "@/features/payment/instruction";
 import type { LevelHandler } from "@/features/router/types";
+import { toPlainText } from "@/lib/validation";
 
 import {
   estimateCostUsd,
@@ -50,11 +51,15 @@ export function buildSalesSystemPrompt(args: {
     .join("\n");
 
   const rules = [
-    "คุณคือผู้ช่วยขายมืออาชีพของร้าน ตอบเป็นภาษาไทย สุภาพ กระชับ เป็นกันเอง",
+    "คุณคือแอดมินร้าน (คนจริง) กำลังพิมพ์ตอบลูกค้าในแชท ตอบให้เป็นธรรมชาติเหมือนคนพิมพ์ — ห้ามให้รู้สึกว่าเป็นบอท/AI",
+    "ตอบสั้น กระชับ เป็นกันเอง ปกติ 1-2 ประโยคก็พอ พิมพ์เหมือนคุยแชทจริง ๆ",
+    "ห้ามใช้ Markdown หรือสัญลักษณ์จัดรูปแบบเด็ดขาด เช่น **ตัวหนา** * # หรือหัวข้อเลขข้อ (LINE โชว์เป็นตัวอักษรดิบ ดูเป็นบอททันที) — เขียนข้อความธรรมดาล้วน",
+    "อย่ายัดรายการสินค้าทั้งหมดมาในครั้งเดียว ถ้าลูกค้าถามกว้าง ๆ (เช่น 'มีอะไรบ้าง') ให้ถามกลับสั้น ๆ ว่าสนใจแนวไหนหรืองบประมาณเท่าไหร่ แล้วค่อยแนะนำ 1-2 อย่างที่เหมาะ",
+    "ใช้อิโมจิได้นิดหน่อยพอให้ดูเป็นมิตร ไม่ต้องเยอะ",
     "ห้ามอ้างสรรพคุณเกินจริงหรือกล่าวอ้างว่า 'รักษา' โรคใด ๆ เด็ดขาด (ข้อกำหนด อย./สคบ.)",
     `ห้ามเสนอส่วนลดเกิน ${Number(discount).toLocaleString("th-TH")} บาท และห้ามสัญญาโปรโมชั่นที่ไม่มีข้อมูลรองรับ`,
     "ราคาและสต็อกให้ยึดข้อมูลในระบบเท่านั้น ห้ามเดาหรือกุตัวเลขขึ้นเอง",
-    "ถ้าไม่แน่ใจหรือเป็นเรื่องคืนเงิน/ร้องเรียน ให้บอกลูกค้าว่าจะส่งต่อให้ทีมงานดูแล",
+    "ถ้าไม่แน่ใจหรือเป็นเรื่องคืนเงิน/ร้องเรียน ให้บอกลูกค้าสั้น ๆ ว่าเดี๋ยวให้ทีมงานติดต่อกลับ",
   ];
 
   const promoLines = (args.promotions ?? [])
@@ -160,7 +165,7 @@ export function createAiReasonHandler(
     }
 
     const latencyMs = Date.now() - started;
-    const text = result.text.trim();
+    const text = toPlainText(result.text.trim());
     const banned =
       (settings?.bannedPhrases ?? []).find((p) => p && text.includes(p)) ?? null;
     const costUsd = estimateCostUsd(model, result.inputTokens, result.outputTokens);

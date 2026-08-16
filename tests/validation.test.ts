@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { toMoney, toSlug, toStock } from "@/lib/validation";
+import { toMoney, toPlainText, toSlug, toStock } from "@/lib/validation";
 
 describe("input validation", () => {
   it("toMoney coerces and guards", () => {
@@ -20,5 +20,12 @@ describe("input validation", () => {
     expect(toSlug("ร้าน 123")).toBe("123");
     expect(toSlug("!!!")).toBeNull();
     expect(toSlug("")).toBeNull();
+  });
+
+  it("toPlainText strips markdown for LINE/Messenger", () => {
+    expect(toPlainText("**ลิปสติก** ราคา 420")).toBe("ลิปสติก ราคา 420");
+    expect(toPlainText("# หัวข้อ\nข้อความ")).toBe("หัวข้อ\nข้อความ");
+    expect(toPlainText("- รายการ 1\n- รายการ 2")).toBe("รายการ 1\nรายการ 2");
+    expect(toPlainText("ปกติ ไม่มีอะไร")).toBe("ปกติ ไม่มีอะไร");
   });
 });
