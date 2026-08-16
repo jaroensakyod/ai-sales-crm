@@ -1,6 +1,7 @@
 import type { DbClient } from "@/db/client";
 import { recordAgreement } from "@/db/repositories/agreements";
 import { upsertFacebookConnection } from "@/db/repositories/facebook";
+import { subscribePageWebhook } from "@/features/facebook/client";
 import { upsertLineConnection } from "@/db/repositories/line";
 import { countChannels } from "@/db/repositories/subscriptions";
 import {
@@ -130,5 +131,9 @@ export async function connectFacebookChannel(
     pageId: input.pageId,
     accessToken: input.accessToken,
   });
-  return channel;
+  // Best-effort: auto-subscribe the page to our webhooks so the merchant doesn't
+  // have to do it manually in the Meta console (the app-level webhook still needs
+  // its callback URL set once).
+  const subscribed = await subscribePageWebhook(input.accessToken, input.pageId);
+  return { ...channel, subscribed };
 }

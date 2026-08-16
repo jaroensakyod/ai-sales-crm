@@ -23,6 +23,7 @@ import {
   updateStoreInfoAction,
 } from "../../actions";
 import { ConnectGuide } from "../_components/connect-guide";
+import { CopyCode } from "../_components/copy-code";
 import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +97,11 @@ export default async function SettingsPage({
         </form>
 
         <h2>เชื่อมช่องทาง (LINE / Facebook)</h2>
-        <ConnectGuide webhookBase={base} />
+        <ConnectGuide
+          webhookBase={base}
+          verifyToken={process.env.META_VERIFY_TOKEN}
+          fbConnected={chans.some((c) => c.type === "MESSENGER")}
+        />
 
         <h3 style={{ margin: "18px 0 8px" }}>ช่องทางที่เชื่อมแล้ว</h3>
         {chans.length === 0 ? (
@@ -119,10 +124,9 @@ export default async function SettingsPage({
                     <span className="muted">{c.displayName}</span>
                   </td>
                   <td>
-                    <code className="url">
-                      {base}/api/webhooks/
-                      {c.type === "LINE" ? "line" : "facebook"}/{c.id}
-                    </code>
+                    <CopyCode
+                      value={`${base}/api/webhooks/${c.type === "LINE" ? "line" : "facebook"}/${c.id}`}
+                    />
                   </td>
                 </tr>
               ))}

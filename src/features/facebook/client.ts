@@ -24,6 +24,33 @@ export async function sendFacebookText(
   }
 }
 
+/**
+ * Subscribe the page to this app's webhooks (messages) so inbound Messenger
+ * events start flowing — otherwise the merchant has to click "subscribe" in the
+ * Meta console. Best-effort: returns false on failure instead of throwing.
+ */
+export async function subscribePageWebhook(
+  pageAccessToken: string,
+  pageId: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${GRAPH_API}/${encodeURIComponent(pageId)}/subscribed_apps`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          subscribed_fields: "messages,messaging_postbacks",
+          access_token: pageAccessToken,
+        }),
+      },
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Send an image (by public URL) via the Messenger Send API. */
 export async function sendFacebookImage(
   pageAccessToken: string,
