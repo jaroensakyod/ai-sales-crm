@@ -1,5 +1,7 @@
 import type { DbClient } from "@/db/client";
 import { setConversationStatus } from "@/db/repositories/conversations";
+import { getTenantAiSettings } from "@/db/repositories/ai";
+import { emojiAllowed, modeAllowsCrossSell } from "@/features/ai/reply-mode";
 
 import {
   hasPriceIntent,
@@ -55,11 +57,16 @@ export async function routeMessage(
       let replyText = parts.join(" ");
 
       // Cross-sell on a buying signal (price intent) — the docs' hero use case:
-      // curated pairs, not AI guesses.
+      // curated pairs, not AI guesses. Only for selling modes (respects the
+      // merchant's "don't over-sell" setting); emoji only if they allow it.
       if (priceIntent) {
-        const cross = await suggestCrossSells(db, ctx.tenantId, product.id);
-        if (cross.length > 0) {
-          replyText += ` 💡 ลูกค้าส่วนใหญ่ซื้อ "${cross[0].name}" คู่กันด้วยค่ะ`;
+        const settings = await getTenantAiSettings(db, ctx.tenantId);
+        if (modeAllowsCrossSell(settings?.replyMode)) {
+          const cross = await suggestCrossSells(db, ctx.tenantId, product.id);
+          if (cross.length > 0) {
+            const spark = emojiAllowed(settings?.emojiLevel) ? "💡 " : "";
+            replyText += ` ${spark}ลูกค้าส่วนใหญ่ซื้อ "${cross[0].name}" คู่กันด้วยค่ะ`;
+          }
         }
       }
 

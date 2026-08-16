@@ -21,6 +21,8 @@ export async function updateTenantAiSettings(
     systemPromptExtra?: string | null;
     softCapUsd?: string | null;
     replyTone?: string | null;
+    replyMode?: string | null;
+    emojiLevel?: string | null;
   },
 ) {
   await db

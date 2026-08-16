@@ -10,6 +10,7 @@ import { getTenantBySlug } from "@/db/repositories/tenants";
 import { channels } from "@/db/schema";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 import { TONE_OPTIONS } from "@/features/ai/tone";
+import { EMOJI_LEVELS, REPLY_MODES } from "@/features/ai/reply-mode";
 import { hasGeminiApiKey } from "@/lib/env";
 
 import {
@@ -181,7 +182,31 @@ export default async function SettingsPage({
         <form action={updateAiSettingsAction} className="card">
           <input type="hidden" name="slug" value={slug} />
           <label>
-            โทนการตอบของบอท
+            แนวทางการตอบ (โหมดการขาย)
+            <select name="replyMode" defaultValue={aiSettings?.replyMode ?? ""}>
+              <option value="">— ค่าเริ่มต้น (ที่ปรึกษา ไม่ตื๊อ) —</option>
+              {REPLY_MODES.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <span className="muted" style={{ fontSize: "0.8rem" }}>
+              คุมว่าบอทจะแนะนำ/ชวนซื้อ/ปิดการขายมากน้อยแค่ไหน
+            </span>
+          </label>
+          <label>
+            การใช้อิโมจิ
+            <select name="emojiLevel" defaultValue={aiSettings?.emojiLevel ?? ""}>
+              {EMOJI_LEVELS.map((e) => (
+                <option key={e.key} value={e.key}>
+                  {e.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            โทนการตอบของบอท (บุคลิก/น้ำเสียง)
             <select name="replyTone" defaultValue={aiSettings?.replyTone ?? ""}>
               <option value="">— ค่าเริ่มต้น (เป็นกันเอง) —</option>
               {TONE_OPTIONS.map((t) => (

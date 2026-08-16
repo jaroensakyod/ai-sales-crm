@@ -100,6 +100,8 @@ export const tenantAiSettings = pgTable(
     bannedPhrases: text("banned_phrases").array().notNull().default(sql`'{}'`),
     systemPromptExtra: text("system_prompt_extra"),
     replyTone: text("reply_tone"), // preset bot personality (see features/ai/tone.ts)
+    replyMode: text("reply_mode"), // sales behaviour: push/close level (features/ai/reply-mode.ts)
+    emojiLevel: text("emoji_level"), // NONE | LITTLE | NORMAL — merchant controls emoji usage
     // Internal safety net, not shown to merchant (docs/04-risks.md).
     softCapUsd: numeric("soft_cap_usd", { precision: 12, scale: 2 }),
     ...timestamps,

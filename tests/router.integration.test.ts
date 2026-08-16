@@ -86,11 +86,17 @@ describe.skipIf(!hasDb)("message router (integration)", () => {
       .from(products)
       .where(eq(products.sku, `FOUND-${suffix}`));
     await addCrossSell(db, tenantId, lip.id, foundation.id, "แต่งหน้าครบลุค");
+    const { updateTenantAiSettings } = await import("@/db/repositories/ai");
+    const ask = () =>
+      routeMessage(db, { tenantId, text: "ลิปสติกสีแดง ราคาเท่าไหร่คะ" });
 
-    const d = await routeMessage(db, {
-      tenantId,
-      text: "ลิปสติกสีแดง ราคาเท่าไหร่คะ",
-    });
+    // Calm default (consultative) answers the price only — no upsell (merchant feedback).
+    await updateTenantAiSettings(db, tenantId, { replyMode: "CONSULTATIVE" });
+    expect((await ask()).replyText).not.toContain("คู่กัน");
+
+    // Selling mode brings the hero cross-sell back.
+    await updateTenantAiSettings(db, tenantId, { replyMode: "PROACTIVE" });
+    const d = await ask();
     expect(d.replyText).toContain("คู่กัน");
     expect(d.replyText).toContain("รองพื้น");
   });

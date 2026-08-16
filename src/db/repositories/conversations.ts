@@ -128,6 +128,36 @@ export async function recordOutboundMessage(
   });
 }
 
+/**
+ * Recent messages of a conversation for short-term memory, oldest→newest.
+ * Feeds the AI the last few turns so it stays on-topic across a multi-message
+ * chat (e.g. customer answers "บำรุง" and the bot remembers they meant the face).
+ * Capped (default 8) to bound prompt size + API cost.
+ */
+export async function getRecentMessages(
+  db: DbClient,
+  tenantId: string,
+  conversationId: string,
+  limit = 8,
+): Promise<{ direction: "INBOUND" | "OUTBOUND"; body: string }[]> {
+  const rows = await db
+    .select({ direction: messages.direction, body: messages.body })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.tenantId, tenantId),
+        eq(messages.conversationId, conversationId),
+      ),
+    )
+    .orderBy(desc(messages.sentAt))
+    .limit(limit);
+  return rows
+    .filter((r): r is { direction: "INBOUND" | "OUTBOUND"; body: string } =>
+      Boolean(r.body),
+    )
+    .reverse();
+}
+
 export async function setConversationStatus(
   db: DbClient,
   tenantId: string,
