@@ -42,13 +42,26 @@ export async function replyImage(
   await client.replyMessage({ replyToken, messages });
 }
 
-/** Broadcast a text message to ALL friends of the OA. Counts toward the monthly
- *  quota per recipient (risk #4) — merchant-initiated, gated by a confirm step. */
-export async function broadcastText(
+/**
+ * Broadcast a promo (optional banner image + text) to ALL friends of the OA.
+ * Counts toward the monthly quota per recipient (risk #4) — merchant-initiated,
+ * gated by a confirm step. Image first, then text, in one broadcast (≤5 msgs).
+ */
+export async function broadcastPromo(
   client: LineClient,
-  text: string,
+  input: { text?: string; imageUrl?: string | null },
 ): Promise<void> {
-  await client.broadcast({ messages: [{ type: "text", text }] });
+  const messages: messagingApi.Message[] = [];
+  if (input.imageUrl) {
+    messages.push({
+      type: "image",
+      originalContentUrl: input.imageUrl,
+      previewImageUrl: input.imageUrl,
+    });
+  }
+  if (input.text) messages.push({ type: "text", text: input.text });
+  if (messages.length === 0) return;
+  await client.broadcast({ messages });
 }
 
 /** Proactively push to a user. Counts toward the monthly quota (risk #4) — only

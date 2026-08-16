@@ -65,11 +65,21 @@ export default async function BroadcastPage({
         <form action={broadcastLineAction} className="card">
           <input type="hidden" name="slug" value={slug} />
           <label>
+            ลิงก์รูปแบนเนอร์โปรฯ (ถ้ามี — ส่งรูปก่อนข้อความ)
+            <input
+              name="imageUrl"
+              type="url"
+              placeholder="https://... (https + JPG/PNG, ไม่เกิน 10MB)"
+            />
+            <span className="muted" style={{ fontSize: "0.8rem" }}>
+              โปรฯ ที่มีรูปแบนเนอร์ ลูกค้าสนใจมากกว่าข้อความเปล่า
+            </span>
+          </label>
+          <label>
             ข้อความที่จะส่ง (ข้อความล้วน ไม่ต้องใส่ Markdown)
             <textarea
               name="message"
               rows={5}
-              required
               maxLength={4900}
               placeholder={
                 "เช่น โปรเดือนนี้! ลิปสติกทุกสี ลด 20% ถึงสิ้นเดือนนี้เท่านั้น ทักมาสั่งได้เลยค่ะ 🎉"

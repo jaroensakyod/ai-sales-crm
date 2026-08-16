@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { createDbClient } from "@/db/client";
 import { recordUsageEvent, updateTenantAiSettings } from "@/db/repositories/ai";
 import { getConnectedLineChannel } from "@/db/repositories/line";
-import { broadcastText, createLineClient } from "@/features/line/client";
+import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
 import {
@@ -708,16 +708,17 @@ export async function removeUserAction(formData: FormData) {
 }
 
 /**
- * Broadcast a promotion to ALL of the OA's LINE followers. Merchant-initiated
- * and gated by a confirm checkbox (irreversible + counts toward the monthly
- * message quota per recipient). Plain text only, so it reads like a real person.
+ * Broadcast a promotion (optional banner image + text) to ALL of the OA's LINE
+ * followers. Merchant-initiated and gated by a confirm checkbox (irreversible +
+ * counts toward the monthly message quota per recipient).
  */
 export async function broadcastLineAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   const raw = String(formData.get("message") ?? "").trim();
+  const imageUrl = toImageUrl(formData.get("imageUrl"));
   const confirmed = formData.get("confirm") === "on";
-  if (!raw) redirect(`/dashboard/${slug}/broadcast?error=empty`);
+  if (!raw && !imageUrl) redirect(`/dashboard/${slug}/broadcast?error=empty`);
   if (!confirmed) redirect(`/dashboard/${slug}/broadcast?error=confirm`);
 
   const line = await getConnectedLineChannel(db, tenant.id);
@@ -726,13 +727,13 @@ export async function broadcastLineAction(formData: FormData) {
   const text = toPlainText(raw).slice(0, 4900); // LINE hard cap 5000 chars/text
   try {
     const token = decryptSecret(line.connection.accessTokenEncrypted);
-    await broadcastText(createLineClient(token), text);
+    await broadcastPromo(createLineClient(token), { text, imageUrl });
   } catch {
     redirect(`/dashboard/${slug}/broadcast?error=send`);
   }
   await recordUsageEvent(db, tenant.id, {
     type: "line_broadcast",
-    meta: { chars: text.length },
+    meta: { chars: text.length, hasImage: Boolean(imageUrl) },
   });
   redirect(`/dashboard/${slug}/broadcast?ok=1`);
 }
