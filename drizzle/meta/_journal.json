@@ -43,6 +43,13 @@
       "when": 1786763633366,
       "tag": "0005_booking",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786855621595,
+      "tag": "0006_chat_tags",
+      "breakpoints": true
     }
   ]
 }

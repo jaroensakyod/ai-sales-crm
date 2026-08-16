@@ -12,6 +12,11 @@ import {
   toggleRule,
 } from "@/db/repositories/automation";
 import {
+  createTag,
+  deleteTag,
+  toggleTag,
+} from "@/db/repositories/tags";
+import {
   createAppointment,
   createService,
   deleteService,
@@ -482,6 +487,37 @@ export async function applyDiscountAction(formData: FormData) {
   redirect(
     `/dashboard/${slug}/orders/${orderId}?${result.ok ? "ok=discount" : "error=discount"}`,
   );
+}
+
+export async function createTagAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  const name = String(formData.get("name") ?? "").trim();
+  const keywords = String(formData.get("keywords") ?? "")
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const guidance = String(formData.get("guidance") ?? "").trim();
+  if (name && guidance && keywords.length > 0) {
+    await createTag(db, tenant.id, { name, keywords, guidance });
+  }
+  redirect(`/dashboard/${slug}/tags`);
+}
+
+export async function toggleTagAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("tagId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  await toggleTag(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/tags`);
+}
+
+export async function deleteTagAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("tagId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  await deleteTag(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/tags`);
 }
 
 export async function createAutomationAction(formData: FormData) {

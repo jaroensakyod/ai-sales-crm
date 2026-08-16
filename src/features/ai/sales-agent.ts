@@ -8,7 +8,9 @@ import { getMonthlyAiSpend } from "@/db/repositories/billing";
 import { listServices } from "@/db/repositories/booking";
 import { getActivePromotions } from "@/db/repositories/promotions";
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
+import { listActiveTags } from "@/db/repositories/tags";
 import { resolveBudgetTier } from "@/features/billing/budget";
+import { buildTagGuidance, classifyTags } from "@/features/tags/classify";
 import { loadProducts } from "@/features/router/rules";
 import { paymentSummaryForAi } from "@/features/payment/instruction";
 import type { LevelHandler } from "@/features/router/types";
@@ -38,6 +40,7 @@ export function buildSalesSystemPrompt(args: {
   promotions?: Promotions;
   paymentInfo?: string | null;
   services?: Services;
+  tagGuidance?: string | null;
 }): string {
   const discount = args.settings?.discountAuthority ?? "0";
   const catalogLines = args.catalog
@@ -82,6 +85,10 @@ export function buildSalesSystemPrompt(args: {
 
   return [
     rules.join("\n"),
+    // TAG steering: highest-priority, applies to THIS message specifically.
+    args.tagGuidance
+      ? `\n⭐ สำคัญ: สำหรับข้อความนี้ ให้ตอบตามแนวทางที่ร้านกำหนดต่อไปนี้ก่อนเป็นอันดับแรก:\n${args.tagGuidance}`
+      : "",
     args.catalog.length ? `\nสินค้าในร้าน:\n${catalogLines}` : "",
     serviceLines
       ? `\nบริการที่จองได้ (ลูกค้าถามได้ ให้แนะนำแล้วบอกให้แจ้งวันเวลาที่สะดวก):\n${serviceLines}`
@@ -118,12 +125,19 @@ export function createAiReasonHandler(
       await getPaymentSettings(db, ctx.tenantId),
     );
     const services = await listServices(db, ctx.tenantId);
+    // TAG classification: match the message to the merchant's tags and steer.
+    const matchedTags = classifyTags(
+      ctx.text,
+      await listActiveTags(db, ctx.tenantId),
+    );
+    const tagGuidance = buildTagGuidance(matchedTags);
     const systemInstruction = buildSalesSystemPrompt({
       settings,
       catalog,
       promotions,
       paymentInfo,
       services,
+      tagGuidance,
     });
 
     // Graceful soft-cap (Phase 2): degrade cost instead of blocking the customer.
