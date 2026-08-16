@@ -23,6 +23,24 @@ export async function getLineChannelContext(db: DbClient, channelId: string) {
   return { channel, connection: connection ?? null };
 }
 
+/**
+ * The tenant's connected LINE channel (+ its encrypted token), for merchant-
+ * initiated actions like broadcast. Returns null if no LINE OA is connected.
+ */
+export async function getConnectedLineChannel(db: DbClient, tenantId: string) {
+  const [channel] = await db
+    .select()
+    .from(channels)
+    .where(and(eq(channels.tenantId, tenantId), eq(channels.type, "LINE")));
+  if (!channel) return null;
+  const [connection] = await db
+    .select()
+    .from(lineConnections)
+    .where(eq(lineConnections.channelId, channel.id));
+  if (!connection) return null;
+  return { channelId: channel.id, connection };
+}
+
 /** Store an OA's secret + access token encrypted at rest (risk #7). */
 export async function upsertLineConnection(
   db: DbClient,

@@ -4,7 +4,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
-import { updateTenantAiSettings } from "@/db/repositories/ai";
+import { recordUsageEvent, updateTenantAiSettings } from "@/db/repositories/ai";
+import { getConnectedLineChannel } from "@/db/repositories/line";
+import { broadcastText, createLineClient } from "@/features/line/client";
+import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
 import {
   createRule,
@@ -59,7 +62,7 @@ import {
 } from "@/features/auth/session";
 import { ROLES, type Permission, type Role } from "@/features/team/roles";
 import { hashPassword } from "@/lib/password";
-import { toMoney, toSlug, toStock } from "@/lib/validation";
+import { toImageUrl, toMoney, toPlainText, toSlug, toStock } from "@/lib/validation";
 import { setPlan } from "@/db/repositories/subscriptions";
 import { ingestKnowledge } from "@/features/ai/rag";
 import { answerGap } from "@/features/knowledge/answer-gap";
@@ -271,6 +274,7 @@ export async function createProductAction(formData: FormData) {
       stock: parseStock(formData.get("stock")),
       sku: String(formData.get("sku") ?? "").trim() || null,
       description: String(formData.get("description") ?? "").trim() || null,
+      imageUrl: toImageUrl(formData.get("imageUrl")),
     });
   }
   redirect(`/dashboard/${slug}/products?ok=1`);
@@ -300,6 +304,7 @@ export async function editProductAction(formData: FormData) {
     stock: parseStock(formData.get("stock")),
     sku: String(formData.get("sku") ?? "").trim() || null,
     description: String(formData.get("description") ?? "").trim() || null,
+    imageUrl: toImageUrl(formData.get("imageUrl")),
     isActive: formData.get("isActive") === "on",
   });
   redirect(`/dashboard/${slug}/products?ok=1`);
@@ -441,6 +446,8 @@ export async function updateAiSettingsAction(formData: FormData) {
     systemPromptExtra:
       String(formData.get("systemPromptExtra") ?? "").trim() || null,
     replyTone: String(formData.get("replyTone") ?? "").trim() || null,
+    replyMode: String(formData.get("replyMode") ?? "").trim() || null,
+    emojiLevel: String(formData.get("emojiLevel") ?? "").trim() || null,
   });
   redirect(`/dashboard/${slug}/settings?ok=ai`);
 }
@@ -698,4 +705,34 @@ export async function removeUserAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "manage_team");
   await removeUser(db, tenant.id, userId);
   redirect(`/dashboard/${slug}/team`);
+}
+
+/**
+ * Broadcast a promotion to ALL of the OA's LINE followers. Merchant-initiated
+ * and gated by a confirm checkbox (irreversible + counts toward the monthly
+ * message quota per recipient). Plain text only, so it reads like a real person.
+ */
+export async function broadcastLineAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  const raw = String(formData.get("message") ?? "").trim();
+  const confirmed = formData.get("confirm") === "on";
+  if (!raw) redirect(`/dashboard/${slug}/broadcast?error=empty`);
+  if (!confirmed) redirect(`/dashboard/${slug}/broadcast?error=confirm`);
+
+  const line = await getConnectedLineChannel(db, tenant.id);
+  if (!line) redirect(`/dashboard/${slug}/broadcast?error=nochannel`);
+
+  const text = toPlainText(raw).slice(0, 4900); // LINE hard cap 5000 chars/text
+  try {
+    const token = decryptSecret(line.connection.accessTokenEncrypted);
+    await broadcastText(createLineClient(token), text);
+  } catch {
+    redirect(`/dashboard/${slug}/broadcast?error=send`);
+  }
+  await recordUsageEvent(db, tenant.id, {
+    type: "line_broadcast",
+    meta: { chars: text.length },
+  });
+  redirect(`/dashboard/${slug}/broadcast?ok=1`);
 }
