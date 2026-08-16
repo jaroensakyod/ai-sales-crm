@@ -80,6 +80,7 @@ export default async function SettingsPage({
                 ["CATALOG", "ขายสินค้า"],
                 ["BOOKING", "นัดหมาย/บริการ"],
                 ["COURSE", "คอร์ส/สมาชิก"],
+                ["HOTEL", "โรงแรม/ที่พัก"],
               ] as const
             ).map(([val, label]) => (
               <label key={val} className="inline">

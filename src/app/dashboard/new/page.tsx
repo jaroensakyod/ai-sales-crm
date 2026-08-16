@@ -47,6 +47,9 @@ export default async function NewStorePage({
             <label className="inline">
               <input type="checkbox" name="businessTypes" value="COURSE" /> คอร์ส/สมาชิก
             </label>
+            <label className="inline">
+              <input type="checkbox" name="businessTypes" value="HOTEL" /> โรงแรม/ที่พัก
+            </label>
           </fieldset>
 
           <label className="inline">

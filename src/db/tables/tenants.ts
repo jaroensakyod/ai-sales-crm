@@ -15,6 +15,7 @@ export const businessTypeEnum = pgEnum("business_type", [
   "CATALOG", // product/price/stock/variant/shipping
   "BOOKING", // resource + time_slot + duration
   "COURSE", // course/session + cohort + recurring billing
+  "HOTEL", // room types + nightly rates + date-range availability
 ]);
 
 export const tenantStatusEnum = pgEnum("tenant_status", [

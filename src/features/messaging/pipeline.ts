@@ -27,6 +27,7 @@ import { routeMessage } from "@/features/router/router";
 import type { RouterHandlers } from "@/features/router/types";
 import { tryCheckout } from "@/features/sales/checkout";
 import { tryBooking } from "@/features/booking/book-from-chat";
+import { tryHotelBooking } from "@/features/hotel/book-from-chat";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 import { wantsProductImage } from "@/features/sales/order-intent";
 import { getRecentMessages } from "@/db/repositories/conversations";
@@ -181,6 +182,28 @@ export async function handleInboundText(
     await addLeadEvent(db, args.tenantId, sync.leadId, "order_created", {
       orderId: checkout.orderId,
     });
+    return { status: "processed", replied: true };
+  }
+
+  // Hotel: room availability questions + real date-range bookings (only fires
+  // for tenants that have room types; otherwise falls through).
+  const hotel = await tryHotelBooking(db, {
+    tenantId: args.tenantId,
+    customerId,
+    conversationId: conversation.id,
+    text: args.text,
+  });
+  if (hotel) {
+    await args.send(args.externalId, hotel.reply);
+    await recordOutboundMessage(db, args.tenantId, conversation.id, {
+      body: hotel.reply,
+      category: hotel.bookingId ? "TRANSACTIONAL" : "CONVERSATIONAL",
+    });
+    if (hotel.bookingId) {
+      await addLeadEvent(db, args.tenantId, sync.leadId, "hotel_booking_created", {
+        bookingId: hotel.bookingId,
+      });
+    }
     return { status: "processed", replied: true };
   }
 

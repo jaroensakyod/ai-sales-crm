@@ -10,6 +10,7 @@ import {
   createScheduledBroadcast,
 } from "@/db/repositories/broadcasts";
 import { getConnectedLineChannel } from "@/db/repositories/line";
+import { createRoom, deleteRoom } from "@/db/repositories/hotel";
 import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
@@ -85,6 +86,7 @@ export async function createStoreAction(formData: FormData) {
     | "CATALOG"
     | "BOOKING"
     | "COURSE"
+    | "HOTEL"
   )[];
   const dpa = formData.get("dpa") === "on";
 
@@ -398,6 +400,7 @@ export async function updateStoreInfoAction(formData: FormData) {
     | "CATALOG"
     | "BOOKING"
     | "COURSE"
+    | "HOTEL"
   )[];
   await updateTenant(db, tenant.id, {
     name: name || tenant.name,
@@ -765,4 +768,30 @@ export async function cancelScheduledBroadcastAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   await cancelScheduledBroadcast(db, tenant.id, id);
   redirect(`/dashboard/${slug}/broadcast?ok=cancelled`);
+}
+
+/** Add a hotel room type (name + nightly rate + how many rooms exist). */
+export async function createRoomAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const name = String(formData.get("name") ?? "").trim();
+  if (name) {
+    await createRoom(db, tenant.id, {
+      name,
+      pricePerNight: parsePrice(formData.get("pricePerNight")),
+      quantity: Math.max(1, parseInt(String(formData.get("quantity") ?? "1"), 10) || 1),
+      capacity: Math.max(1, parseInt(String(formData.get("capacity") ?? "2"), 10) || 2),
+      description: String(formData.get("description") ?? "").trim() || null,
+      imageUrl: toImageUrl(formData.get("imageUrl")),
+    });
+  }
+  redirect(`/dashboard/${slug}/hotel?ok=1`);
+}
+
+export async function deleteRoomAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("roomId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  await deleteRoom(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/hotel?ok=1`);
 }
