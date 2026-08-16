@@ -12,7 +12,10 @@ import {
   products,
 } from "@/db/schema";
 import { computeFacebookSignature } from "@/features/facebook/signature";
-import { processFacebookWebhook } from "@/features/facebook/webhook";
+import {
+  processFacebookWebhook,
+  processFacebookWebhookByPage,
+} from "@/features/facebook/webhook";
 
 const hasDb = !!process.env.DATABASE_URL;
 const APP_SECRET = "test-app-secret-fb";
@@ -143,5 +146,57 @@ describe.skipIf(!hasDb)("Facebook webhook (integration)", () => {
     });
     expect(first.ok && first.processed).toBe(1);
     expect(second.ok && second.processed).toBe(0);
+  });
+
+  it("single-app route dispatches by page id (entry.id) to the right tenant", async () => {
+    // No channelId in the call — routing is purely by the page id in the payload.
+    const payload = JSON.stringify({
+      object: "page",
+      entry: [
+        {
+          id: `page-${suffix}`,
+          messaging: [
+            {
+              sender: { id: psid },
+              timestamp: Date.now(),
+              message: { mid: `mp-${suffix}`, text: "ลิปสติกสีแดง ราคาเท่าไหร่คะ" },
+            },
+          ],
+        },
+      ],
+    });
+    const sig = computeFacebookSignature(APP_SECRET, payload);
+    const sent: string[] = [];
+    const res = await processFacebookWebhookByPage(db, payload, sig, {
+      send: async (_to, text) => {
+        sent.push(text);
+      },
+    });
+    expect(res.ok && res.processed).toBe(1);
+    expect(sent[0]).toContain("390");
+  });
+
+  it("single-app route ignores an unknown page (still 200, no throw)", async () => {
+    const payload = JSON.stringify({
+      object: "page",
+      entry: [
+        {
+          id: "page-that-is-not-connected",
+          messaging: [
+            {
+              sender: { id: psid },
+              timestamp: Date.now(),
+              message: { mid: `mx-${suffix}`, text: "hello" },
+            },
+          ],
+        },
+      ],
+    });
+    const sig = computeFacebookSignature(APP_SECRET, payload);
+    const res = await processFacebookWebhookByPage(db, payload, sig, {
+      send: async () => {},
+    });
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.processed).toBe(0);
   });
 });
