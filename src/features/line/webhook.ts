@@ -1,10 +1,15 @@
 import type { DbClient } from "@/db/client";
 import { getLineChannelContext } from "@/db/repositories/line";
 import { decryptSecret } from "@/lib/crypto";
-import { handleInboundText } from "@/features/messaging/pipeline";
+import {
+  handleInboundImage,
+  handleInboundText,
+  type SendFn,
+  type SendImageFn,
+} from "@/features/messaging/pipeline";
 import type { RouterHandlers } from "@/features/router/types";
 
-import { createLineClient, replyText } from "./client";
+import { createLineClient, replyImage, replyText } from "./client";
 import { verifyLineSignature } from "./signature";
 
 /** Minimal shape of the LINE webhook events we handle (text messages from users). */
@@ -19,12 +24,19 @@ type LineEvent = {
 };
 
 export type LineReplyFn = (replyToken: string, text: string) => Promise<void>;
+export type LineReplyImageFn = (
+  replyToken: string,
+  imageUrl: string,
+  caption?: string,
+) => Promise<void>;
 
 export type ProcessDeps = {
   /** Level 2/3 handlers for the router (RAG, Gemini). */
   routerHandlers?: RouterHandlers;
   /** Override the reply transport (tests inject a spy instead of hitting LINE). */
   reply?: LineReplyFn;
+  /** Override the image transport (tests inject a spy). */
+  replyImage?: LineReplyImageFn;
 };
 
 export type LineWebhookResult =
@@ -60,13 +72,25 @@ export async function processLineWebhook(
   // Reply transport: injected spy in tests, else a real client built from the
   // OA's decrypted access token (built lazily so unrelated events cost nothing).
   let reply = deps.reply;
+  let replyImg = deps.replyImage;
+  const ensureClient = () => {
+    const token = decryptSecret(context.connection!.accessTokenEncrypted);
+    return createLineClient(token);
+  };
   const getReply = (): LineReplyFn => {
     if (!reply) {
-      const token = decryptSecret(context.connection!.accessTokenEncrypted);
-      const client = createLineClient(token);
+      const client = ensureClient();
       reply = (replyToken, text) => replyText(client, replyToken, text);
     }
     return reply;
+  };
+  const getReplyImage = (): LineReplyImageFn => {
+    if (!replyImg) {
+      const client = ensureClient();
+      replyImg = (replyToken, imageUrl, caption) =>
+        replyImage(client, replyToken, imageUrl, caption);
+    }
+    return replyImg;
   };
 
   const tenantId = context.channel.tenantId;
@@ -77,28 +101,53 @@ export async function processLineWebhook(
 
   for (const event of events) {
     const userId = event.source?.userId;
-    const isText =
-      event.type === "message" &&
-      event.message?.type === "text" &&
-      event.source?.type === "user";
-    if (!isText || !userId || !event.message?.id) {
+    const fromUser = event.type === "message" && event.source?.type === "user";
+    const isText = fromUser && event.message?.type === "text";
+    const isImage = fromUser && event.message?.type === "image";
+    if ((!isText && !isImage) || !userId || !event.message?.id) {
       skipped++;
       continue;
     }
 
     // LINE replies via the event's single-use token, not the user id.
     const replyToken = event.replyToken;
+    const send: SendFn | undefined = replyToken
+      ? (_to, text) => getReply()(replyToken, text)
+      : undefined;
+    const sendImage: SendImageFn | undefined = replyToken
+      ? (_to, imageUrl, caption) => getReplyImage()(replyToken, imageUrl, caption)
+      : undefined;
+    const at = event.timestamp ? new Date(event.timestamp) : undefined;
+
+    // Image (usually a payment slip) — acknowledge + log for merchant review.
+    if (isImage) {
+      const result = await handleInboundImage(db, {
+        tenantId,
+        channelId,
+        externalId: userId,
+        channelMessageId: event.message.id,
+        at,
+        send,
+      });
+      if (result.status === "duplicate") {
+        skipped++;
+        continue;
+      }
+      processed++;
+      if (result.replied) replied++;
+      continue;
+    }
+
     const result = await handleInboundText(db, {
       tenantId,
       channelId,
       externalId: userId,
       text: event.message.text ?? "",
       channelMessageId: event.message.id,
-      at: event.timestamp ? new Date(event.timestamp) : undefined,
+      at,
       routerHandlers: deps.routerHandlers,
-      send: replyToken
-        ? (_to, text) => getReply()(replyToken, text)
-        : undefined,
+      send,
+      sendImage,
     });
 
     if (result.status === "duplicate") {

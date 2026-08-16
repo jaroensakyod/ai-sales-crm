@@ -4,8 +4,11 @@ import { eq } from "drizzle-orm";
 import { createDbClient, createDbSqlClient, type DbClient } from "@/db/client";
 import { createTenant, deleteTenant } from "@/db/repositories/tenants";
 import { upsertPaymentSettings } from "@/db/repositories/payment-settings";
-import { channels, orderItems, orders, products } from "@/db/schema";
-import { handleInboundText } from "@/features/messaging/pipeline";
+import { channels, orderItems, orders, payments, products } from "@/db/schema";
+import {
+  handleInboundImage,
+  handleInboundText,
+} from "@/features/messaging/pipeline";
 
 const hasDb = !!process.env.DATABASE_URL;
 
@@ -136,5 +139,41 @@ describe.skipIf(!hasDb)("chat checkout (integration)", () => {
       .from(orders)
       .where(eq(orders.tenantId, tenantId));
     expect(rows).toHaveLength(1); // still one order, reused
+  });
+
+  it("a slip image is acknowledged + logged as PENDING (never auto-PAID, risk #9)", async () => {
+    // New customer so it gets its own conversation + order.
+    const ext = `Uslip-${suffix}`;
+    await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: ext,
+      text: "ขอสั่งลิปสติกสีแดง 1 ชิ้นค่ะ",
+      channelMessageId: `slipbuy-${suffix}`,
+      send,
+    });
+    sent.length = 0;
+
+    const res = await handleInboundImage(db, {
+      tenantId,
+      channelId,
+      externalId: ext,
+      channelMessageId: `slipimg-${suffix}`,
+      slipUrl: "https://example.com/slip.jpg",
+      send,
+    });
+    expect(res.replied).toBe(true);
+    expect(sent[0]).toContain("ได้รับสลิป");
+
+    // A PENDING payment exists; no order is flipped to PAID by a mere image.
+    const pays = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.tenantId, tenantId));
+    expect(pays.some((p) => p.status === "PENDING")).toBe(true);
+    const paidOrders = (
+      await db.select().from(orders).where(eq(orders.tenantId, tenantId))
+    ).filter((o) => o.status === "PAID");
+    expect(paidOrders).toHaveLength(0);
   });
 });

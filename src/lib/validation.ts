@@ -45,6 +45,19 @@ export function toSlug(v: unknown): string | null {
 }
 
 /**
+ * Accept only a public HTTPS image URL (LINE/Messenger require https + JPEG/PNG).
+ * Returns the trimmed URL, or null if empty/invalid — so a bad paste never
+ * becomes a broken image the bot tries to send.
+ */
+export function toImageUrl(v: unknown): string | null {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  if (!/^https:\/\/.+/i.test(s)) return null;
+  if (s.length > 2048) return null;
+  return s;
+}
+
+/**
  * Strip Markdown so AI replies read like a human typed them in LINE/Messenger
  * (which show `**` and `#` literally, making the bot obvious). Keeps the text.
  */

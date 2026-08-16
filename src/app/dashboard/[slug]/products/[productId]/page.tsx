@@ -90,6 +90,23 @@ export default async function EditProductPage({
             placeholder="เช่น ลิปเนื้อแมตต์ ติดทน 8 ชม. ไม่ตกร่อง เหมาะกับผิวทุกโทน"
           />
         </label>
+        <label>
+          ลิงก์รูปสินค้า (URL — บอทส่งให้ลูกค้าเมื่อขอดูรูป)
+          <input
+            name="imageUrl"
+            type="url"
+            defaultValue={product.imageUrl ?? ""}
+            placeholder="https://... (https + JPG/PNG)"
+          />
+        </label>
+        {product.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            style={{ maxWidth: 160, borderRadius: 8, marginTop: 4 }}
+          />
+        ) : null}
         <label className="inline">
           <input
             name="isActive"

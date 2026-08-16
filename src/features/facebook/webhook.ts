@@ -1,16 +1,27 @@
 import type { DbClient } from "@/db/client";
 import { getFacebookChannelContext } from "@/db/repositories/facebook";
 import { decryptSecret } from "@/lib/crypto";
-import { handleInboundText, type SendFn } from "@/features/messaging/pipeline";
+import {
+  handleInboundImage,
+  handleInboundText,
+  type SendFn,
+  type SendImageFn,
+} from "@/features/messaging/pipeline";
 import type { RouterHandlers } from "@/features/router/types";
 
-import { sendFacebookText } from "./client";
+import { sendFacebookImage, sendFacebookText } from "./client";
 import { verifyFacebookSignature } from "./signature";
 
+type FbAttachment = { type?: string; payload?: { url?: string } };
 type FbMessaging = {
   sender?: { id?: string };
   timestamp?: number;
-  message?: { mid?: string; text?: string; is_echo?: boolean };
+  message?: {
+    mid?: string;
+    text?: string;
+    is_echo?: boolean;
+    attachments?: FbAttachment[];
+  };
 };
 type FbEntry = { messaging?: FbMessaging[] };
 
@@ -18,6 +29,8 @@ export type FbProcessDeps = {
   routerHandlers?: RouterHandlers;
   /** Override the send transport (tests inject a spy instead of the Graph API). */
   send?: SendFn;
+  /** Override the image transport (tests inject a spy). */
+  sendImage?: SendImageFn;
 };
 
 export type FbWebhookResult =
@@ -59,12 +72,21 @@ export async function processFacebookWebhook(
 
   // Send transport: injected spy in tests, else the Graph API with the page token.
   let send = deps.send;
+  let sendImage = deps.sendImage;
+  const getToken = () => decryptSecret(context.connection!.accessTokenEncrypted);
   const getSend = (): SendFn => {
     if (!send) {
-      const token = decryptSecret(context.connection!.accessTokenEncrypted);
+      const token = getToken();
       send = (psid, text) => sendFacebookText(token, psid, text);
     }
     return send;
+  };
+  const getSendImage = (): SendImageFn => {
+    if (!sendImage) {
+      const token = getToken();
+      sendImage = (psid, imageUrl) => sendFacebookImage(token, psid, imageUrl);
+    }
+    return sendImage;
   };
 
   const tenantId = context.channel.tenantId;
@@ -76,23 +98,41 @@ export async function processFacebookWebhook(
     for (const m of entry.messaging ?? []) {
       const psid = m.sender?.id;
       const text = m.message?.text;
+      const image = m.message?.attachments?.find((a) => a.type === "image");
       // Require mid for dedup: without it, redelivered events would re-process
       // (NULL channelMessageId never matches the unique index).
-      if (!psid || !text || !m.message?.mid || m.message?.is_echo) {
+      if (!psid || !m.message?.mid || m.message?.is_echo || (!text && !image)) {
         skipped++;
         continue;
       }
+      const at = m.timestamp ? new Date(m.timestamp) : undefined;
 
-      const result = await handleInboundText(db, {
-        tenantId,
-        channelId,
-        externalId: psid,
-        text,
-        channelMessageId: m.message?.mid,
-        at: m.timestamp ? new Date(m.timestamp) : undefined,
-        routerHandlers: deps.routerHandlers,
-        send: getSend(),
-      });
+      // Image (usually a payment slip) — acknowledge + log for merchant review.
+      // Messenger gives a public CDN URL, so we can store the slip directly.
+      let result;
+      if (!text && image) {
+        result = await handleInboundImage(db, {
+          tenantId,
+          channelId,
+          externalId: psid,
+          channelMessageId: m.message.mid,
+          slipUrl: image.payload?.url,
+          at,
+          send: getSend(),
+        });
+      } else {
+        result = await handleInboundText(db, {
+          tenantId,
+          channelId,
+          externalId: psid,
+          text: text ?? "",
+          channelMessageId: m.message.mid,
+          at,
+          routerHandlers: deps.routerHandlers,
+          send: getSend(),
+          sendImage: getSendImage(),
+        });
+      }
 
       if (result.status === "duplicate") {
         skipped++;

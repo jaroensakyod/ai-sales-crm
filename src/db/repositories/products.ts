@@ -20,6 +20,7 @@ export async function createProduct(
     stock?: number | null;
     sku?: string | null;
     description?: string | null;
+    imageUrl?: string | null;
   },
 ) {
   const [row] = await db
@@ -39,6 +40,7 @@ export async function updateProduct(
     stock?: number | null;
     sku?: string | null;
     description?: string | null;
+    imageUrl?: string | null;
     isActive?: boolean;
   },
 ) {

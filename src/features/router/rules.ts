@@ -19,6 +19,7 @@ export async function loadProducts(
       stock: products.stock,
       currency: products.currency,
       description: products.description,
+      imageUrl: products.imageUrl,
     })
     .from(products)
     .where(and(eq(products.tenantId, tenantId), eq(products.isActive, true)));

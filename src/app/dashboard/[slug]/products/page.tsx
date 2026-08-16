@@ -150,6 +150,17 @@ export default async function ProductsPage({
           รายละเอียด
           <textarea name="description" rows={2} placeholder="รายละเอียดสินค้า สำหรับให้ AI แนะนำ" />
         </label>
+        <label>
+          ลิงก์รูปสินค้า (URL)
+          <input
+            name="imageUrl"
+            type="url"
+            placeholder="https://... (ต้องเป็น https และเป็น JPG/PNG)"
+          />
+          <span className="muted" style={{ fontSize: "0.8rem" }}>
+            บอทจะส่งรูปนี้ให้ลูกค้าเมื่อถูกขอดูรูป — ใช้ลิงก์รูปสาธารณะ (เช่นจากเว็บร้าน/Google Drive แบบแชร์)
+          </span>
+        </label>
         <button type="submit" style={{ marginTop: 12 }}>
           เพิ่มสินค้า
         </button>

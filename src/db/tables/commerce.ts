@@ -28,6 +28,7 @@ export const products = pgTable(
     price: numeric("price", { precision: 12, scale: 2 }).notNull().default("0"),
     currency: text("currency").notNull().default("THB"),
     stock: integer("stock"),
+    imageUrl: text("image_url"), // public HTTPS image (JPEG/PNG) the bot can send
     isActive: boolean("is_active").notNull().default(true),
     attributes: jsonb("attributes"),
     ...timestamps,
