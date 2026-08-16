@@ -71,6 +71,13 @@
       "when": 1786864376493,
       "tag": "0009_glossy_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786873094828,
+      "tag": "0010_cooing_retro_girl",
+      "breakpoints": true
     }
   ]
 }

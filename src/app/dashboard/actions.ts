@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { recordUsageEvent, updateTenantAiSettings } from "@/db/repositories/ai";
+import {
+  cancelScheduledBroadcast,
+  createScheduledBroadcast,
+} from "@/db/repositories/broadcasts";
 import { getConnectedLineChannel } from "@/db/repositories/line";
 import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
@@ -725,6 +729,22 @@ export async function broadcastLineAction(formData: FormData) {
   if (!line) redirect(`/dashboard/${slug}/broadcast?error=nochannel`);
 
   const text = toPlainText(raw).slice(0, 4900); // LINE hard cap 5000 chars/text
+
+  // Scheduled? The datetime-local input is naive local time — treat it as
+  // Thailand time (+07:00) since shops are Thai, and store the real instant.
+  const schedStr = String(formData.get("scheduledAt") ?? "").trim();
+  if (schedStr) {
+    const at = new Date(`${schedStr}:00+07:00`);
+    if (Number.isNaN(at.getTime()) || at.getTime() <= Date.now()) {
+      redirect(`/dashboard/${slug}/broadcast?error=badtime`);
+    }
+    await createScheduledBroadcast(db, tenant.id, {
+      text: text || null,
+      imageUrl,
+      scheduledAt: at,
+    });
+    redirect(`/dashboard/${slug}/broadcast?ok=scheduled`);
+  }
   try {
     const token = decryptSecret(line.connection.accessTokenEncrypted);
     await broadcastPromo(createLineClient(token), { text, imageUrl });
@@ -736,4 +756,13 @@ export async function broadcastLineAction(formData: FormData) {
     meta: { chars: text.length, hasImage: Boolean(imageUrl) },
   });
   redirect(`/dashboard/${slug}/broadcast?ok=1`);
+}
+
+/** Cancel a still-pending scheduled broadcast. */
+export async function cancelScheduledBroadcastAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("broadcastId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  await cancelScheduledBroadcast(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/broadcast?ok=cancelled`);
 }

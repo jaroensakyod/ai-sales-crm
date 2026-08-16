@@ -192,3 +192,24 @@ export const auditLogs = pgTable(
   },
   (t) => [index("audit_logs_tenant_idx").on(t.tenantId, t.createdAt)],
 );
+
+/**
+ * Scheduled LINE promo broadcasts — the merchant queues a promo to fire at a
+ * future time. A cron (/api/cron/broadcasts) sends any that are due. Reuses
+ * followupStatusEnum: SCHEDULED -> SENT / FAILED, or CANCELLED by the merchant.
+ */
+export const scheduledBroadcasts = pgTable(
+  "scheduled_broadcasts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: tenantId(),
+    text: text("text"),
+    imageUrl: text("image_url"),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
+    status: followupStatusEnum("status").notNull().default("SCHEDULED"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    error: text("error"),
+    ...timestamps,
+  },
+  (t) => [index("scheduled_broadcasts_due_idx").on(t.status, t.scheduledAt)],
+);
