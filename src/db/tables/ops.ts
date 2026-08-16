@@ -99,6 +99,7 @@ export const tenantAiSettings = pgTable(
       .default("0"),
     bannedPhrases: text("banned_phrases").array().notNull().default(sql`'{}'`),
     systemPromptExtra: text("system_prompt_extra"),
+    replyTone: text("reply_tone"), // preset bot personality (see features/ai/tone.ts)
     // Internal safety net, not shown to merchant (docs/04-risks.md).
     softCapUsd: numeric("soft_cap_usd", { precision: 12, scale: 2 }),
     ...timestamps,

@@ -16,6 +16,7 @@ import {
   deleteTag,
   toggleTag,
 } from "@/db/repositories/tags";
+import { PRESET_TAGS } from "@/features/tags/presets";
 import {
   createAppointment,
   createService,
@@ -439,6 +440,7 @@ export async function updateAiSettingsAction(formData: FormData) {
     bannedPhrases,
     systemPromptExtra:
       String(formData.get("systemPromptExtra") ?? "").trim() || null,
+    replyTone: String(formData.get("replyTone") ?? "").trim() || null,
   });
   redirect(`/dashboard/${slug}/settings?ok=ai`);
 }
@@ -500,6 +502,21 @@ export async function createTagAction(formData: FormData) {
   const guidance = String(formData.get("guidance") ?? "").trim();
   if (name && guidance && keywords.length > 0) {
     await createTag(db, tenant.id, { name, keywords, guidance });
+  }
+  redirect(`/dashboard/${slug}/tags`);
+}
+
+export async function addPresetTagAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const key = String(formData.get("presetKey") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  const preset = PRESET_TAGS.find((p) => p.key === key);
+  if (preset) {
+    await createTag(db, tenant.id, {
+      name: preset.name,
+      keywords: [...preset.keywords],
+      guidance: preset.guidance,
+    });
   }
   redirect(`/dashboard/${slug}/tags`);
 }

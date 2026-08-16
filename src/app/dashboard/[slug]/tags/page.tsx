@@ -5,7 +5,10 @@ import { listTags } from "@/db/repositories/tags";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 
+import { PRESET_TAGS } from "@/features/tags/presets";
+
 import {
+  addPresetTagAction,
   createTagAction,
   deleteTagAction,
   toggleTagAction,
@@ -36,8 +39,23 @@ export default async function TagsPage({
         (แม่นกว่าปล่อย AI อิสระ) — ใช้ได้ทั้ง LINE และ Facebook
       </p>
 
+      <div className="card" style={{ marginBottom: 14 }}>
+        <strong>แท็กสำเร็จรูป (กดเพิ่มได้เลย แล้วแก้ทีหลัง)</strong>
+        <div className="row" style={{ marginTop: 10 }}>
+          {PRESET_TAGS.map((p) => (
+            <form key={p.key} action={addPresetTagAction}>
+              <input type="hidden" name="slug" value={slug} />
+              <input type="hidden" name="presetKey" value={p.key} />
+              <button type="submit" className="ghost sm">
+                + {p.name}
+              </button>
+            </form>
+          ))}
+        </div>
+      </div>
+
       {tags.length === 0 ? (
-        <p className="muted">ยังไม่มีแท็ก — เพิ่มด้านล่าง</p>
+        <p className="muted">ยังไม่มีแท็ก — กดแท็กสำเร็จรูปด้านบน หรือเพิ่มเองด้านล่าง</p>
       ) : (
         <div className="table-wrap">
           <table>

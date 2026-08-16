@@ -1,0 +1,1 @@
+ALTER TABLE "tenant_ai_settings" ADD COLUMN "reply_tone" text;

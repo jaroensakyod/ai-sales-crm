@@ -9,6 +9,7 @@ import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { channels } from "@/db/schema";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
+import { TONE_OPTIONS } from "@/features/ai/tone";
 import { hasGeminiApiKey } from "@/lib/env";
 
 import {
@@ -179,6 +180,17 @@ export default async function SettingsPage({
         <h2>ตั้งค่าผู้ช่วยขาย AI</h2>
         <form action={updateAiSettingsAction} className="card">
           <input type="hidden" name="slug" value={slug} />
+          <label>
+            โทนการตอบของบอท
+            <select name="replyTone" defaultValue={aiSettings?.replyTone ?? ""}>
+              <option value="">— ค่าเริ่มต้น (เป็นกันเอง) —</option>
+              {TONE_OPTIONS.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             ส่วนลดที่ AI ให้ได้สูงสุด (บาท)
             <input

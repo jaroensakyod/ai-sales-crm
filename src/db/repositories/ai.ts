@@ -20,6 +20,7 @@ export async function updateTenantAiSettings(
     bannedPhrases?: string[];
     systemPromptExtra?: string | null;
     softCapUsd?: string | null;
+    replyTone?: string | null;
   },
 ) {
   await db

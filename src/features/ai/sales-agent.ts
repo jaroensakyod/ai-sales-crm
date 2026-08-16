@@ -10,7 +10,13 @@ import { getActivePromotions } from "@/db/repositories/promotions";
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { listActiveTags } from "@/db/repositories/tags";
 import { resolveBudgetTier } from "@/features/billing/budget";
-import { buildTagGuidance, classifyTags } from "@/features/tags/classify";
+import {
+  buildTagGuidance,
+  classifyTags,
+  classifyTagsAI,
+} from "@/features/tags/classify";
+
+import { toneInstruction } from "./tone";
 import { loadProducts } from "@/features/router/rules";
 import { paymentSummaryForAi } from "@/features/payment/instruction";
 import type { LevelHandler } from "@/features/router/types";
@@ -41,6 +47,7 @@ export function buildSalesSystemPrompt(args: {
   paymentInfo?: string | null;
   services?: Services;
   tagGuidance?: string | null;
+  tone?: string | null;
 }): string {
   const discount = args.settings?.discountAuthority ?? "0";
   const catalogLines = args.catalog
@@ -83,8 +90,11 @@ export function buildSalesSystemPrompt(args: {
     )
     .join("\n");
 
+  const tone = toneInstruction(args.tone);
+
   return [
     rules.join("\n"),
+    tone ? `\nโทนการตอบของร้านนี้: ${tone}` : "",
     // TAG steering: highest-priority, applies to THIS message specifically.
     args.tagGuidance
       ? `\n⭐ สำคัญ: สำหรับข้อความนี้ ให้ตอบตามแนวทางที่ร้านกำหนดต่อไปนี้ก่อนเป็นอันดับแรก:\n${args.tagGuidance}`
@@ -125,11 +135,20 @@ export function createAiReasonHandler(
       await getPaymentSettings(db, ctx.tenantId),
     );
     const services = await listServices(db, ctx.tenantId);
-    // TAG classification: match the message to the merchant's tags and steer.
-    const matchedTags = classifyTags(
-      ctx.text,
-      await listActiveTags(db, ctx.tenantId),
-    );
+    // TAG classification (hybrid): keyword first (free/instant); if nothing
+    // matched, fall back to AI so paraphrases like "มันเกินงบ" still hit "ต่อราคา".
+    const activeTags = await listActiveTags(db, ctx.tenantId);
+    let matchedTags = classifyTags(ctx.text, activeTags);
+    if (matchedTags.length === 0 && activeTags.length > 0) {
+      matchedTags = await classifyTagsAI(ctx.text, activeTags, async (a) => {
+        const r = await generate({
+          model: settings?.defaultModel ?? "gemini-flash-lite",
+          systemInstruction: a.systemInstruction,
+          userText: a.userText,
+        });
+        return r.text;
+      });
+    }
     const tagGuidance = buildTagGuidance(matchedTags);
     const systemInstruction = buildSalesSystemPrompt({
       settings,
@@ -138,6 +157,7 @@ export function createAiReasonHandler(
       paymentInfo,
       services,
       tagGuidance,
+      tone: settings?.replyTone,
     });
 
     // Graceful soft-cap (Phase 2): degrade cost instead of blocking the customer.
