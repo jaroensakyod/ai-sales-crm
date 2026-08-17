@@ -1,9 +1,17 @@
 import type { DbClient } from "@/db/client";
 import {
+  countInboundSince,
   getOrOpenConversation,
+  getRecentMessages,
   recordInboundMessage,
   recordOutboundMessage,
 } from "@/db/repositories/conversations";
+import {
+  FLOOD_WINDOW_MS,
+  isFlooding,
+  JAILBREAK_REPLY,
+  looksLikeJailbreak,
+} from "@/features/messaging/guard";
 import {
   createPayment,
   getOpenOrderForConversation,
@@ -31,7 +39,6 @@ import { tryHotelBooking } from "@/features/hotel/book-from-chat";
 import { tryCourseEnroll } from "@/features/course/enroll-from-chat";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 import { wantsProductImage } from "@/features/sales/order-intent";
-import { getRecentMessages } from "@/db/repositories/conversations";
 
 /** Deliver a reply to the given channel-user. LINE ignores the id (uses a reply
  *  token via closure); Facebook uses it as the PSID. */
@@ -164,6 +171,26 @@ export async function handleInboundText(
   });
 
   if (!args.send) return { status: "processed", replied: false };
+
+  // Abuse guards — before any AI/commerce, so floods and prompt-injection never
+  // cost a model call or bend the bot off-task.
+  const recent = await countInboundSince(
+    db,
+    args.tenantId,
+    conversation.id,
+    new Date(Date.now() - FLOOD_WINDOW_MS),
+  );
+  if (isFlooding(recent)) {
+    // Silently drop — a real customer never types this fast; don't feed abuse.
+    return { status: "processed", replied: false };
+  }
+  if (looksLikeJailbreak(args.text)) {
+    await args.send(args.externalId, JAILBREAK_REPLY);
+    await recordOutboundMessage(db, args.tenantId, conversation.id, {
+      body: JAILBREAK_REPLY,
+    });
+    return { status: "processed", replied: true };
+  }
 
   // Checkout: a clear "buy this product" message creates the order + sends the
   // payment instruction (DB prices only, payment stays unconfirmed — risk #5/#9).

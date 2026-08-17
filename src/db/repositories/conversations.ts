@@ -1,4 +1,4 @@
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, gte, ne } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
 import { conversations, messages } from "@/db/schema";
@@ -156,6 +156,28 @@ export async function getRecentMessages(
       Boolean(r.body),
     )
     .reverse();
+}
+
+/** How many inbound messages this conversation received since `since` — used to
+ *  throttle floods (spam / abuse) before spending an AI call. */
+export async function countInboundSince(
+  db: DbClient,
+  tenantId: string,
+  conversationId: string,
+  since: Date,
+): Promise<number> {
+  const rows = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.tenantId, tenantId),
+        eq(messages.conversationId, conversationId),
+        eq(messages.direction, "INBOUND"),
+        gte(messages.sentAt, since),
+      ),
+    );
+  return rows.length;
 }
 
 export async function setConversationStatus(
