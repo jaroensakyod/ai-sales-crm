@@ -66,11 +66,14 @@ export async function subscribePageWebhook(
   }
 }
 
-/** Send an image (by public URL) via the Messenger Send API. */
+/** Send an image (by public URL) via the Messenger Send API, plus an optional
+ *  caption as a follow-up text message (Messenger has no image caption field,
+ *  so the text is a second message). */
 export async function sendFacebookImage(
   pageAccessToken: string,
   recipientId: string,
   imageUrl: string,
+  caption?: string,
 ): Promise<void> {
   const res = await fetch(
     `${GRAPH_API}/me/messages?access_token=${encodeURIComponent(pageAccessToken)}`,
@@ -92,6 +95,9 @@ export async function sendFacebookImage(
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`Facebook image send failed ${res.status}: ${body}`);
+  }
+  if (caption?.trim()) {
+    await sendFacebookText(pageAccessToken, recipientId, caption);
   }
 }
 

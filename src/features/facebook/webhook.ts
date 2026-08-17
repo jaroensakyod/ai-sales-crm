@@ -106,7 +106,8 @@ async function runMessagings(
   const getSendImage = (): SendImageFn => {
     if (!sendImage) {
       const token = decryptSecret(target.accessTokenEncrypted);
-      sendImage = (psid, imageUrl) => sendFacebookImage(token, psid, imageUrl);
+      sendImage = (psid, imageUrl, caption) =>
+        sendFacebookImage(token, psid, imageUrl, caption);
     }
     return sendImage;
   };
