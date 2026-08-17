@@ -1,4 +1,6 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { randomBytes } from "node:crypto";
+
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 
 import { createDbClient, createDbSqlClient, type DbClient } from "@/db/client";
@@ -9,6 +11,10 @@ import { createStore } from "@/features/onboarding/service";
 import { signOwnerSession, verifyOwnerSession } from "@/lib/session";
 
 describe("owner session token", () => {
+  beforeAll(() => {
+    process.env.SESSION_SECRET = randomBytes(32).toString("hex");
+  });
+
   it("round-trips and rejects tampering / expiry", () => {
     const token = signOwnerSession({ ownerId: "o1", name: "ร้านเอ", provider: "LINE" });
     const s = verifyOwnerSession(token);
@@ -22,10 +28,16 @@ describe("owner session token", () => {
 const hasDb = !!process.env.DATABASE_URL;
 
 describe.skipIf(!hasDb)("owner accounts (integration)", () => {
-  const db: DbClient = createDbClient();
+  // Created inside beforeAll (not the describe body) so collection never calls
+  // createDbClient() — a skipped suite must not need DATABASE_URL (CI has none).
+  let db: DbClient;
   const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
   const providerId = `U-${suffix}`;
   const madeTenants: string[] = [];
+
+  beforeAll(() => {
+    db = createDbClient();
+  });
 
   afterAll(async () => {
     for (const id of madeTenants) await deleteTenant(db, id);
