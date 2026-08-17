@@ -1,6 +1,7 @@
 import type { DbClient } from "@/db/client";
 import { createAppointment, listServices } from "@/db/repositories/booking";
 import { matchHandoff } from "@/features/router/intent";
+import { scheduleReminder } from "@/features/reminders/schedule";
 
 import { hasBookingIntent, matchService, parseThaiDateTime } from "./intent";
 
@@ -60,6 +61,23 @@ export async function tryBooking(
     dateStyle: "full",
     timeStyle: "short",
   });
+  // Remind ~a day before so they don't forget (reduces no-shows).
+  if (ctx.channelId && ctx.conversationId) {
+    const time = start.toLocaleTimeString("th-TH", {
+      timeZone: "Asia/Bangkok",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    await scheduleReminder(db, {
+      tenantId: ctx.tenantId,
+      customerId: ctx.customerId,
+      conversationId: ctx.conversationId,
+      channelId: ctx.channelId,
+      at: start,
+      text: `แจ้งเตือนนัดหมายค่ะ พรุ่งนี้คุณมีนัด${service.name} เวลา ${time} น. ที่ร้านนะคะ แล้วเจอกันค่ะ`,
+      now,
+    });
+  }
   const price = Number(service.price).toLocaleString("th-TH");
   return {
     appointmentId: result.appointmentId,

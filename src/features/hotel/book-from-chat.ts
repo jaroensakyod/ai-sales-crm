@@ -4,6 +4,7 @@ import {
   listAvailableRooms,
   listRooms,
 } from "@/db/repositories/hotel";
+import { scheduleReminder } from "@/features/reminders/schedule";
 import { matchHandoff } from "@/features/router/intent";
 
 import {
@@ -38,6 +39,7 @@ export async function tryHotelBooking(
     tenantId: string;
     customerId: string;
     conversationId?: string | null;
+    channelId?: string;
     text: string;
     now?: Date;
   },
@@ -74,6 +76,18 @@ export async function tryHotelBooking(
           `ขออภัยค่ะ ${room.name} ช่วง ${fmtDate(stay.checkIn)} – ${fmtDate(stay.checkOut)} ` +
           `เต็มแล้ว รบกวนลองวันอื่นหรือห้องประเภทอื่นได้ไหมคะ`,
       };
+    }
+    // Remind the day before check-in (2pm standard check-in time).
+    if (ctx.channelId && ctx.conversationId) {
+      await scheduleReminder(db, {
+        tenantId: ctx.tenantId,
+        customerId: ctx.customerId,
+        conversationId: ctx.conversationId,
+        channelId: ctx.channelId,
+        at: new Date(`${stay.checkIn}T14:00:00+07:00`),
+        text: `แจ้งเตือนการเข้าพักค่ะ พรุ่งนี้คุณมีจอง${room.name} เข้าพักวันที่ ${fmtDate(stay.checkIn)} นะคะ ทางโรงแรมรอต้อนรับค่ะ`,
+        now,
+      });
     }
     return {
       bookingId: result.bookingId,
