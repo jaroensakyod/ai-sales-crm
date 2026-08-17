@@ -1,0 +1,27 @@
+.admin-wrap { max-width: 1120px; margin: 0 auto; padding: 32px 24px 60px; }
+.admin-wrap h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -.02em; }
+.admin-wrap > .muted { margin: 0 0 22px; }
+
+.admin-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.astat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
+.astat .ak { font-size: 12px; color: var(--muted); }
+.astat .av { font-size: 26px; font-weight: 800; letter-spacing: -.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+.admin-table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--surface); min-width: 820px; }
+.admin-table th, .admin-table td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.admin-table thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--surface-2); }
+.admin-table .sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.admin-table .pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); white-space: nowrap; }
+
+.use-num { font-variant-numeric: tabular-nums; font-weight: 600; margin-bottom: 5px; }
+.bar { height: 7px; border-radius: 999px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--border); }
+.bar .fill { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+.bar .fill.warn { background: var(--amber); }
+.bar .fill.danger { background: var(--red); }
+.left-danger { color: var(--red); font-weight: 700; }
+
+.plan-form { display: flex; gap: 6px; align-items: center; }
+.plan-form select { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 13px; }
+.hbtn.sm { padding: 7px 12px; font-size: 13px; border-radius: 8px; }
+
+@media (max-width: 720px) { .admin-stats { grid-template-columns: 1fr 1fr; } }
