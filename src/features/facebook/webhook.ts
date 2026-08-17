@@ -98,7 +98,8 @@ async function runMessagings(
   const getSend = (): SendFn => {
     if (!send) {
       const token = decryptSecret(target.accessTokenEncrypted);
-      send = (psid, text) => sendFacebookText(token, psid, text);
+      send = (psid, text, quickReplies) =>
+        sendFacebookText(token, psid, text, quickReplies);
     }
     return send;
   };

@@ -36,15 +36,37 @@ export async function fetchLineMessageContent(
   }
 }
 
+/** Tappable suggestion chips shown under a reply. `text` is sent as if the
+ *  customer typed it when they tap `label`. */
+export type QuickReply = { label: string; text: string };
+
+/** Build a LINE text message, attaching quick-reply chips when provided. */
+function lineTextMessage(
+  text: string,
+  quickReplies?: QuickReply[],
+): messagingApi.TextMessage {
+  const msg: messagingApi.TextMessage = { type: "text", text };
+  if (quickReplies && quickReplies.length > 0) {
+    msg.quickReply = {
+      items: quickReplies.slice(0, 13).map((q) => ({
+        type: "action",
+        action: { type: "message", label: q.label.slice(0, 20), text: q.text },
+      })),
+    };
+  }
+  return msg;
+}
+
 /** Reply to an inbound event using its single-use reply token (free, no quota). */
 export async function replyText(
   client: LineClient,
   replyToken: string,
   text: string,
+  quickReplies?: QuickReply[],
 ): Promise<void> {
   await client.replyMessage({
     replyToken,
-    messages: [{ type: "text", text }],
+    messages: [lineTextMessage(text, quickReplies)],
   });
 }
 
@@ -94,9 +116,10 @@ export async function pushText(
   client: LineClient,
   toUserId: string,
   text: string,
+  quickReplies?: QuickReply[],
 ): Promise<void> {
   await client.pushMessage({
     to: toUserId,
-    messages: [{ type: "text", text }],
+    messages: [lineTextMessage(text, quickReplies)],
   });
 }

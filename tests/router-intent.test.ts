@@ -46,6 +46,11 @@ describe("router intent detection", () => {
     expect(matchHandoff("I want a refund")).toBe("refund");
     expect(matchHandoff("ราคาเท่าไหร่")).toBeNull();
   });
+  it("routes the 'talk to a human' quick-reply chip to handoff", () => {
+    expect(matchHandoff("คุยกับแอดมิน")).toBe("คุยกับแอดมิน");
+    expect(matchHandoff("ขอคุยกับแอดมินหน่อย")).toBe("คุยกับแอดมิน");
+    expect(matchHandoff("talk to a human please")).toBe("talk to a human");
+  });
 });
 
 describe("product matching", () => {

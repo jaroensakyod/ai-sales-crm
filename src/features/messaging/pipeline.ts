@@ -41,9 +41,24 @@ import { verifySlip, type SlipVerdict } from "@/features/payment/slip-verify";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 import { wantsProductImage } from "@/features/sales/order-intent";
 
+/** Tappable suggestion chips under a reply; tapping `label` sends `text`. */
+export type QuickReply = { label: string; text: string };
+
 /** Deliver a reply to the given channel-user. LINE ignores the id (uses a reply
- *  token via closure); Facebook uses it as the PSID. */
-export type SendFn = (toExternalId: string, text: string) => Promise<void>;
+ *  token via closure); Facebook uses it as the PSID. Optional quick replies are
+ *  rendered as tappable chips by the channel that supports them. */
+export type SendFn = (
+  toExternalId: string,
+  text: string,
+  quickReplies?: QuickReply[],
+) => Promise<void>;
+
+/** Escape hatch shown on the bot's conversational replies: one tap asks for a
+ *  human, which matchHandoff catches and routes to a live agent. */
+const TALK_TO_HUMAN: QuickReply = {
+  label: "คุยกับแอดมิน",
+  text: "คุยกับแอดมิน",
+};
 
 /** Deliver a product image (+ optional caption). Wired per channel. */
 export type SendImageFn = (
@@ -385,7 +400,11 @@ export async function handleInboundText(
     await markConsentPrompted(db, args.tenantId, customerId);
   }
 
-  await args.send(args.externalId, replyText);
+  // Offer a one-tap "talk to a human" on normal bot replies — but not when we're
+  // already handing off (they're getting a human anyway).
+  const quickReplies =
+    decision.action === "handoff" ? undefined : [TALK_TO_HUMAN];
+  await args.send(args.externalId, replyText, quickReplies);
   await recordOutboundMessage(db, args.tenantId, conversation.id, {
     body: replyText,
   });

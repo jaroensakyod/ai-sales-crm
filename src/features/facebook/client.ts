@@ -1,11 +1,26 @@
 const GRAPH_API = "https://graph.facebook.com/v21.0";
 
+/** Tappable suggestion chips shown under a reply (mirrors the LINE type). */
+export type QuickReply = { label: string; text: string };
+
 /** Send a text message via the Messenger Send API using a page access token. */
 export async function sendFacebookText(
   pageAccessToken: string,
   recipientId: string,
   text: string,
+  quickReplies?: QuickReply[],
 ): Promise<void> {
+  const message: {
+    text: string;
+    quick_replies?: { content_type: "text"; title: string; payload: string }[];
+  } = { text };
+  if (quickReplies && quickReplies.length > 0) {
+    message.quick_replies = quickReplies.slice(0, 13).map((q) => ({
+      content_type: "text",
+      title: q.label.slice(0, 20),
+      payload: q.text,
+    }));
+  }
   const res = await fetch(
     `${GRAPH_API}/me/messages?access_token=${encodeURIComponent(pageAccessToken)}`,
     {
@@ -14,7 +29,7 @@ export async function sendFacebookText(
       body: JSON.stringify({
         recipient: { id: recipientId },
         messaging_type: "RESPONSE",
-        message: { text },
+        message,
       }),
     },
   );

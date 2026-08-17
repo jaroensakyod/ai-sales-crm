@@ -6,6 +6,7 @@ import {
   handleInboundText,
   type SendFn,
   type SendImageFn,
+  type QuickReply,
 } from "@/features/messaging/pipeline";
 import { transcribeVoice } from "@/features/messaging/voice";
 import type { RouterHandlers } from "@/features/router/types";
@@ -29,7 +30,11 @@ type LineEvent = {
   message?: LineMessage;
 };
 
-export type LineReplyFn = (replyToken: string, text: string) => Promise<void>;
+export type LineReplyFn = (
+  replyToken: string,
+  text: string,
+  quickReplies?: QuickReply[],
+) => Promise<void>;
 export type LineReplyImageFn = (
   replyToken: string,
   imageUrl: string,
@@ -86,7 +91,8 @@ export async function processLineWebhook(
   const getReply = (): LineReplyFn => {
     if (!reply) {
       const client = ensureClient();
-      reply = (replyToken, text) => replyText(client, replyToken, text);
+      reply = (replyToken, text, quickReplies) =>
+        replyText(client, replyToken, text, quickReplies);
     }
     return reply;
   };
@@ -119,7 +125,7 @@ export async function processLineWebhook(
     // LINE replies via the event's single-use token, not the user id.
     const replyToken = event.replyToken;
     const send: SendFn | undefined = replyToken
-      ? (_to, text) => getReply()(replyToken, text)
+      ? (_to, text, quickReplies) => getReply()(replyToken, text, quickReplies)
       : undefined;
     const sendImage: SendImageFn | undefined = replyToken
       ? (_to, imageUrl, caption) => getReplyImage()(replyToken, imageUrl, caption)

@@ -49,6 +49,14 @@ const HANDOFF_KEYWORDS = [
   "complaint",
   "dispute",
   "scam",
+  // Explicit "I want a human" — also fired by the "คุยกับแอดมิน" quick-reply chip.
+  "คุยกับแอดมิน",
+  "ขอคุยกับแอดมิน",
+  "ติดต่อแอดมิน",
+  "ขอแอดมิน",
+  "คุยกับคน",
+  "talk to a human",
+  "talk to admin",
 ];
 
 function normalize(text: string): string {
