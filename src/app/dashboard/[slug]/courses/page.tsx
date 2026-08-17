@@ -37,7 +37,7 @@ export default async function CoursesPage({
         <UpgradeNotice
           slug={slug}
           title="คอร์ส / สมาชิก"
-          plan="มาตรฐาน (฿590)"
+          plan="Plus (฿590)"
           desc="รับสมัครเรียน จำกัดที่นั่ง และบอกตารางเรียนผ่านแชท อยู่ในแผนมาตรฐานขึ้นไป"
         />
       </Shell>

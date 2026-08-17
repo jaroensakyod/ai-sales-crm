@@ -60,7 +60,7 @@ export default async function HotelPage({
         <UpgradeNotice
           slug={slug}
           title="โรงแรม / ห้องพัก"
-          plan="ธุรกิจ/โรงแรม (฿990)"
+          plan="Max (฿990)"
           desc="ระบบเช็คห้องว่างตามวันที่ จองห้อง คิดยอดต่อคืน และดูห้องว่างแบบเรียลไทม์ อยู่ในแผนธุรกิจ/โรงแรม"
         />
       </Shell>

@@ -42,7 +42,7 @@ export default async function BroadcastPage({
         <UpgradeNotice
           slug={slug}
           title="ยิงโปรฯ LINE"
-          plan="มาตรฐาน (฿590)"
+          plan="Plus (฿590)"
           desc="ส่งโปรโมชั่นถึงผู้ติดตามทั้งหมด แนบรูปแบนเนอร์ และตั้งเวลาล่วงหน้า อยู่ในแผนมาตรฐานขึ้นไป"
         />
       </Shell>

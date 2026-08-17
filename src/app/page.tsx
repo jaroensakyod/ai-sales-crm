@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
 
+import { PricingPlans } from "./_components/pricing-plans";
 import "./home.css";
 
 export const metadata = {
@@ -44,89 +45,51 @@ const REVIEWS = [
   { av: "พ", nm: "คุณพลอย", rl: "โรงแรมบูทีค", q: "เช็คห้องว่างแล้วจองได้ในแชทเลย แขกไม่ต้องรอเราตอบ ปิดการจองได้ไวขึ้นมาก" },
 ];
 
-const PLANS = [
-  {
-    name: "เริ่มต้น",
-    price: "290",
-    q: "2,000 ข้อความ/เดือน",
-    tagline: "ร้านเล็กเริ่มขายผ่านแชท",
-    hot: false,
-    feats: [
-      "AI ตอบแชทปิดการขาย 24 ชม.",
-      "2 ช่องทาง — LINE + Facebook",
-      "ปิดการขาย + ตรวจสลิปอัตโนมัติ",
-      "จองคิว/นัดหมาย + เตือนก่อนถึงนัด",
-      "ส่งรูปสินค้าให้ลูกค้าในแชท",
-      "วิเคราะห์เบื้องต้น — ยอดขาย/สินค้าขายดี",
-    ],
-  },
-  {
-    name: "มาตรฐาน",
-    price: "590",
-    q: "6,000 ข้อความ/เดือน",
-    tagline: "คุ้มสุด สำหรับร้านที่กำลังโต",
-    hot: true,
-    feats: [
-      "ทุกอย่างในแผนเริ่มต้น",
-      "ช่องทางไม่จำกัด",
-      "ยิงโปรฯ LINE — แนบรูป + ตั้งเวลา",
-      "ติดตามอัตโนมัติ — เตือนตะกร้าค้าง + ขอรีวิว",
-      "ระบบคอร์ส / สมาชิก",
-      "วิเคราะห์เชิงลึก — ข้อโต้แย้ง + คะแนนลูกค้า",
-    ],
-  },
-  {
-    name: "ธุรกิจ / โรงแรม",
-    price: "990",
-    q: "15,000 ข้อความ/เดือน",
-    tagline: "ธุรกิจใหญ่ + โรงแรม/ที่พัก",
-    hot: false,
-    feats: [
-      "ทุกอย่างในแผนมาตรฐาน",
-      "ระบบโรงแรม — เช็คห้องว่าง/จอง/คิดยอดต่อคืน",
-      "ดูห้องว่างเรียลไทม์สำหรับเจ้าของ",
-      "โควตาสูง 15,000 ข้อความ/เดือน",
-      "เหมาะร้านใหญ่ / หลายสาขา",
-    ],
-  },
-];
-
 // Full feature-by-plan comparison (mirrors the real plan entitlements).
-const CMP_COLS = ["เริ่มต้น", "มาตรฐาน", "ธุรกิจ/โรงแรม"];
+// Columns: Lite · Plus · Max · Enterprise.
+const CMP_COLS = ["Lite", "Plus", "Max", "Enterprise"];
 const CMP: { group: string; rows: { label: string; cells: (boolean | string)[] }[] }[] = [
   {
     group: "แชท & ช่องทาง",
     rows: [
-      { label: "LINE + Facebook", cells: [true, true, true] },
-      { label: "จำนวนช่องทาง", cells: ["2", "ไม่จำกัด", "ไม่จำกัด"] },
-      { label: "ข้อความ AI ต่อเดือน", cells: ["2,000", "6,000", "15,000"] },
-      { label: "AI ตอบเหมือนคน + จำบทสนทนา", cells: [true, true, true] },
+      { label: "LINE + Facebook", cells: [true, true, true, true] },
+      { label: "จำนวนช่องทาง", cells: ["2", "ไม่จำกัด", "ไม่จำกัด", "กำหนดเอง"] },
+      { label: "ข้อความ AI ต่อเดือน", cells: ["2,000", "6,000", "15,000", "กำหนดเอง"] },
+      { label: "AI ตอบเหมือนคน + จำบทสนทนา", cells: [true, true, true, true] },
     ],
   },
   {
     group: "ขาย & ชำระเงิน",
     rows: [
-      { label: "สร้างออเดอร์ + บอกวิธีโอน", cells: [true, true, true] },
-      { label: "ตรวจสลิปอัตโนมัติ (OCR)", cells: [true, true, true] },
-      { label: "ส่งรูปสินค้าในแชท", cells: [true, true, true] },
-      { label: "เตือนตะกร้าค้าง + ขอรีวิวอัตโนมัติ", cells: [false, true, true] },
+      { label: "สร้างออเดอร์ + บอกวิธีโอน", cells: [true, true, true, true] },
+      { label: "ตรวจสลิปอัตโนมัติ (OCR)", cells: [true, true, true, true] },
+      { label: "ส่งรูปสินค้าในแชท", cells: [true, true, true, true] },
+      { label: "เตือนตะกร้าค้าง + ขอรีวิวอัตโนมัติ", cells: [false, true, true, true] },
     ],
   },
   {
     group: "จอง & โมดูลธุรกิจ",
     rows: [
-      { label: "จองคิว/นัดหมาย + เตือนก่อนนัด", cells: [true, true, true] },
-      { label: "คอร์ส / สมาชิก", cells: [false, true, true] },
-      { label: "ระบบโรงแรม / ห้องพัก", cells: [false, false, true] },
+      { label: "จองคิว/นัดหมาย + เตือนก่อนนัด", cells: [true, true, true, true] },
+      { label: "คอร์ส / สมาชิก", cells: [false, true, true, true] },
+      { label: "ระบบโรงแรม / ห้องพัก", cells: [false, false, true, true] },
     ],
   },
   {
     group: "การตลาด & วิเคราะห์",
     rows: [
-      { label: "ยิงโปรฯ LINE + ตั้งเวลา", cells: [false, true, true] },
-      { label: "วิเคราะห์ลูกค้าเบื้องต้น", cells: [true, true, true] },
-      { label: "วิเคราะห์เชิงลึก (ข้อโต้แย้ง + Lead score)", cells: [false, true, true] },
-      { label: "CRM + Pipeline ลูกค้า", cells: [true, true, true] },
+      { label: "ยิงโปรฯ LINE + ตั้งเวลา", cells: [false, true, true, true] },
+      { label: "วิเคราะห์ลูกค้าเบื้องต้น", cells: [true, true, true, true] },
+      { label: "วิเคราะห์เชิงลึก (ข้อโต้แย้ง + Lead score)", cells: [false, true, true, true] },
+      { label: "CRM + Pipeline ลูกค้า", cells: [true, true, true, true] },
+    ],
+  },
+  {
+    group: "องค์กร (Enterprise)",
+    rows: [
+      { label: "ทีมดูแลเฉพาะ + ช่วยตั้งค่า", cells: [false, false, false, true] },
+      { label: "เชื่อมต่อระบบภายใน (API / Webhook)", cells: [false, false, false, true] },
+      { label: "SLA + ความปลอดภัยระดับองค์กร", cells: [false, false, false, true] },
     ],
   },
 ];
@@ -341,36 +304,7 @@ export default function Home() {
           <h2>เริ่มต้นถูก จ่ายเท่าที่ใช้ ยกเลิกได้ทุกเมื่อ</h2>
           <p>ทดลองฟรี 14 วัน ไม่ต้องผูกบัตร</p>
         </div>
-        <div className="hpgrid">
-          {PLANS.map((p) => (
-            <div key={p.name} className={`hpcard${p.hot ? " hot" : ""}`}>
-              {p.hot ? <div className="hpbadge">คุ้มสุด</div> : null}
-              <div className="hpn">{p.name}</div>
-              <div className="hptag">{p.tagline}</div>
-              <div className="hpp">
-                <small>฿</small>
-                {p.price}
-                <small>/ด.</small>
-              </div>
-              <div className="hpq">{p.q}</div>
-              <Link
-                href="/dashboard/new"
-                className={`hbtn ${p.hot ? "primary" : "ghost"}`}
-                style={{ marginTop: 14, width: "100%", justifyContent: "center" }}
-              >
-                ทดลองใช้ฟรี
-              </Link>
-              <ul className="hpfeat">
-                {p.feats.map((f) => (
-                  <li key={f}>
-                    <span className="hpck">✓</span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        <PricingPlans />
 
         <div className="hcmp-wrap">
           <h3 className="hcmp-title">เปรียบเทียบแพ็กเกจแบบละเอียด</h3>
@@ -390,7 +324,7 @@ export default function Home() {
                 {CMP.map((g) => (
                   <Fragment key={g.group}>
                     <tr className="hcmp-group">
-                      <td colSpan={4}>{g.group}</td>
+                      <td colSpan={CMP_COLS.length + 1}>{g.group}</td>
                     </tr>
                     {g.rows.map((r) => (
                       <tr key={r.label}>
@@ -433,7 +367,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="hsec">
+      <section id="contact" className="hsec">
         <div className="hcta">
           <h2>พร้อมให้ AI ขายให้คุณหรือยัง?</h2>
           <p>เริ่มทดลองฟรี 14 วันวันนี้ — ตั้งค่าไม่กี่นาที ไม่ต้องผูกบัตร</p>
