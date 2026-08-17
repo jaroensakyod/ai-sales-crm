@@ -7,9 +7,15 @@ import {
   type SendFn,
   type SendImageFn,
 } from "@/features/messaging/pipeline";
+import { transcribeVoice } from "@/features/messaging/voice";
 import type { RouterHandlers } from "@/features/router/types";
 
-import { createLineClient, fetchLineImage, replyImage, replyText } from "./client";
+import {
+  createLineClient,
+  fetchLineMessageContent,
+  replyImage,
+  replyText,
+} from "./client";
 import { verifyLineSignature } from "./signature";
 
 /** Minimal shape of the LINE webhook events we handle (text messages from users). */
@@ -104,7 +110,8 @@ export async function processLineWebhook(
     const fromUser = event.type === "message" && event.source?.type === "user";
     const isText = fromUser && event.message?.type === "text";
     const isImage = fromUser && event.message?.type === "image";
-    if ((!isText && !isImage) || !userId || !event.message?.id) {
+    const isAudio = fromUser && event.message?.type === "audio";
+    if ((!isText && !isImage && !isAudio) || !userId || !event.message?.id) {
       skipped++;
       continue;
     }
@@ -130,10 +137,50 @@ export async function processLineWebhook(
         at,
         send,
         loadImage: () =>
-          fetchLineImage(
+          fetchLineMessageContent(
             decryptSecret(context.connection!.accessTokenEncrypted),
             messageId,
           ),
+      });
+      if (result.status === "duplicate") {
+        skipped++;
+        continue;
+      }
+      processed++;
+      if (result.replied) replied++;
+      continue;
+    }
+
+    // Voice message — transcribe it, then run the transcript through the normal
+    // text pipeline so the bot can answer (and the agent sees it in the inbox).
+    if (isAudio) {
+      const messageId = event.message.id;
+      const media = await fetchLineMessageContent(
+        decryptSecret(context.connection!.accessTokenEncrypted),
+        messageId,
+      );
+      const transcript = media ? await transcribeVoice(media) : null;
+      if (!transcript) {
+        if (send) {
+          await send(
+            userId,
+            "ขอโทษค่ะ ฟังข้อความเสียงไม่ชัด รบกวนพิมพ์ข้อความมาได้ไหมคะ",
+          );
+          replied++;
+        }
+        processed++;
+        continue;
+      }
+      const result = await handleInboundText(db, {
+        tenantId,
+        channelId,
+        externalId: userId,
+        text: transcript,
+        channelMessageId: messageId,
+        at,
+        routerHandlers: deps.routerHandlers,
+        send,
+        sendImage,
       });
       if (result.status === "duplicate") {
         skipped++;

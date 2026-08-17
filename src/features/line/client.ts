@@ -13,12 +13,12 @@ export function createLineClient(accessToken: string) {
 export type LineClient = ReturnType<typeof createLineClient>;
 
 /**
- * Download an inbound image's bytes (payment slips) via the Messaging API's
- * content endpoint, returned as base64 for OCR. Uses the data host, not the
- * regular API host. Returns null on any failure so slip handling degrades to a
- * plain acknowledgement rather than throwing.
+ * Download an inbound message's binary content (image slips, voice notes, …)
+ * via the Messaging API's content endpoint, returned as base64. Uses the data
+ * host, not the regular API host. Returns null on any failure so callers can
+ * degrade gracefully rather than throwing.
  */
-export async function fetchLineImage(
+export async function fetchLineMessageContent(
   accessToken: string,
   messageId: string,
 ): Promise<{ data: string; mimeType: string } | null> {

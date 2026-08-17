@@ -10,6 +10,7 @@ import {
   type SendFn,
   type SendImageFn,
 } from "@/features/messaging/pipeline";
+import { transcribeVoice } from "@/features/messaging/voice";
 import type { RouterHandlers } from "@/features/router/types";
 
 import {
@@ -114,13 +115,54 @@ async function runMessagings(
     const psid = m.sender?.id;
     const text = m.message?.text;
     const image = m.message?.attachments?.find((a) => a.type === "image");
+    const audioUrl = m.message?.attachments?.find((a) => a.type === "audio")
+      ?.payload?.url;
     // Require mid for dedup: without it, redelivered events would re-process
     // (NULL channelMessageId never matches the unique index).
-    if (!psid || !m.message?.mid || m.message?.is_echo || (!text && !image)) {
+    if (
+      !psid ||
+      !m.message?.mid ||
+      m.message?.is_echo ||
+      (!text && !image && !audioUrl)
+    ) {
       counts.skipped++;
       continue;
     }
     const at = m.timestamp ? new Date(m.timestamp) : undefined;
+    const mid = m.message.mid;
+
+    // Voice message — transcribe, then run the transcript through the text
+    // pipeline (like LINE). Fires only when there's no text/image.
+    if (!text && !image && audioUrl) {
+      const media = await fetchImageAsBase64(audioUrl);
+      const transcript = media ? await transcribeVoice(media) : null;
+      if (!transcript) {
+        await getSend()(
+          psid,
+          "ขอโทษค่ะ ฟังข้อความเสียงไม่ชัด รบกวนพิมพ์ข้อความมาได้ไหมคะ",
+        );
+        counts.processed++;
+        counts.replied++;
+        continue;
+      }
+      const r = await handleInboundText(db, {
+        tenantId: target.tenantId,
+        channelId: target.channelId,
+        externalId: psid,
+        text: transcript,
+        channelMessageId: mid,
+        at,
+        routerHandlers: deps.routerHandlers,
+        send: getSend(),
+        sendImage: getSendImage(),
+      });
+      if (r.status === "duplicate") counts.skipped++;
+      else {
+        counts.processed++;
+        if (r.replied) counts.replied++;
+      }
+      continue;
+    }
 
     // Image (usually a payment slip) — Messenger gives a public CDN URL that we
     // download for OCR.
@@ -131,7 +173,7 @@ async function runMessagings(
             tenantId: target.tenantId,
             channelId: target.channelId,
             externalId: psid,
-            channelMessageId: m.message.mid,
+            channelMessageId: mid,
             slipUrl,
             at,
             send: getSend(),
@@ -142,7 +184,7 @@ async function runMessagings(
             channelId: target.channelId,
             externalId: psid,
             text: text ?? "",
-            channelMessageId: m.message.mid,
+            channelMessageId: mid,
             at,
             routerHandlers: deps.routerHandlers,
             send: getSend(),
