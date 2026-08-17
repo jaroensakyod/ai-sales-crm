@@ -19,4 +19,5 @@ export * from "./tables/billing";
 export * from "./tables/payment";
 export * from "./tables/booking";
 export * from "./tables/hotel";
+export * from "./tables/course";
 export * from "./tables/tags";

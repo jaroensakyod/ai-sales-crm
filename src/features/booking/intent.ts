@@ -1,4 +1,5 @@
 /** Booking intent + Thai date/time parsing for chat-driven appointments. */
+import { uniqueBestMatch } from "@/features/shared/match";
 
 type ServiceLike = { id: string; name: string; durationMin: number; isActive?: boolean };
 
@@ -16,27 +17,14 @@ export function hasBookingIntent(text: string): boolean {
   return true;
 }
 
-function normalize(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, "");
-}
-
-/** Match a service the customer named. Requires a unique match to avoid booking
- *  the wrong thing; ambiguous ("นวด" with several massage services) → null. */
+/** Match a service the customer named (partial names ok). Requires a unique
+ *  match; ambiguous ("นวด" with several massage services) → null. */
 export function matchService<T extends ServiceLike>(
   text: string,
   services: T[],
 ): T | null {
-  const n = normalize(text);
   const active = services.filter((s) => s.isActive !== false);
-  const hits = active.filter((s) => {
-    const name = normalize(s.name);
-    const lead = normalize(s.name.split(/\s+/)[0] ?? "");
-    return (
-      (name.length >= 2 && n.includes(name)) ||
-      (lead.length >= 3 && lead !== name && n.includes(lead))
-    );
-  });
-  return hits.length === 1 ? hits[0] : null;
+  return uniqueBestMatch(text, active, (s) => s.name);
 }
 
 // Thailand is a fixed UTC+7 (no DST). All booking times are Thai wall-clock, so

@@ -11,6 +11,7 @@ import {
 } from "@/db/repositories/broadcasts";
 import { getConnectedLineChannel } from "@/db/repositories/line";
 import { createRoom, deleteRoom } from "@/db/repositories/hotel";
+import { createCourse, deleteCourse } from "@/db/repositories/course";
 import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
@@ -794,4 +795,30 @@ export async function deleteRoomAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deleteRoom(db, tenant.id, id);
   redirect(`/dashboard/${slug}/hotel?ok=1`);
+}
+
+/** Add a course/cohort (name + price + seats + schedule). */
+export async function createCourseAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const name = String(formData.get("name") ?? "").trim();
+  if (name) {
+    await createCourse(db, tenant.id, {
+      name,
+      price: parsePrice(formData.get("price")),
+      capacity: Math.max(1, parseInt(String(formData.get("capacity") ?? "20"), 10) || 20),
+      schedule: String(formData.get("schedule") ?? "").trim() || null,
+      description: String(formData.get("description") ?? "").trim() || null,
+      imageUrl: toImageUrl(formData.get("imageUrl")),
+    });
+  }
+  redirect(`/dashboard/${slug}/courses?ok=1`);
+}
+
+export async function deleteCourseAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("courseId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  await deleteCourse(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/courses?ok=1`);
 }

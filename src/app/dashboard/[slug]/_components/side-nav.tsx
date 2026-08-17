@@ -23,6 +23,7 @@ const ITEMS: {
   { href: "/orders", label: "ออเดอร์", icon: "🧾", perm: "edit_sales", biz: "CATALOG" },
   { href: "/booking", label: "จองคิว", icon: "📅", perm: "edit_sales", biz: "BOOKING" },
   { href: "/hotel", label: "โรงแรม/ห้องพัก", icon: "🏨", perm: "edit_sales", biz: "HOTEL" },
+  { href: "/courses", label: "คอร์ส/สมาชิก", icon: "🎓", perm: "edit_sales", biz: "COURSE" },
   { href: "/promotions", label: "โปรโมชั่น", icon: "🎁", perm: "edit_sales", biz: "CATALOG" },
   { href: "/broadcast", label: "ยิงโปรฯ LINE", icon: "📣", perm: "manage_settings" },
   { href: "/tags", label: "แท็กคุมคำตอบ", icon: "🏷️", perm: "manage_settings" },

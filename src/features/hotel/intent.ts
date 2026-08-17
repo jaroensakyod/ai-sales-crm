@@ -1,4 +1,5 @@
 /** Hotel intent + Thai date-range parsing for chat-driven room bookings. */
+import { uniqueBestMatch } from "@/features/shared/match";
 
 type RoomLike = { id: string; name: string; isActive?: boolean };
 
@@ -22,23 +23,10 @@ export function mentionsStay(text: string): boolean {
   return ROOM_HINT.some((k) => n.includes(k));
 }
 
-function normalize(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, "");
-}
-
-/** Unique room-type match (name or leading word); null if none/ambiguous. */
+/** Unique room-type match (partial names ok); null if none/ambiguous. */
 export function matchRoom<T extends RoomLike>(text: string, rooms: T[]): T | null {
-  const n = normalize(text);
   const active = rooms.filter((r) => r.isActive !== false);
-  const hits = active.filter((r) => {
-    const name = normalize(r.name);
-    const lead = normalize(r.name.split(/\s+/)[0] ?? "");
-    return (
-      (name.length >= 2 && n.includes(name)) ||
-      (lead.length >= 3 && lead !== name && n.includes(lead))
-    );
-  });
-  return hits.length === 1 ? hits[0] : null;
+  return uniqueBestMatch(text, active, (r) => r.name);
 }
 
 const BKK_OFFSET_MS = 7 * 60 * 60 * 1000;

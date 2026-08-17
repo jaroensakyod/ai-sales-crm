@@ -28,6 +28,7 @@ import type { RouterHandlers } from "@/features/router/types";
 import { tryCheckout } from "@/features/sales/checkout";
 import { tryBooking } from "@/features/booking/book-from-chat";
 import { tryHotelBooking } from "@/features/hotel/book-from-chat";
+import { tryCourseEnroll } from "@/features/course/enroll-from-chat";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 import { wantsProductImage } from "@/features/sales/order-intent";
 import { getRecentMessages } from "@/db/repositories/conversations";
@@ -202,6 +203,28 @@ export async function handleInboundText(
     if (hotel.bookingId) {
       await addLeadEvent(db, args.tenantId, sync.leadId, "hotel_booking_created", {
         bookingId: hotel.bookingId,
+      });
+    }
+    return { status: "processed", replied: true };
+  }
+
+  // Course: list courses + enrol a student (seat-limited). Only fires for
+  // tenants that have courses; otherwise falls through.
+  const course = await tryCourseEnroll(db, {
+    tenantId: args.tenantId,
+    customerId,
+    conversationId: conversation.id,
+    text: args.text,
+  });
+  if (course) {
+    await args.send(args.externalId, course.reply);
+    await recordOutboundMessage(db, args.tenantId, conversation.id, {
+      body: course.reply,
+      category: course.enrollmentId ? "TRANSACTIONAL" : "CONVERSATIONAL",
+    });
+    if (course.enrollmentId) {
+      await addLeadEvent(db, args.tenantId, sync.leadId, "course_enrolled", {
+        enrollmentId: course.enrollmentId,
       });
     }
     return { status: "processed", replied: true };
