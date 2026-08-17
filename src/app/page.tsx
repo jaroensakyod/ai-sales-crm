@@ -89,7 +89,7 @@ const CMP: { group: string; rows: { label: string; cells: (boolean | string)[] }
     rows: [
       { label: "ทีมดูแลเฉพาะ + ช่วยตั้งค่า", cells: [false, false, false, true] },
       { label: "เชื่อมต่อระบบภายใน (API / Webhook)", cells: [false, false, false, true] },
-      { label: "SLA + ความปลอดภัยระดับองค์กร", cells: [false, false, false, true] },
+      { label: "ดูแลความปลอดภัย + SLA แบบกำหนดเอง", cells: [false, false, false, true] },
     ],
   },
 ];
