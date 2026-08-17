@@ -28,13 +28,15 @@ export type CreateReviewResult =
   | { ok: true; id: string }
   | { ok: false; reason: "cap" | "empty" };
 
-/** Add a review, enforcing the per-tenant cap so the table can't bloat. */
+/** Add a review (a review image, with optional caption/author), enforcing the
+ *  per-tenant cap so the table can't bloat. The image is required — reviews are
+ *  screenshots of real customer feedback. */
 export async function createReview(
   db: DbClient,
   tenantId: string,
   input: { imageUrl?: string | null; caption?: string | null; authorName?: string | null },
 ): Promise<CreateReviewResult> {
-  if (!input.imageUrl && !input.caption?.trim()) {
+  if (!input.imageUrl) {
     return { ok: false, reason: "empty" };
   }
   if ((await countReviews(db, tenantId)) >= REVIEW_CAP) {

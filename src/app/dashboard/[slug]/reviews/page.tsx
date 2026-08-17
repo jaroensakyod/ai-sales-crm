@@ -41,7 +41,7 @@ export default async function ReviewsPage({
       {error === "cap" ? (
         <p className="error">ครบจำนวนสูงสุด {REVIEW_CAP} รีวิวแล้ว — ลบตัวเก่าก่อนถึงจะเพิ่มได้</p>
       ) : null}
-      {error === "empty" ? <p className="error">ต้องมีรูปหรือข้อความรีวิวอย่างน้อยอย่างใดอย่างหนึ่ง</p> : null}
+      {error === "empty" ? <p className="error">ต้องเลือกรูปรีวิวก่อน</p> : null}
       {error === "storage" ? (
         <p className="error">ยังไม่ได้ตั้งค่าที่เก็บรูป (SUPABASE_URL / SERVICE_ROLE_KEY)</p>
       ) : null}
@@ -82,11 +82,16 @@ export default async function ReviewsPage({
         <form action={addReviewAction} className="card">
           <input type="hidden" name="slug" value={slug} />
           <label>
-            รูปรีวิว / แคปหน้าจอ (JPG / PNG / WEBP ≤ 5MB)
-            <input name="image" type="file" accept="image/jpeg,image/png,image/webp" />
+            รูปรีวิว / แคปหน้าจอ (จำเป็น · JPG / PNG / WEBP ≤ 5MB)
+            <input
+              name="image"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              required
+            />
           </label>
           <label>
-            ข้อความรีวิว (ถ้ามี)
+            คำบรรยายใต้รูป (ถ้ามี)
             <textarea name="caption" rows={2} placeholder="เช่น แม่นมาก อ่านแล้วเข้าใจตัวเองขึ้นเยอะ" />
           </label>
           <label>
