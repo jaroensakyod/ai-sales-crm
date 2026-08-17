@@ -11,19 +11,21 @@ export type Entitlements = {
   fullAnalytics: boolean;
 };
 
-/** Monthly price in THB (docs/03-requirements pricing). */
+/** Monthly price in THB (see the pricing plan). */
 export const PLAN_PRICE_THB: Record<Plan, number> = {
   FREE: 0,
-  STARTER: 299,
-  PRO: 799,
+  STARTER: 290,
+  PRO: 590,
+  BUSINESS: 990,
 };
 
 export function planEntitlements(plan: Plan): Entitlements {
   switch (plan) {
+    case "BUSINESS":
     case "PRO":
       return { maxChannels: 99, followupAutomation: true, fullAnalytics: true };
     case "STARTER":
-      return { maxChannels: 1, followupAutomation: false, fullAnalytics: false };
+      return { maxChannels: 2, followupAutomation: false, fullAnalytics: false };
     case "FREE":
     default:
       return { maxChannels: 1, followupAutomation: false, fullAnalytics: false };

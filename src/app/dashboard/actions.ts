@@ -202,9 +202,13 @@ export async function answerGapAction(formData: FormData) {
 
 export async function changePlanAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
-  const plan = String(formData.get("plan") ?? "") as "FREE" | "STARTER" | "PRO";
+  const plan = String(formData.get("plan") ?? "") as
+    | "FREE"
+    | "STARTER"
+    | "PRO"
+    | "BUSINESS";
   const { db, tenant, session } = await tenantForSlug(slug, "manage_billing");
-  if (["FREE", "STARTER", "PRO"].includes(plan)) {
+  if (["FREE", "STARTER", "PRO", "BUSINESS"].includes(plan)) {
     // NOTE: no real payment yet — Omise/2C2P wires in here later.
     await setPlan(db, tenant.id, plan);
     await recordAudit(db, tenant.id, {

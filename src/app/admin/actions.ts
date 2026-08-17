@@ -6,7 +6,7 @@ import { createDbClient } from "@/db/client";
 import { setPlan } from "@/db/repositories/subscriptions";
 import { isAdmin } from "@/features/admin/auth";
 
-const PLANS = ["FREE", "STARTER", "PRO"] as const;
+const PLANS = ["FREE", "STARTER", "PRO", "BUSINESS"] as const;
 
 /** Change a store's plan (super-admin only). */
 export async function adminSetPlanAction(formData: FormData) {

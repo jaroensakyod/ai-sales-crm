@@ -11,7 +11,7 @@ import { timestamps } from "./_shared";
 import { tenantId } from "./tenants";
 
 /** Subscription tiers (docs/03-requirements pricing). FREE = trial. */
-export const planEnum = pgEnum("plan", ["FREE", "STARTER", "PRO"]);
+export const planEnum = pgEnum("plan", ["FREE", "STARTER", "PRO", "BUSINESS"]);
 
 export const subscriptionStatusEnum = pgEnum("subscription_status", [
   "TRIALING",

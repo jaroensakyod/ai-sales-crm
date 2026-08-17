@@ -12,7 +12,7 @@ import "./admin.css";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Super Admin — สมาชิก & การใช้งาน" };
 
-const PLAN_KEYS = ["FREE", "STARTER", "PRO"] as const;
+const PLAN_KEYS = ["FREE", "STARTER", "PRO", "BUSINESS"] as const;
 
 function fmtDate(d: Date) {
   return new Date(d).toLocaleDateString("th-TH", {

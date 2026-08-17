@@ -6,8 +6,9 @@ import { aiRuns, owners, subscriptions, tenants } from "@/db/schema";
 /** Monthly AI-message quota per plan (drives the "used / left" view). */
 export const PLAN_QUOTA: Record<string, { label: string; quota: number }> = {
   FREE: { label: "ทดลอง / ฟรี", quota: 500 },
-  STARTER: { label: "เริ่มต้น", quota: 2000 },
-  PRO: { label: "มาตรฐาน+", quota: 6000 },
+  STARTER: { label: "เริ่มต้น ฿290", quota: 2000 },
+  PRO: { label: "มาตรฐาน ฿590", quota: 6000 },
+  BUSINESS: { label: "ธุรกิจ/โรงแรม ฿990", quota: 15000 },
 };
 
 function monthStartUtc(now = new Date()): Date {
