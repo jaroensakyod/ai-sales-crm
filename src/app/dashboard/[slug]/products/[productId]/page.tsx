@@ -17,6 +17,7 @@ import {
   deleteVariantAction,
   editProductAction,
   removeCrossSellAction,
+  uploadProductImageAction,
 } from "../../../actions";
 import { Shell } from "../../_components/shell";
 
@@ -24,10 +25,13 @@ export const dynamic = "force-dynamic";
 
 export default async function EditProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; productId: string }>;
+  searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
   const { slug, productId } = await params;
+  const { ok, error } = await searchParams;
   const session = await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
@@ -117,6 +121,39 @@ export default async function EditProductPage({
         </label>
         <button type="submit" style={{ marginTop: 12 }}>
           บันทึก
+        </button>
+      </form>
+
+      <h2>อัปโหลดรูปสินค้า</h2>
+      <p className="muted">
+        เลือกไฟล์จากเครื่อง ระบบจะเก็บให้และตั้งเป็นรูปสินค้าอัตโนมัติ —
+        บอทส่งรูปนี้ให้ลูกค้าเมื่อถูกขอดูรูป (ไม่ต้องหาลิงก์เอง)
+      </p>
+      {ok === "image" ? <p className="ok">อัปโหลดรูปเรียบร้อยแล้ว</p> : null}
+      {error === "storage" ? (
+        <p className="error">
+          ยังไม่ได้ตั้งค่าที่เก็บรูป (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY) —
+          ใช้ช่อง “ลิงก์รูปสินค้า” ด้านบนแทนได้
+        </p>
+      ) : null}
+      {error === "upload" ? (
+        <p className="error">อัปโหลดไม่สำเร็จ — ไฟล์ต้องเป็น JPG/PNG/WEBP ขนาดไม่เกิน 5MB</p>
+      ) : null}
+      {error === "nofile" ? <p className="error">ยังไม่ได้เลือกไฟล์</p> : null}
+      <form action={uploadProductImageAction} className="card">
+        <input type="hidden" name="slug" value={slug} />
+        <input type="hidden" name="productId" value={product.id} />
+        <label>
+          เลือกไฟล์รูป (JPG / PNG / WEBP · ไม่เกิน 5MB)
+          <input
+            name="image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            required
+          />
+        </label>
+        <button type="submit" style={{ marginTop: 12 }}>
+          อัปโหลด
         </button>
       </form>
 

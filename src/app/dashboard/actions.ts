@@ -23,6 +23,7 @@ import {
 import { getOwnerSession } from "@/features/auth/owner";
 import { getEntitlements } from "@/features/billing/entitlements";
 import { sendManualReply } from "@/features/messaging/manual-reply";
+import { uploadProductImage } from "@/features/storage/product-images";
 import { enqueueWebhookEvent } from "@/features/webhooks/dispatch";
 import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
@@ -346,6 +347,29 @@ export async function deleteProductAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deleteProduct(db, tenant.id, id);
   redirect(`/dashboard/${slug}/products?ok=1`);
+}
+
+/** Upload an image file for a product to Supabase Storage and set it as the
+ *  product's imageUrl (the picture the bot sends to customers). */
+export async function uploadProductImageAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("productId") ?? "");
+  const file = formData.get("image");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const base = `/dashboard/${slug}/products/${id}`;
+
+  if (!(file instanceof File) || file.size === 0) {
+    redirect(`${base}?error=nofile`);
+  }
+  const result = await uploadProductImage(tenant.id, id, {
+    bytes: await (file as File).arrayBuffer(),
+    contentType: (file as File).type,
+  });
+  if (!result.ok) {
+    redirect(`${base}?error=${result.reason === "not_configured" ? "storage" : "upload"}`);
+  }
+  await updateProduct(db, tenant.id, id, { imageUrl: result.url });
+  redirect(`${base}?ok=image`);
 }
 
 export async function addVariantAction(formData: FormData) {

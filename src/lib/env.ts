@@ -55,3 +55,16 @@ export function getTokenEncryptionKey(): Buffer {
   }
   return key;
 }
+
+/**
+ * Supabase Storage config for uploading product images. Needs the project URL
+ * (https://<ref>.supabase.co) and a service-role key (server-side only — never
+ * exposed to the client). Returns null when not configured so the upload UI can
+ * hide itself gracefully.
+ */
+export function getSupabaseStorage(): { url: string; serviceKey: string } | null {
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return null;
+  return { url: url.replace(/\/$/, ""), serviceKey };
+}
