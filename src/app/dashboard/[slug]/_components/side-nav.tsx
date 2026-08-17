@@ -36,6 +36,7 @@ const ITEMS: {
   { href: "/hotel", label: "โรงแรม/ห้องพัก", icon: "🏨", perm: "edit_sales", biz: "HOTEL", ent: "hotelModule" },
   { href: "/courses", label: "คอร์ส/สมาชิก", icon: "🎓", perm: "edit_sales", biz: "COURSE", ent: "courseModule" },
   { href: "/promotions", label: "โปรโมชั่น", icon: "🎁", perm: "edit_sales", biz: "CATALOG" },
+  { href: "/welcome", label: "หน้าต้อนรับ/โปรโมท", icon: "👋", perm: "edit_sales" },
   { href: "/reviews", label: "รีวิวลูกค้า", icon: "⭐", perm: "edit_sales" },
   { href: "/broadcast", label: "ยิงโปรฯ LINE", icon: "📣", perm: "manage_settings", ent: "promoBroadcast" },
   { href: "/webhooks", label: "API / Webhook", icon: "🔗", perm: "manage_settings", ent: "apiWebhooks" },

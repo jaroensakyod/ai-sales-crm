@@ -23,6 +23,8 @@ export async function updateTenantAiSettings(
     replyTone?: string | null;
     replyMode?: string | null;
     emojiLevel?: string | null;
+    welcomeImageUrl?: string | null;
+    welcomeMessage?: string | null;
   },
 ) {
   await db

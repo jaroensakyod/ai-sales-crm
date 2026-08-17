@@ -25,6 +25,7 @@ import { getOwnerSession } from "@/features/auth/owner";
 import { getEntitlements } from "@/features/billing/entitlements";
 import { sendManualReply } from "@/features/messaging/manual-reply";
 import {
+  uploadImage,
   uploadProductImage,
   uploadReviewImage,
 } from "@/features/storage/images";
@@ -409,6 +410,45 @@ export async function deleteReviewAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deleteReview(db, tenant.id, id);
   redirect(`/dashboard/${slug}/reviews?ok=deleted`);
+}
+
+// ---- Welcome / promo banner ----------------------------------------------
+
+/** Set the promo banner (image + message) the bot auto-sends on a first
+ *  greeting / "what do you sell?". The image is optional here so the merchant
+ *  can tweak just the message without re-uploading. */
+export async function saveWelcomeBannerAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const message = String(formData.get("message") ?? "").trim();
+  const file = formData.get("image");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const base = `/dashboard/${slug}/welcome`;
+
+  const update: { welcomeMessage: string | null; welcomeImageUrl?: string } = {
+    welcomeMessage: message || null,
+  };
+  if (file instanceof File && file.size > 0) {
+    const up = await uploadImage(`${tenant.id}/welcome`, {
+      bytes: await file.arrayBuffer(),
+      contentType: file.type,
+    });
+    if (!up.ok) {
+      redirect(`${base}?error=${up.reason === "not_configured" ? "storage" : "upload"}`);
+    }
+    update.welcomeImageUrl = up.url;
+  }
+  await updateTenantAiSettings(db, tenant.id, update);
+  redirect(`${base}?ok=saved`);
+}
+
+export async function clearWelcomeBannerAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  await updateTenantAiSettings(db, tenant.id, {
+    welcomeImageUrl: null,
+    welcomeMessage: null,
+  });
+  redirect(`/dashboard/${slug}/welcome?ok=cleared`);
 }
 
 export async function addVariantAction(formData: FormData) {

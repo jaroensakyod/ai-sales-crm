@@ -72,6 +72,29 @@ export function wantsReview(text: string): boolean {
   return REVIEW_KEYWORDS.some((k) => n.includes(k));
 }
 
+const WELCOME_KEYWORDS = [
+  "สวัสดี",
+  "หวัดดี",
+  "hello",
+  "hi ",
+  "มีอะไรบ้าง",
+  "มีสินค้าอะไร",
+  "มีบริการอะไร",
+  "ขายอะไร",
+  "มีอะไรขาย",
+  "สนใจสินค้า",
+  "ดูสินค้า",
+  "สอบถามสินค้า",
+];
+
+/** A greeting or "what do you sell?" — triggers the auto promo banner. */
+export function wantsWelcome(text: string): boolean {
+  const n = text.trim().toLowerCase();
+  // Bare "hi" (whole message) counts too, but "hi" inside a word shouldn't.
+  if (n === "hi") return true;
+  return WELCOME_KEYWORDS.some((k) => n.includes(k));
+}
+
 /** Parse a quantity like "2 ชิ้น", "3 ห่อ", "x2", "จำนวน 5"; defaults to 1. */
 export function parseQuantity(text: string): number {
   const m =

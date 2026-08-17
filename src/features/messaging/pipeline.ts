@@ -20,6 +20,7 @@ import {
   getCustomer,
   resolveCustomerByIdentity,
 } from "@/db/repositories/customers";
+import { getTenantAiSettings } from "@/db/repositories/ai";
 import { createKnowledgeGap, findOpenGap } from "@/db/repositories/gaps";
 import { listReviews } from "@/db/repositories/reviews";
 import { addLeadEvent } from "@/db/repositories/leads";
@@ -40,7 +41,11 @@ import { tryHotelBooking } from "@/features/hotel/book-from-chat";
 import { tryCourseEnroll } from "@/features/course/enroll-from-chat";
 import { verifySlip, type SlipVerdict } from "@/features/payment/slip-verify";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
-import { wantsProductImage, wantsReview } from "@/features/sales/order-intent";
+import {
+  wantsProductImage,
+  wantsReview,
+  wantsWelcome,
+} from "@/features/sales/order-intent";
 
 /** Tappable suggestion chips under a reply; tapping `label` sends `text`. */
 export type QuickReply = { label: string; text: string };
@@ -362,6 +367,24 @@ export async function handleInboundText(
       return { status: "processed", replied: true };
     }
     // No product identified → fall through so the AI can ask which one.
+  }
+
+  // First greeting / "what do you sell?" → auto-send the shop's promo banner
+  // (no need for the customer to ask for a picture). Only if one is configured.
+  if (args.sendImage && wantsWelcome(args.text)) {
+    const s = await getTenantAiSettings(db, args.tenantId);
+    if (s?.welcomeImageUrl) {
+      await args.sendImage(
+        args.externalId,
+        s.welcomeImageUrl,
+        s.welcomeMessage ?? undefined,
+      );
+      await recordOutboundMessage(db, args.tenantId, conversation.id, {
+        body: `[ส่งโปรโมท] ${s.welcomeMessage ?? ""}`.trim(),
+      });
+      return { status: "processed", replied: true };
+    }
+    // No banner set → fall through to the normal AI greeting.
   }
 
   // "มีรีวิวไหม" — send social proof. One review image per reply (LINE's reply
