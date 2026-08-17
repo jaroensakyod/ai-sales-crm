@@ -57,3 +57,40 @@ export function verifySession(
     return null;
   }
 }
+
+/** Owner (merchant) session — the person signed in via LINE/Facebook, who can
+ *  own multiple stores. Signed the same way as the per-user session. */
+export type OwnerSession = {
+  ownerId: string;
+  name: string;
+  provider: string;
+  exp: number;
+};
+
+export function signOwnerSession(
+  payload: Omit<OwnerSession, "exp">,
+  now = Date.now(),
+): string {
+  const full: OwnerSession = { ...payload, exp: now + TTL_MS };
+  const body = b64url(JSON.stringify(full));
+  return `${body}.${sign(body)}`;
+}
+
+export function verifyOwnerSession(
+  token: string | undefined | null,
+  now = Date.now(),
+): OwnerSession | null {
+  if (!token) return null;
+  const [body, mac] = token.split(".");
+  if (!body || !mac) return null;
+  if (!safeEqual(sign(body), mac)) return null;
+  try {
+    const payload = JSON.parse(
+      Buffer.from(body, "base64").toString("utf8"),
+    ) as OwnerSession;
+    if (!payload.exp || payload.exp < now || !payload.ownerId) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}

@@ -9,6 +9,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { timestamps } from "./_shared";
+import { owners } from "./owner";
 
 /** The 3 core data structures a tenant can mix (docs/01-summary.md). */
 export const businessTypeEnum = pgEnum("business_type", [
@@ -41,6 +42,8 @@ export const tenants = pgTable("tenants", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   status: tenantStatusEnum("status").notNull().default("TRIAL"),
+  // The merchant who created/owns this store (set on social-login signup).
+  ownerId: uuid("owner_id").references(() => owners.id, { onDelete: "set null" }),
   // Multi-select: a restaurant is CATALOG + BOOKING, etc.
   businessTypes: businessTypeEnum("business_types")
     .array()

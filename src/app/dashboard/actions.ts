@@ -12,6 +12,7 @@ import {
 import { getConnectedLineChannel } from "@/db/repositories/line";
 import { createRoom, deleteRoom } from "@/db/repositories/hotel";
 import { createCourse, deleteCourse } from "@/db/repositories/course";
+import { getOwnerSession } from "@/features/auth/owner";
 import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
@@ -97,12 +98,14 @@ export async function createStoreAction(formData: FormData) {
 
   const h = await headers();
   const db = createDbClient();
+  const owner = await getOwnerSession();
   let created = false;
   try {
     await createStore(db, {
       name,
       slug,
       businessTypes,
+      ownerId: owner?.ownerId ?? null,
       ip: h.get("x-forwarded-for") ?? undefined,
       userAgent: h.get("user-agent") ?? undefined,
     });

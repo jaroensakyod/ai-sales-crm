@@ -2,13 +2,19 @@ import { asc } from "drizzle-orm";
 import Link from "next/link";
 
 import { createDbClient } from "@/db/client";
+import { listOwnerTenants } from "@/db/repositories/owners";
 import { tenants } from "@/db/schema";
+import { getOwnerSession } from "@/features/auth/owner";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardHome() {
   const db = createDbClient();
-  const rows = await db.select().from(tenants).orderBy(asc(tenants.name));
+  const owner = await getOwnerSession();
+  // Signed-in owners see only their own stores; otherwise (open/demo mode) all.
+  const rows = owner
+    ? await listOwnerTenants(db, owner.ownerId)
+    : await db.select().from(tenants).orderBy(asc(tenants.name));
 
   return (
     <>
@@ -16,9 +22,19 @@ export default async function DashboardHome() {
         <span className="brand">
           <Link href="/">🛍️ AI Sales CRM</Link>
         </span>
-        <Link href="/dashboard/new" className="btn-link">
-          + เปิดร้านใหม่
-        </Link>
+        <span style={{ marginLeft: "auto", display: "flex", gap: 14, alignItems: "center" }}>
+          {owner ? (
+            <>
+              <span className="muted">สวัสดี {owner.name}</span>
+              <a href="/api/auth/logout" className="btn-link">
+                ออกจากระบบ
+              </a>
+            </>
+          ) : null}
+          <Link href="/dashboard/new" className="btn-link">
+            + เปิดร้านใหม่
+          </Link>
+        </span>
       </div>
       <div className="container">
         <p className="muted" style={{ marginTop: 0 }}>

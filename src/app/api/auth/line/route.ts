@@ -1,15 +1,23 @@
-import { redirect } from "next/navigation";
+import { randomBytes } from "node:crypto";
 
-// LINE Login (social sign-in) start. Requires a LINE **Login** channel — separate
-// from the Messaging API channel — and its credentials in env. Until configured,
-// send the user back with a clear message instead of a broken redirect.
-export function GET() {
-  const channelId = process.env.LINE_LOGIN_CHANNEL_ID;
-  const callback = process.env.LINE_LOGIN_CALLBACK_URL;
-  if (!channelId || !callback) {
-    redirect("/login?error=notconfigured");
-  }
-  // TODO: build the LINE Login authorize URL + state, then redirect there.
-  //   https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=...
-  redirect("/login?error=notconfigured");
+import { NextResponse } from "next/server";
+
+import { lineAuthUrl } from "@/features/auth/social";
+
+// Start LINE Login. Generates a CSRF state, stashes it in a short-lived cookie,
+// and redirects to LINE's authorize page. Falls back to a message when the
+// platform hasn't configured a LINE Login channel yet.
+export function GET(req: Request) {
+  const base = new URL(req.url).origin;
+  const state = randomBytes(16).toString("hex");
+  const url = lineAuthUrl(state);
+  if (!url) return NextResponse.redirect(`${base}/login?error=notconfigured`);
+  const res = NextResponse.redirect(url);
+  res.cookies.set("oauth_state", state, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 600,
+  });
+  return res;
 }

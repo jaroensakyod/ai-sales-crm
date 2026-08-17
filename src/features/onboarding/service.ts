@@ -36,6 +36,7 @@ export async function createStore(
     name: string;
     slug: string;
     businessTypes?: (typeof tenants.businessTypes.enumValues)[number][];
+    ownerId?: string | null;
     ip?: string;
     userAgent?: string;
   },
@@ -47,6 +48,7 @@ export async function createStore(
       slug: input.slug,
       status: "ACTIVE",
       businessTypes: input.businessTypes ?? [],
+      ownerId: input.ownerId ?? null,
     })
     .returning();
 

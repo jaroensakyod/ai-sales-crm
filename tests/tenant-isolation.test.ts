@@ -24,7 +24,9 @@ describe("tenant isolation invariant", () => {
     const hasTenantId = columns.some((c) => c.name === "tenant_id");
 
     it(`${name} respects the tenant_id rule`, () => {
-      if (name === "tenants") {
+      // `tenants` is the root; `owners` is a global merchant-account table that
+      // spans tenants (a person can own several stores) — both are exempt.
+      if (name === "tenants" || name === "owners") {
         expect(hasTenantId).toBe(false);
       } else {
         expect(hasTenantId).toBe(true);

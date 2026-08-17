@@ -8,6 +8,7 @@
  * See docs/02-plan.md and docs/03-requirements.md for the data model rationale.
  */
 
+export * from "./tables/owner";
 export * from "./tables/tenants";
 export * from "./tables/channels";
 export * from "./tables/customers";
