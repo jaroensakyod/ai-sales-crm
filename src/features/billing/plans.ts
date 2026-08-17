@@ -15,6 +15,8 @@ export type Entitlements = {
   courseModule: boolean;
   /** Hotel / room-booking module (Business only). */
   hotelModule: boolean;
+  /** Outbound webhooks / API integration (Business only). */
+  apiWebhooks: boolean;
 };
 
 /** Monthly price in THB (see the pricing plan). */
@@ -35,6 +37,7 @@ export function planEntitlements(plan: Plan): Entitlements {
         promoBroadcast: true,
         courseModule: true,
         hotelModule: true, // hotel is the Business-tier headline
+        apiWebhooks: true,
       };
     case "PRO":
       return {
@@ -44,6 +47,7 @@ export function planEntitlements(plan: Plan): Entitlements {
         promoBroadcast: true,
         courseModule: true,
         hotelModule: false,
+        apiWebhooks: false,
       };
     case "STARTER":
       return {
@@ -53,6 +57,7 @@ export function planEntitlements(plan: Plan): Entitlements {
         promoBroadcast: false,
         courseModule: false,
         hotelModule: false,
+        apiWebhooks: false,
       };
     case "FREE":
     default:
@@ -63,6 +68,7 @@ export function planEntitlements(plan: Plan): Entitlements {
         promoBroadcast: false,
         courseModule: false,
         hotelModule: false,
+        apiWebhooks: false,
       };
   }
 }

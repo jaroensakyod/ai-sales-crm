@@ -2,6 +2,7 @@ import type { DbClient } from "@/db/client";
 import { createAppointment, listServices } from "@/db/repositories/booking";
 import { matchHandoff } from "@/features/router/intent";
 import { scheduleReminder } from "@/features/reminders/schedule";
+import { enqueueWebhookEvent } from "@/features/webhooks/dispatch";
 
 import { hasBookingIntent, matchService, parseThaiDateTime } from "./intent";
 
@@ -78,6 +79,14 @@ export async function tryBooking(
       now,
     });
   }
+  await enqueueWebhookEvent(db, ctx.tenantId, "appointment.created", {
+    appointmentId: result.appointmentId,
+    serviceId: service.id,
+    serviceName: service.name,
+    startAt: start.toISOString(),
+    customerId: ctx.customerId,
+  });
+
   const price = Number(service.price).toLocaleString("th-TH");
   return {
     appointmentId: result.appointmentId,

@@ -12,10 +12,18 @@ import {
 import { getConnectedLineChannel } from "@/db/repositories/line";
 import { createRoom, deleteRoom } from "@/db/repositories/hotel";
 import { createCourse, deleteCourse } from "@/db/repositories/course";
+import { randomBytes } from "node:crypto";
+
 import { setConversationHandling } from "@/db/repositories/conversations";
+import {
+  createWebhookEndpoint,
+  deleteWebhookEndpoint,
+  toggleWebhookEndpoint,
+} from "@/db/repositories/webhooks";
 import { getOwnerSession } from "@/features/auth/owner";
 import { getEntitlements } from "@/features/billing/entitlements";
 import { sendManualReply } from "@/features/messaging/manual-reply";
+import { enqueueWebhookEvent } from "@/features/webhooks/dispatch";
 import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
@@ -523,6 +531,12 @@ export async function confirmPaymentAction(formData: FormData) {
     entityId: paymentId,
     data: { orderId, orderPaid },
   });
+  if (orderPaid) {
+    await enqueueWebhookEvent(db, tenant.id, "payment.confirmed", {
+      orderId,
+      paymentId,
+    });
+  }
   redirect(`/dashboard/${slug}/orders/${orderId}`);
 }
 
@@ -917,4 +931,39 @@ export async function releaseConversationAction(formData: FormData) {
     assignedUserId: null,
   });
   redirect(`/dashboard/${slug}/inbox/${conversationId}?ok=released`);
+}
+
+// ---- Outbound webhooks (API integration) ---------------------------------
+
+export async function createWebhookEndpointAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const url = String(formData.get("url") ?? "").trim();
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  if (!(await getEntitlements(db, tenant.id)).apiWebhooks) {
+    redirect(`/dashboard/${slug}/webhooks?error=plan`);
+  }
+  // Require HTTPS — we sign the body, but the transport must be encrypted too.
+  if (!/^https:\/\/.+/i.test(url)) {
+    redirect(`/dashboard/${slug}/webhooks?error=url`);
+  }
+  const secret = "whsec_" + randomBytes(24).toString("hex");
+  await createWebhookEndpoint(db, tenant.id, { url, secret });
+  redirect(`/dashboard/${slug}/webhooks?ok=created`);
+}
+
+export async function toggleWebhookEndpointAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("endpointId") ?? "");
+  const active = formData.get("active") === "on";
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  await toggleWebhookEndpoint(db, tenant.id, id, active);
+  redirect(`/dashboard/${slug}/webhooks?ok=updated`);
+}
+
+export async function deleteWebhookEndpointAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("endpointId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  await deleteWebhookEndpoint(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/webhooks?ok=deleted`);
 }

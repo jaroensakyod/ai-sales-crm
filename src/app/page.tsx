@@ -88,10 +88,10 @@ const CMP: { group: string; rows: { label: string; cells: (boolean | string)[] }
     ],
   },
   {
-    group: "องค์กร (Enterprise)",
+    group: "ขั้นสูง & องค์กร",
     rows: [
+      { label: "เชื่อมต่อระบบภายใน (API / Webhook)", cells: [false, false, true, true] },
       { label: "ทีมดูแลเฉพาะ + ช่วยตั้งค่า", cells: [false, false, false, true] },
-      { label: "เชื่อมต่อระบบภายใน (API / Webhook)", cells: [false, false, false, true] },
       { label: "ดูแลความปลอดภัย + SLA แบบกำหนดเอง", cells: [false, false, false, true] },
     ],
   },

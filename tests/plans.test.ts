@@ -22,10 +22,12 @@ describe("planEntitlements", () => {
     expect(planEntitlements("STARTER").courseModule).toBe(false);
     expect(planEntitlements("PRO").promoBroadcast).toBe(true);
     expect(planEntitlements("PRO").courseModule).toBe(true);
-    // Hotel is the Business-tier headline — Pro must NOT include it.
+    // Hotel + API webhooks are Business-tier — Pro must NOT include them.
     expect(planEntitlements("PRO").hotelModule).toBe(false);
     expect(planEntitlements("BUSINESS").hotelModule).toBe(true);
     expect(planEntitlements("FREE").hotelModule).toBe(false);
+    expect(planEntitlements("PRO").apiWebhooks).toBe(false);
+    expect(planEntitlements("BUSINESS").apiWebhooks).toBe(true);
   });
   it("prices ascend FREE < STARTER < PRO < BUSINESS", () => {
     expect(PLAN_PRICE_THB.STARTER).toBeGreaterThan(0);

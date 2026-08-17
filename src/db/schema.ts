@@ -22,3 +22,4 @@ export * from "./tables/booking";
 export * from "./tables/hotel";
 export * from "./tables/course";
 export * from "./tables/tags";
+export * from "./tables/webhooks";

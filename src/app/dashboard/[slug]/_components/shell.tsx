@@ -28,11 +28,17 @@ export async function Shell({
   const tenant = await getTenantBySlug(db, slug);
   const ent = tenant
     ? await getEntitlements(db, tenant.id)
-    : { hotelModule: false, courseModule: false, promoBroadcast: false };
+    : {
+        hotelModule: false,
+        courseModule: false,
+        promoBroadcast: false,
+        apiWebhooks: false,
+      };
   const modules = {
     hotelModule: ent.hotelModule,
     courseModule: ent.courseModule,
     promoBroadcast: ent.promoBroadcast,
+    apiWebhooks: ent.apiWebhooks,
   };
 
   return (

@@ -9,6 +9,7 @@ import {
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { runAutomations } from "@/features/automation/engine";
 import { scheduleCartRecovery } from "@/features/reminders/order-events";
+import { enqueueWebhookEvent } from "@/features/webhooks/dispatch";
 import { matchHandoff, matchProduct } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
@@ -94,6 +95,15 @@ export async function tryCheckout(
       total,
     });
   }
+
+  await enqueueWebhookEvent(db, ctx.tenantId, "order.created", {
+    orderId: order.id,
+    total,
+    quantity,
+    productId: product.id,
+    productName: product.name,
+    customerId: ctx.customerId,
+  });
 
   const reply =
     `รับ ${product.name} จำนวน ${quantity} ชิ้น ` +

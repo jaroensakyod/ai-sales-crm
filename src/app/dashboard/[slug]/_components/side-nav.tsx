@@ -12,6 +12,7 @@ export type NavModules = {
   hotelModule: boolean;
   courseModule: boolean;
   promoBroadcast: boolean;
+  apiWebhooks: boolean;
 };
 type ModuleKey = keyof NavModules;
 
@@ -36,6 +37,7 @@ const ITEMS: {
   { href: "/courses", label: "คอร์ส/สมาชิก", icon: "🎓", perm: "edit_sales", biz: "COURSE", ent: "courseModule" },
   { href: "/promotions", label: "โปรโมชั่น", icon: "🎁", perm: "edit_sales", biz: "CATALOG" },
   { href: "/broadcast", label: "ยิงโปรฯ LINE", icon: "📣", perm: "manage_settings", ent: "promoBroadcast" },
+  { href: "/webhooks", label: "API / Webhook", icon: "🔗", perm: "manage_settings", ent: "apiWebhooks" },
   { href: "/tags", label: "แท็กคุมคำตอบ", icon: "🏷️", perm: "manage_settings" },
   { href: "/automation", label: "ระบบอัตโนมัติ", icon: "⚡", perm: "manage_settings" },
   { href: "/gaps", label: "คำถามที่ตอบไม่ได้", icon: "❓" },

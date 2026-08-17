@@ -6,6 +6,7 @@ import {
 } from "@/db/repositories/hotel";
 import { scheduleReminder } from "@/features/reminders/schedule";
 import { matchHandoff } from "@/features/router/intent";
+import { enqueueWebhookEvent } from "@/features/webhooks/dispatch";
 
 import {
   hasHotelBookingIntent,
@@ -89,6 +90,16 @@ export async function tryHotelBooking(
         now,
       });
     }
+    await enqueueWebhookEvent(db, ctx.tenantId, "booking.created", {
+      bookingId: result.bookingId,
+      roomId: room.id,
+      roomName: room.name,
+      checkIn: stay.checkIn,
+      checkOut: stay.checkOut,
+      nights: stay.nights,
+      totalPrice: result.totalPrice,
+      customerId: ctx.customerId,
+    });
     return {
       bookingId: result.bookingId,
       reply:
