@@ -7,12 +7,12 @@ export const metadata = {
   title: "เข้าสู่ระบบ — AI Sales CRM",
 };
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: { error?: string };
+  searchParams?: Promise<{ error?: string }>;
 }) {
-  const error = searchParams?.error;
+  const { error } = (await searchParams) ?? {};
 
   return (
     <div className="home login-page">
