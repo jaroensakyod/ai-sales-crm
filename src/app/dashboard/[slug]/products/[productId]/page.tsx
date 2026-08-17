@@ -41,7 +41,7 @@ export default async function EditProductPage({
   const variants = await listVariants(db, tenant.id, productId);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <p className="muted" style={{ marginBottom: 4 }}>
         <Link href={`/dashboard/${slug}/products`}>← กลับหน้าสินค้า</Link>
       </p>

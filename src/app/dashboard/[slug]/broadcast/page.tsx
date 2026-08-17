@@ -51,7 +51,7 @@ export default async function BroadcastPage({
   };
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>ยิงโปรโมชั่น LINE (Broadcast)</h1>
       <p className="muted">
         ส่งข้อความถึง <strong>ผู้ติดตาม LINE OA ทั้งหมด</strong> พร้อมกัน — ยิงทันทีหรือตั้งเวลาล่วงหน้าก็ได้

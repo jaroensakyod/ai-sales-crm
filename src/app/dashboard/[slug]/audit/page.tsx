@@ -28,7 +28,7 @@ export default async function AuditPage({
   const logs = await listAuditLogs(db, tenant.id, 100);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>บันทึกการทำงาน (Audit)</h1>
       <p className="muted">
         บันทึกการเปลี่ยนแปลงสำคัญ — ส่วนลด, สถานะออเดอร์, การยืนยันชำระเงิน,

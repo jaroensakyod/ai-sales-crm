@@ -32,7 +32,7 @@ export default async function ProductsPage({
   const items = await listProducts(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>สินค้า</h1>
       <p className="muted">
         AI จะดึงราคา/สต็อกจากตรงนี้ตอบลูกค้า — แก้แล้วมีผลทันที

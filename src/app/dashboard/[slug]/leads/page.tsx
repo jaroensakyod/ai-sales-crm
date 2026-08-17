@@ -40,7 +40,7 @@ export default async function LeadsPage({
   }
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>Pipeline การขาย</h1>
       <p className="muted">
         Lead จัดกลุ่มตามขั้นตอนการขาย เรียงตามคะแนน — เลื่อนขั้นได้จากการ์ด

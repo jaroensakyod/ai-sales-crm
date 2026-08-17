@@ -29,7 +29,7 @@ export default async function InboxThread({
   if (!thread) notFound();
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <p className="muted" style={{ marginBottom: 4 }}>
         <Link href={`/dashboard/${slug}`}>← กลับหน้าภาพรวม</Link>
       </p>

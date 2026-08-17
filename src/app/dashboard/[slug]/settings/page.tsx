@@ -57,7 +57,7 @@ export default async function SettingsPage({
   const base = `${proto}://${host}`;
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>ตั้งค่าร้าน</h1>
         {ok ? <p className="ok">บันทึกแล้ว ({ok})</p> : null}
         {error === "nokey" ? (

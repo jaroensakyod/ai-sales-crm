@@ -32,7 +32,7 @@ export default async function TagsPage({
   const tags = await listTags(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>แท็กคุมคำตอบ AI (Tag + RAG)</h1>
       <p className="muted">
         เมื่อข้อความลูกค้าตรงกับ “คำที่จับ” ระบบจะบังคับให้ AI ตอบตาม “แนวทาง” ที่ตั้งไว้

@@ -57,7 +57,7 @@ export default async function OrderDetailPage({
       : null;
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <p className="muted" style={{ marginBottom: 4 }}>
         <Link href={`/dashboard/${slug}/orders`}>← กลับรายการออเดอร์</Link>
       </p>

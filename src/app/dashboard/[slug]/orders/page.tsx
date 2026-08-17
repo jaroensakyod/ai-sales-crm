@@ -37,7 +37,7 @@ export default async function OrdersPage({
   const orders = await listOrders(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>ออเดอร์</h1>
       {orders.length === 0 ? (
         <p className="muted">ยังไม่มีออเดอร์</p>

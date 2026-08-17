@@ -28,7 +28,7 @@ export default async function PromotionsPage({
   const promos = await listPromotions(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>โปรโมชั่น</h1>
       <p className="muted">
         โปรที่เปิดอยู่ AI จะเสนอให้ลูกค้าเองในแชท

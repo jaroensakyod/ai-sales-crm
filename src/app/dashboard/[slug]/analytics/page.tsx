@@ -39,7 +39,7 @@ export default async function AnalyticsPage({
 
   if (!entitlements.fullAnalytics) {
     return (
-      <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+      <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
         <h1>วิเคราะห์เชิงลึก</h1>
         <div className="card">
           <p>📊 การวิเคราะห์ Objection breakdown และ Lead scoring เป็นฟีเจอร์ของแพ็กเกจ Pro</p>
@@ -58,7 +58,7 @@ export default async function AnalyticsPage({
   const maxTotal = Math.max(1, ...objections.map((o) => o.total));
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>วิเคราะห์เชิงลึก</h1>
 
         <div className="grid">

@@ -30,7 +30,7 @@ export default async function TeamPage({
   const members = await listUsers(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>ทีมงาน</h1>
         <p className="muted">
           สิทธิ์: OWNER/ADMIN จัดการทั้งหมด · SALES แก้การขาย · SUPPORT ตอบแชท · VIEWER ดูอย่างเดียว

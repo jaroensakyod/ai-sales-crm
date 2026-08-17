@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
-import { listHotelBookings, listRooms } from "@/db/repositories/hotel";
+import {
+  listHotelBookings,
+  listRooms,
+  roomStatus,
+} from "@/db/repositories/hotel";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 
@@ -24,12 +28,24 @@ function fmt(iso: string) {
   });
 }
 
+function bkkToday(): string {
+  return new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10);
+}
+function nextDay(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 export default async function HotelPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ date?: string }>;
 }) {
   const { slug } = await params;
+  const { date } = await searchParams;
   const session = await requireTenantAuth(slug);
   await requirePermission(session, "edit_sales");
   const db = createDbClient();
@@ -38,14 +54,63 @@ export default async function HotelPage({
 
   const rooms = await listRooms(db, tenant.id);
   const bookings = await listHotelBookings(db, tenant.id);
+  const statusDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : bkkToday();
+  const status = await roomStatus(db, tenant.id, statusDate, nextDay(statusDate));
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>โรงแรม / ห้องพัก</h1>
       <p className="muted">
         ตั้งประเภทห้อง + จำนวนห้อง + ราคา/คืน — บอทจะเช็คห้องว่างตามวันที่ และรับจองผ่านแชทให้อัตโนมัติ
         (กันจองเกินจำนวนห้อง)
       </p>
+
+      <h2>สถานะห้องว่าง</h2>
+      <form method="get" className="row" style={{ alignItems: "end", marginBottom: 10 }}>
+        <label style={{ margin: 0 }}>
+          ดูวันที่ (เข้าพักคืนนั้น)
+          <input type="date" name="date" defaultValue={statusDate} />
+        </label>
+        <button type="submit" className="ghost sm">
+          ดู
+        </button>
+      </form>
+      {rooms.length === 0 ? (
+        <p className="muted">ยังไม่มีห้อง — เพิ่มด้านล่างก่อน</p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ห้อง</th>
+                <th>ทั้งหมด</th>
+                <th>จองแล้ว</th>
+                <th>ว่าง</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {status.map(({ room, booked, available }) => (
+                <tr key={room.id}>
+                  <td>{room.name}</td>
+                  <td>{room.quantity}</td>
+                  <td>{booked}</td>
+                  <td>
+                    <strong>{available}</strong>
+                  </td>
+                  <td>
+                    <span
+                      className={`badge ${available <= 0 ? "handoff" : available <= room.quantity / 2 ? "open" : "paid"}`}
+                    >
+                      {available <= 0 ? "เต็ม" : available <= room.quantity / 2 ? "เหลือน้อย" : "ว่าง"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <h2>ประเภทห้อง</h2>
       {rooms.length === 0 ? (

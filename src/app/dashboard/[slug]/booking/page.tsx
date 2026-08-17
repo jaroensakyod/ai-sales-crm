@@ -46,7 +46,7 @@ export default async function BookingPage({
   ]);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>จองคิว / นัดหมาย</h1>
       {ok ? <p className="ok">บันทึกแล้ว</p> : null}
       {error === "slot" ? (

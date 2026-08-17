@@ -81,6 +81,27 @@ export async function listAvailableRooms(
 
 // ---- Bookings ------------------------------------------------------------
 
+/** Every room type with its booked/free count for a date range — the owner's
+ *  "which rooms are free?" view (unlike listAvailableRooms, includes full ones). */
+export async function roomStatus(
+  db: DbClient,
+  tenantId: string,
+  checkIn: string,
+  checkOut: string,
+) {
+  const rooms = await listRooms(db, tenantId);
+  const out: {
+    room: (typeof rooms)[number];
+    booked: number;
+    available: number;
+  }[] = [];
+  for (const room of rooms) {
+    const available = await countAvailable(db, tenantId, room, checkIn, checkOut);
+    out.push({ room, available, booked: room.quantity - available });
+  }
+  return out;
+}
+
 export type HotelBookingResult =
   | { ok: true; bookingId: string; totalPrice: number }
   | { ok: false; reason: "full" };

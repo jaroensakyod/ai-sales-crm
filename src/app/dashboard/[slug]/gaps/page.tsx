@@ -28,7 +28,7 @@ export default async function GapsPage({
   const gaps = await listOpenGaps(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>Knowledge Gap Inbox</h1>
         <p className="muted">
           คำถามที่ AI ตอบไม่ได้ ตอบครั้งเดียวแล้วระบบจะเรียนรู้ (เพิ่มเข้าคลังความรู้อัตโนมัติ)

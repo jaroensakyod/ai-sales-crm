@@ -11,11 +11,13 @@ export function Shell({
   slug,
   tenantName,
   role,
+  businessTypes = [],
   children,
 }: {
   slug: string;
   tenantName: string;
   role: string;
+  businessTypes?: string[];
   children: ReactNode;
 }) {
   return (
@@ -25,7 +27,7 @@ export function Shell({
           <Link href="/dashboard">🛍️ AI Sales CRM</Link>
         </div>
         <div className="sidebar-store">{tenantName}</div>
-        <SideNav slug={slug} role={role} />
+        <SideNav slug={slug} role={role} businessTypes={businessTypes} />
       </aside>
 
       <div className="content">

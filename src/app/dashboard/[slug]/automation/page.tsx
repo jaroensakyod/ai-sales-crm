@@ -30,7 +30,7 @@ export default async function AutomationPage({
   const rules = await listRules(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role}>
+    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
       <h1>ระบบอัตโนมัติ</h1>
       <p className="muted">
         ตั้งกฎ “เมื่อเกิดเหตุการณ์ → ส่งข้อความติดตามอัตโนมัติ” (ส่งตามกฎ 24 ชม.ของ Meta)
