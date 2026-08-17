@@ -286,6 +286,9 @@ export async function createPayment(
     method?: (typeof payments.method.enumValues)[number];
     slipUrl?: string;
     providerRef?: string;
+    verifiedAmount?: number | null;
+    verifyStatus?: string;
+    slipData?: unknown;
   },
 ) {
   const [payment] = await db
@@ -297,6 +300,10 @@ export async function createPayment(
       method: input.method ?? "PROMPTPAY",
       slipUrl: input.slipUrl,
       providerRef: input.providerRef,
+      verifiedAmount:
+        input.verifiedAmount != null ? money(input.verifiedAmount) : undefined,
+      verifyStatus: input.verifyStatus,
+      slipData: input.slipData,
     })
     .returning();
   // Move the order into PENDING_PAYMENT once a payment attempt exists.

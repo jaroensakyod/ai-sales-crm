@@ -79,3 +79,21 @@ export async function sendFacebookImage(
     throw new Error(`Facebook image send failed ${res.status}: ${body}`);
   }
 }
+
+/**
+ * Download a Messenger CDN image (payment slip) as base64 for OCR. Returns null
+ * on failure so slip handling degrades to a plain acknowledgement.
+ */
+export async function fetchImageAsBase64(
+  url: string,
+): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const mimeType = res.headers.get("content-type") ?? "image/jpeg";
+    const buf = Buffer.from(await res.arrayBuffer());
+    return { data: buf.toString("base64"), mimeType };
+  } catch {
+    return null;
+  }
+}

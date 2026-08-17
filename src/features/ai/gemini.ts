@@ -67,6 +67,52 @@ export const generateWithGemini: GenerateFn = async ({
   };
 };
 
+export type VisionArgs = {
+  model: string;
+  systemInstruction: string;
+  prompt: string;
+  image: { data: string; mimeType: string }; // data = base64 (no data: prefix)
+};
+
+/** Injectable image→text call, so the slip reader can be tested without a key. */
+export type VisionFn = (args: VisionArgs) => Promise<GenerateResult>;
+
+/** Real Gemini vision call — reads an image (e.g. a payment slip) + a prompt. */
+export const generateFromImage: VisionFn = async ({
+  model,
+  systemInstruction,
+  prompt,
+  image,
+}) => {
+  const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
+  const response = await withRetry(
+    () =>
+      ai.models.generateContent({
+        model: normalizeModelId(model),
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              { inlineData: { data: image.data, mimeType: image.mimeType } },
+            ],
+          },
+        ],
+        config: {
+          systemInstruction,
+          temperature: 0,
+          maxOutputTokens: 512,
+        },
+      }),
+    { retries: 2, shouldRetry: isTransientGeminiError },
+  );
+  return {
+    text: response.text ?? "",
+    inputTokens: response.usageMetadata?.promptTokenCount,
+    outputTokens: response.usageMetadata?.candidatesTokenCount,
+  };
+};
+
 /**
  * Rough USD cost per model (per 1M tokens, input/output). Internal metering
  * only — approximate is fine for the cost dashboard + soft-cap (docs/03).

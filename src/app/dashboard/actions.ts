@@ -36,7 +36,11 @@ import {
 } from "@/db/repositories/booking";
 import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import { moveLeadStage } from "@/db/repositories/leads";
-import { applyDiscount, updateOrderStatus } from "@/db/repositories/orders";
+import {
+  applyDiscount,
+  confirmPayment,
+  updateOrderStatus,
+} from "@/db/repositories/orders";
 import { scheduleReviewRequest } from "@/features/reminders/order-events";
 import { upsertPaymentSettings } from "@/db/repositories/payment-settings";
 import {
@@ -495,6 +499,27 @@ export async function updateOrderStatusAction(formData: FormData) {
       await scheduleReviewRequest(db, { tenantId: tenant.id, orderId });
     }
   }
+  redirect(`/dashboard/${slug}/orders/${orderId}`);
+}
+
+/**
+ * Merchant confirms a payment slip after reviewing it. This is the ONLY path
+ * that flips an order to PAID (risk #9) — our slip OCR is advisory and never
+ * confirms on its own. Confirming a PAID order also queues the review request.
+ */
+export async function confirmPaymentAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const orderId = String(formData.get("orderId") ?? "");
+  const paymentId = String(formData.get("paymentId") ?? "");
+  const { db, tenant, session } = await tenantForSlug(slug, "edit_sales");
+  const { orderPaid } = await confirmPayment(db, tenant.id, paymentId);
+  await recordAudit(db, tenant.id, {
+    actorUserId: session.userId,
+    action: "payment.confirm",
+    entity: "payment",
+    entityId: paymentId,
+    data: { orderId, orderPaid },
+  });
   redirect(`/dashboard/${slug}/orders/${orderId}`);
 }
 

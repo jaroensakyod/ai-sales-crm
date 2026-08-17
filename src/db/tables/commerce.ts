@@ -195,6 +195,12 @@ export const payments = pgTable(
     currency: text("currency").notNull().default("THB"),
     providerRef: text("provider_ref"),
     slipUrl: text("slip_url"),
+    // Our own slip OCR (not a bank API): the amount read off the slip image, and
+    // how it compares to the order total. Advisory only — the merchant still
+    // confirms manually (risk #9); we never flip an order to PAID from OCR.
+    verifiedAmount: numeric("verified_amount", { precision: 12, scale: 2 }),
+    verifyStatus: text("verify_status").default("UNVERIFIED"),
+    slipData: jsonb("slip_data"),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     ...timestamps,
   },

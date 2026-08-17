@@ -12,6 +12,30 @@ export function createLineClient(accessToken: string) {
 
 export type LineClient = ReturnType<typeof createLineClient>;
 
+/**
+ * Download an inbound image's bytes (payment slips) via the Messaging API's
+ * content endpoint, returned as base64 for OCR. Uses the data host, not the
+ * regular API host. Returns null on any failure so slip handling degrades to a
+ * plain acknowledgement rather than throwing.
+ */
+export async function fetchLineImage(
+  accessToken: string,
+  messageId: string,
+): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const res = await fetch(
+      `https://api-data.line.me/v2/bot/message/${messageId}/content`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) return null;
+    const mimeType = res.headers.get("content-type") ?? "image/jpeg";
+    const buf = Buffer.from(await res.arrayBuffer());
+    return { data: buf.toString("base64"), mimeType };
+  } catch {
+    return null;
+  }
+}
+
 /** Reply to an inbound event using its single-use reply token (free, no quota). */
 export async function replyText(
   client: LineClient,

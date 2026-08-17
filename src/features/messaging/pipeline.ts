@@ -37,6 +37,7 @@ import { tryCheckout } from "@/features/sales/checkout";
 import { tryBooking } from "@/features/booking/book-from-chat";
 import { tryHotelBooking } from "@/features/hotel/book-from-chat";
 import { tryCourseEnroll } from "@/features/course/enroll-from-chat";
+import { verifySlip, type SlipVerdict } from "@/features/payment/slip-verify";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 import { wantsProductImage } from "@/features/sales/order-intent";
 
@@ -69,6 +70,11 @@ export async function handleInboundImage(
     at?: Date;
     profile?: { displayName?: string; avatarUrl?: string };
     send?: SendFn;
+    /** Fetch the image bytes as base64 for OCR (per-channel). Optional: when
+     *  absent we just acknowledge the slip without reading it. */
+    loadImage?: () => Promise<{ data: string; mimeType: string } | null>;
+    /** Injectable slip verifier (tests pass a stub). */
+    verify?: typeof verifySlip;
   },
 ): Promise<InboundResult> {
   const { customerId } = await resolveCustomerByIdentity(
@@ -94,13 +100,40 @@ export async function handleInboundImage(
 
   const order = await getOpenOrderForConversation(db, args.tenantId, conversation.id);
   if (order) {
-    // Log the slip as a PENDING payment (claimed = order total). The merchant
-    // verifies the real slip and confirms it → only then does the order flip PAID.
+    const orderTotal = Number(order.total);
+
+    // Our own slip OCR: read the amount off the image and compare to the order.
+    // Advisory only — the merchant still confirms manually (risk #9). If we have
+    // no image bytes or OCR fails, we fall back to a plain acknowledgement.
+    let verdict: SlipVerdict | null = null;
+    if (args.loadImage) {
+      const image = await args.loadImage();
+      if (image) {
+        verdict = await (args.verify ?? verifySlip)(image, orderTotal);
+      }
+    }
+
+    // Claimed amount stays the order total; verifiedAmount records what the slip
+    // actually said, so the dashboard can flag mismatches for the merchant.
     await createPayment(db, args.tenantId, order.id, {
-      amount: Number(order.total),
+      amount: orderTotal,
       slipUrl: args.slipUrl,
+      providerRef: verdict?.parsed.ref ?? undefined,
+      verifiedAmount: verdict?.verifiedAmount ?? undefined,
+      verifyStatus: verdict?.status ?? "UNVERIFIED",
+      slipData: verdict?.parsed,
     });
-    const reply = `ได้รับสลิปแล้วค่ะ ยอด ${Number(order.total).toLocaleString("th-TH")} บาท เดี๋ยวทางร้านตรวจสอบและยืนยันออเดอร์ให้นะคะ`;
+
+    const orderStr = orderTotal.toLocaleString("th-TH");
+    let reply: string;
+    if (verdict?.status === "MATCH") {
+      reply = `ได้รับสลิปแล้วค่ะ ยอด ${orderStr} บาท ตรงกับออเดอร์พอดี เดี๋ยวทางร้านตรวจสอบและยืนยันให้นะคะ`;
+    } else if (verdict?.status === "MISMATCH") {
+      const slipStr = (verdict.verifiedAmount ?? 0).toLocaleString("th-TH");
+      reply = `ได้รับสลิปแล้วค่ะ แต่ยอดในสลิป (${slipStr} บาท) ดูไม่ตรงกับออเดอร์ (${orderStr} บาท) รบกวนตรวจสอบอีกครั้งนะคะ ถ้าถูกต้องแล้วทางร้านจะยืนยันให้ค่ะ`;
+    } else {
+      reply = `ได้รับสลิปแล้วค่ะ ยอด ${orderStr} บาท เดี๋ยวทางร้านตรวจสอบและยืนยันออเดอร์ให้นะคะ`;
+    }
     await args.send(args.externalId, reply);
     await recordOutboundMessage(db, args.tenantId, conversation.id, {
       body: reply,

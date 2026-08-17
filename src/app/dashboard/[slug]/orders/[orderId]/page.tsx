@@ -12,6 +12,7 @@ import { buildPromptPayPayload } from "@/features/payment/promptpay";
 
 import {
   applyDiscountAction,
+  confirmPaymentAction,
   updateOrderStatusAction,
 } from "../../../actions";
 import { Shell } from "../../_components/shell";
@@ -20,6 +21,15 @@ export const dynamic = "force-dynamic";
 
 function baht(n: number) {
   return `฿${n.toLocaleString("th-TH", { maximumFractionDigits: 2 })}`;
+}
+
+/** Human label + badge tone for our slip-OCR verdict (advisory to the merchant). */
+function slipVerdict(status: string | null, verified: number | string | null) {
+  const amt = verified != null ? ` (${baht(Number(verified))})` : "";
+  if (status === "MATCH") return { text: `ยอดตรง${amt}`, tone: "paid" };
+  if (status === "MISMATCH") return { text: `ยอดไม่ตรง${amt}`, tone: "handoff" };
+  if (status === "UNREADABLE") return { text: "อ่านสลิปไม่ออก", tone: "pending" };
+  return { text: "ยังไม่ตรวจ", tone: "open" };
 }
 function statusClass(s: string) {
   if (s === "PAID" || s === "FULFILLED" || s === "CONFIRMED") return "paid";
@@ -128,26 +138,60 @@ export default async function OrderDetailPage({
             <thead>
               <tr>
                 <th>วิธี</th>
-                <th>จำนวน</th>
+                <th>ยอดออเดอร์</th>
+                <th>ตรวจสลิป (อัตโนมัติ)</th>
+                <th>สลิป</th>
                 <th>สถานะ</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {payments.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.method}</td>
-                  <td>{baht(Number(p.amount))}</td>
-                  <td>
-                    <span className={`badge ${statusClass(p.status)}`}>
-                      {p.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {payments.map((p) => {
+                const v = slipVerdict(p.verifyStatus, p.verifiedAmount);
+                return (
+                  <tr key={p.id}>
+                    <td>{p.method}</td>
+                    <td>{baht(Number(p.amount))}</td>
+                    <td>
+                      <span className={`badge ${v.tone}`}>{v.text}</span>
+                    </td>
+                    <td>
+                      {p.slipUrl ? (
+                        <a href={p.slipUrl} target="_blank" rel="noopener noreferrer">
+                          ดูรูป
+                        </a>
+                      ) : (
+                        <span className="muted">-</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`badge ${statusClass(p.status)}`}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td>
+                      {p.status === "PENDING" ? (
+                        <form action={confirmPaymentAction}>
+                          <input type="hidden" name="slug" value={slug} />
+                          <input type="hidden" name="orderId" value={order.id} />
+                          <input type="hidden" name="paymentId" value={p.id} />
+                          <button type="submit" className="sm">
+                            ยืนยันการชำระ
+                          </button>
+                        </form>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
+      <p className="muted" style={{ fontSize: "0.82rem" }}>
+        * ระบบอ่านยอดจากสลิปให้อัตโนมัติเพื่อช่วยตรวจ แต่จะไม่ยืนยันเอง— กด
+        “ยืนยันการชำระ” เมื่อตรวจแล้วว่าถูกต้อง
+      </p>
 
       {promptpayQr ? (
         <>

@@ -9,7 +9,7 @@ import {
 } from "@/features/messaging/pipeline";
 import type { RouterHandlers } from "@/features/router/types";
 
-import { createLineClient, replyImage, replyText } from "./client";
+import { createLineClient, fetchLineImage, replyImage, replyText } from "./client";
 import { verifyLineSignature } from "./signature";
 
 /** Minimal shape of the LINE webhook events we handle (text messages from users). */
@@ -119,15 +119,21 @@ export async function processLineWebhook(
       : undefined;
     const at = event.timestamp ? new Date(event.timestamp) : undefined;
 
-    // Image (usually a payment slip) — acknowledge + log for merchant review.
+    // Image (usually a payment slip) — acknowledge + OCR + log for review.
     if (isImage) {
+      const messageId = event.message.id;
       const result = await handleInboundImage(db, {
         tenantId,
         channelId,
         externalId: userId,
-        channelMessageId: event.message.id,
+        channelMessageId: messageId,
         at,
         send,
+        loadImage: () =>
+          fetchLineImage(
+            decryptSecret(context.connection!.accessTokenEncrypted),
+            messageId,
+          ),
       });
       if (result.status === "duplicate") {
         skipped++;

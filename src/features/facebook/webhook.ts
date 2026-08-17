@@ -12,7 +12,11 @@ import {
 } from "@/features/messaging/pipeline";
 import type { RouterHandlers } from "@/features/router/types";
 
-import { sendFacebookImage, sendFacebookText } from "./client";
+import {
+  fetchImageAsBase64,
+  sendFacebookImage,
+  sendFacebookText,
+} from "./client";
 import { verifyFacebookSignature } from "./signature";
 
 type FbAttachment = { type?: string; payload?: { url?: string } };
@@ -118,7 +122,9 @@ async function runMessagings(
     }
     const at = m.timestamp ? new Date(m.timestamp) : undefined;
 
-    // Image (usually a payment slip) — Messenger gives a public CDN URL.
+    // Image (usually a payment slip) — Messenger gives a public CDN URL that we
+    // download for OCR.
+    const slipUrl = image?.payload?.url;
     const result =
       !text && image
         ? await handleInboundImage(db, {
@@ -126,9 +132,10 @@ async function runMessagings(
             channelId: target.channelId,
             externalId: psid,
             channelMessageId: m.message.mid,
-            slipUrl: image.payload?.url,
+            slipUrl,
             at,
             send: getSend(),
+            loadImage: slipUrl ? () => fetchImageAsBase64(slipUrl) : undefined,
           })
         : await handleInboundText(db, {
             tenantId: target.tenantId,
