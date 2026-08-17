@@ -17,6 +17,16 @@ describe("planEntitlements", () => {
       expect(e.fullAnalytics).toBe(true);
     }
   });
+  it("promo broadcast + courses start at PRO; hotel is Business-only", () => {
+    expect(planEntitlements("STARTER").promoBroadcast).toBe(false);
+    expect(planEntitlements("STARTER").courseModule).toBe(false);
+    expect(planEntitlements("PRO").promoBroadcast).toBe(true);
+    expect(planEntitlements("PRO").courseModule).toBe(true);
+    // Hotel is the Business-tier headline — Pro must NOT include it.
+    expect(planEntitlements("PRO").hotelModule).toBe(false);
+    expect(planEntitlements("BUSINESS").hotelModule).toBe(true);
+    expect(planEntitlements("FREE").hotelModule).toBe(false);
+  });
   it("prices ascend FREE < STARTER < PRO < BUSINESS", () => {
     expect(PLAN_PRICE_THB.STARTER).toBeGreaterThan(0);
     expect(PLAN_PRICE_THB.PRO).toBeGreaterThan(PLAN_PRICE_THB.STARTER);

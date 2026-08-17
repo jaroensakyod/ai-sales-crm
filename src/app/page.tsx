@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 
 import "./home.css";
@@ -24,7 +25,7 @@ const BIZ = [
 
 const FEATURES = [
   { icon: "💬", title: "AI ตอบเหมือนคน", desc: "จำบทสนทนา เลือกโทนได้ ตอบสั้นเป็นธรรมชาติ ไม่เหมือนบอท" },
-  { icon: "🧾", title: "ปิดการขาย + รับสลิป", desc: "สร้างออเดอร์ บอกวิธีโอน รับสลิป รอแอดมินยืนยัน" },
+  { icon: "🧾", title: "ปิดการขาย + ตรวจสลิป", desc: "สร้างออเดอร์ บอกวิธีโอน · อ่านยอดในสลิปอัตโนมัติเทียบกับออเดอร์ แล้วให้แอดมินกดยืนยัน" },
   { icon: "📆", title: "จอง/เช็คคิวอัตโนมัติ", desc: "รับจองคิว ห้อง คอร์ส จากแชท เช็คว่างจริง กันชนกันเอง" },
   { icon: "📣", title: "ยิงโปรฯ LINE", desc: "ส่งโปรฯ ถึงผู้ติดตามทั้งหมด แนบรูป ตั้งเวลาล่วงหน้าได้" },
   { icon: "🖼️", title: "ส่งรูปสินค้า", desc: "ลูกค้าขอดูรูป บอทส่งให้ทันที ทั้ง LINE และ Facebook" },
@@ -44,9 +45,90 @@ const REVIEWS = [
 ];
 
 const PLANS = [
-  { name: "เริ่มต้น", price: "290", q: "2,000 ข้อความ · 2 ช่องทาง", hot: false },
-  { name: "มาตรฐาน · คุ้มสุด", price: "590", q: "6,000 ข้อความ · + คอร์ส", hot: true },
-  { name: "ธุรกิจ / โรงแรม", price: "990", q: "15,000 ข้อความ · + ระบบโรงแรม", hot: false },
+  {
+    name: "เริ่มต้น",
+    price: "290",
+    q: "2,000 ข้อความ/เดือน",
+    tagline: "ร้านเล็กเริ่มขายผ่านแชท",
+    hot: false,
+    feats: [
+      "AI ตอบแชทปิดการขาย 24 ชม.",
+      "2 ช่องทาง — LINE + Facebook",
+      "ปิดการขาย + ตรวจสลิปอัตโนมัติ",
+      "จองคิว/นัดหมาย + เตือนก่อนถึงนัด",
+      "ส่งรูปสินค้าให้ลูกค้าในแชท",
+      "วิเคราะห์เบื้องต้น — ยอดขาย/สินค้าขายดี",
+    ],
+  },
+  {
+    name: "มาตรฐาน",
+    price: "590",
+    q: "6,000 ข้อความ/เดือน",
+    tagline: "คุ้มสุด สำหรับร้านที่กำลังโต",
+    hot: true,
+    feats: [
+      "ทุกอย่างในแผนเริ่มต้น",
+      "ช่องทางไม่จำกัด",
+      "ยิงโปรฯ LINE — แนบรูป + ตั้งเวลา",
+      "ติดตามอัตโนมัติ — เตือนตะกร้าค้าง + ขอรีวิว",
+      "ระบบคอร์ส / สมาชิก",
+      "วิเคราะห์เชิงลึก — ข้อโต้แย้ง + คะแนนลูกค้า",
+    ],
+  },
+  {
+    name: "ธุรกิจ / โรงแรม",
+    price: "990",
+    q: "15,000 ข้อความ/เดือน",
+    tagline: "ธุรกิจใหญ่ + โรงแรม/ที่พัก",
+    hot: false,
+    feats: [
+      "ทุกอย่างในแผนมาตรฐาน",
+      "ระบบโรงแรม — เช็คห้องว่าง/จอง/คิดยอดต่อคืน",
+      "ดูห้องว่างเรียลไทม์สำหรับเจ้าของ",
+      "โควตาสูง 15,000 ข้อความ/เดือน",
+      "เหมาะร้านใหญ่ / หลายสาขา",
+    ],
+  },
+];
+
+// Full feature-by-plan comparison (mirrors the real plan entitlements).
+const CMP_COLS = ["เริ่มต้น", "มาตรฐาน", "ธุรกิจ/โรงแรม"];
+const CMP: { group: string; rows: { label: string; cells: (boolean | string)[] }[] }[] = [
+  {
+    group: "แชท & ช่องทาง",
+    rows: [
+      { label: "LINE + Facebook", cells: [true, true, true] },
+      { label: "จำนวนช่องทาง", cells: ["2", "ไม่จำกัด", "ไม่จำกัด"] },
+      { label: "ข้อความ AI ต่อเดือน", cells: ["2,000", "6,000", "15,000"] },
+      { label: "AI ตอบเหมือนคน + จำบทสนทนา", cells: [true, true, true] },
+    ],
+  },
+  {
+    group: "ขาย & ชำระเงิน",
+    rows: [
+      { label: "สร้างออเดอร์ + บอกวิธีโอน", cells: [true, true, true] },
+      { label: "ตรวจสลิปอัตโนมัติ (OCR)", cells: [true, true, true] },
+      { label: "ส่งรูปสินค้าในแชท", cells: [true, true, true] },
+      { label: "เตือนตะกร้าค้าง + ขอรีวิวอัตโนมัติ", cells: [false, true, true] },
+    ],
+  },
+  {
+    group: "จอง & โมดูลธุรกิจ",
+    rows: [
+      { label: "จองคิว/นัดหมาย + เตือนก่อนนัด", cells: [true, true, true] },
+      { label: "คอร์ส / สมาชิก", cells: [false, true, true] },
+      { label: "ระบบโรงแรม / ห้องพัก", cells: [false, false, true] },
+    ],
+  },
+  {
+    group: "การตลาด & วิเคราะห์",
+    rows: [
+      { label: "ยิงโปรฯ LINE + ตั้งเวลา", cells: [false, true, true] },
+      { label: "วิเคราะห์ลูกค้าเบื้องต้น", cells: [true, true, true] },
+      { label: "วิเคราะห์เชิงลึก (ข้อโต้แย้ง + Lead score)", cells: [false, true, true] },
+      { label: "CRM + Pipeline ลูกค้า", cells: [true, true, true] },
+    ],
+  },
 ];
 
 const FAQ = [
@@ -222,18 +304,77 @@ export default function Home() {
         <div className="hpgrid">
           {PLANS.map((p) => (
             <div key={p.name} className={`hpcard${p.hot ? " hot" : ""}`}>
+              {p.hot ? <div className="hpbadge">คุ้มสุด</div> : null}
               <div className="hpn">{p.name}</div>
+              <div className="hptag">{p.tagline}</div>
               <div className="hpp">
                 <small>฿</small>
                 {p.price}
                 <small>/ด.</small>
               </div>
               <div className="hpq">{p.q}</div>
-              <Link href="/dashboard/new" className="hbtn primary" style={{ marginTop: 16 }}>
-                เริ่มใช้
+              <Link
+                href="/dashboard/new"
+                className={`hbtn ${p.hot ? "primary" : "ghost"}`}
+                style={{ marginTop: 14, width: "100%", justifyContent: "center" }}
+              >
+                ทดลองใช้ฟรี
               </Link>
+              <ul className="hpfeat">
+                {p.feats.map((f) => (
+                  <li key={f}>
+                    <span className="hpck">✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
+        </div>
+
+        <div className="hcmp-wrap">
+          <h3 className="hcmp-title">เปรียบเทียบแพ็กเกจแบบละเอียด</h3>
+          <div className="hcmp-scroll">
+            <table className="hcmp">
+              <thead>
+                <tr>
+                  <th className="hcmp-feat">ฟีเจอร์</th>
+                  {CMP_COLS.map((c, i) => (
+                    <th key={c} className={i === 1 ? "hot" : ""}>
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {CMP.map((g) => (
+                  <Fragment key={g.group}>
+                    <tr className="hcmp-group">
+                      <td colSpan={4}>{g.group}</td>
+                    </tr>
+                    {g.rows.map((r) => (
+                      <tr key={r.label}>
+                        <td className="hcmp-feat">{r.label}</td>
+                        {r.cells.map((cell, i) => (
+                          <td key={i} className={i === 1 ? "hot" : ""}>
+                            {typeof cell === "boolean" ? (
+                              cell ? (
+                                <span className="hcmp-yes">✓</span>
+                              ) : (
+                                <span className="hcmp-no">—</span>
+                              )
+                            ) : (
+                              <span className="hcmp-val">{cell}</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

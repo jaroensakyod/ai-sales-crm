@@ -8,9 +8,11 @@ import {
 } from "@/db/repositories/hotel";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
+import { getEntitlements } from "@/features/billing/entitlements";
 
 import { createRoomAction, deleteRoomAction } from "../../actions";
 import { Shell } from "../_components/shell";
+import { UpgradeNotice } from "../_components/upgrade-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,19 @@ export default async function HotelPage({
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
+
+  if (!(await getEntitlements(db, tenant.id)).hotelModule) {
+    return (
+      <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
+        <UpgradeNotice
+          slug={slug}
+          title="โรงแรม / ห้องพัก"
+          plan="ธุรกิจ/โรงแรม (฿990)"
+          desc="ระบบเช็คห้องว่างตามวันที่ จองห้อง คิดยอดต่อคืน และดูห้องว่างแบบเรียลไทม์ อยู่ในแผนธุรกิจ/โรงแรม"
+        />
+      </Shell>
+    );
+  }
 
   const rooms = await listRooms(db, tenant.id);
   const bookings = await listHotelBookings(db, tenant.id);

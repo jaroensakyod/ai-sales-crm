@@ -5,9 +5,11 @@ import { listScheduledBroadcasts } from "@/db/repositories/broadcasts";
 import { getConnectedLineChannel } from "@/db/repositories/line";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
+import { getEntitlements } from "@/features/billing/entitlements";
 
 import { broadcastLineAction, cancelScheduledBroadcastAction } from "../../actions";
 import { Shell } from "../_components/shell";
+import { UpgradeNotice } from "../_components/upgrade-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,19 @@ export default async function BroadcastPage({
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
+
+  if (!(await getEntitlements(db, tenant.id)).promoBroadcast) {
+    return (
+      <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
+        <UpgradeNotice
+          slug={slug}
+          title="ยิงโปรฯ LINE"
+          plan="มาตรฐาน (฿590)"
+          desc="ส่งโปรโมชั่นถึงผู้ติดตามทั้งหมด แนบรูปแบนเนอร์ และตั้งเวลาล่วงหน้า อยู่ในแผนมาตรฐานขึ้นไป"
+        />
+      </Shell>
+    );
+  }
 
   const line = await getConnectedLineChannel(db, tenant.id);
   const scheduled = await listScheduledBroadcasts(db, tenant.id);

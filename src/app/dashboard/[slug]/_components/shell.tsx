@@ -2,12 +2,15 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { logoutAction } from "@/app/dashboard/actions";
+import { createDbClient } from "@/db/client";
+import { getTenantBySlug } from "@/db/repositories/tenants";
 import { isAuthEnabled } from "@/features/auth/session";
+import { getEntitlements } from "@/features/billing/entitlements";
 
 import { SideNav } from "./side-nav";
 
 /** Authenticated dashboard shell: sidebar nav + sticky header + content. */
-export function Shell({
+export async function Shell({
   slug,
   tenantName,
   role,
@@ -20,6 +23,18 @@ export function Shell({
   businessTypes?: string[];
   children: ReactNode;
 }) {
+  // Nav visibility follows the plan: hotel = Business, course/broadcast = Pro+.
+  const db = createDbClient();
+  const tenant = await getTenantBySlug(db, slug);
+  const ent = tenant
+    ? await getEntitlements(db, tenant.id)
+    : { hotelModule: false, courseModule: false, promoBroadcast: false };
+  const modules = {
+    hotelModule: ent.hotelModule,
+    courseModule: ent.courseModule,
+    promoBroadcast: ent.promoBroadcast,
+  };
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -27,7 +42,12 @@ export function Shell({
           <Link href="/dashboard">🛍️ AI Sales CRM</Link>
         </div>
         <div className="sidebar-store">{tenantName}</div>
-        <SideNav slug={slug} role={role} businessTypes={businessTypes} />
+        <SideNav
+          slug={slug}
+          role={role}
+          businessTypes={businessTypes}
+          modules={modules}
+        />
       </aside>
 
       <div className="content">

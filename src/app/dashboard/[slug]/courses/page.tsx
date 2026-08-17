@@ -4,9 +4,11 @@ import { createDbClient } from "@/db/client";
 import { courseSeatStatus, listEnrollments } from "@/db/repositories/course";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
+import { getEntitlements } from "@/features/billing/entitlements";
 
 import { createCourseAction, deleteCourseAction } from "../../actions";
 import { Shell } from "../_components/shell";
+import { UpgradeNotice } from "../_components/upgrade-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,19 @@ export default async function CoursesPage({
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
+
+  if (!(await getEntitlements(db, tenant.id)).courseModule) {
+    return (
+      <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
+        <UpgradeNotice
+          slug={slug}
+          title="คอร์ส / สมาชิก"
+          plan="มาตรฐาน (฿590)"
+          desc="รับสมัครเรียน จำกัดที่นั่ง และบอกตารางเรียนผ่านแชท อยู่ในแผนมาตรฐานขึ้นไป"
+        />
+      </Shell>
+    );
+  }
 
   const status = await courseSeatStatus(db, tenant.id);
   const enrollments = await listEnrollments(db, tenant.id);

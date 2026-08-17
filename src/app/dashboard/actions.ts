@@ -13,6 +13,7 @@ import { getConnectedLineChannel } from "@/db/repositories/line";
 import { createRoom, deleteRoom } from "@/db/repositories/hotel";
 import { createCourse, deleteCourse } from "@/db/repositories/course";
 import { getOwnerSession } from "@/features/auth/owner";
+import { getEntitlements } from "@/features/billing/entitlements";
 import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
@@ -761,6 +762,9 @@ export async function removeUserAction(formData: FormData) {
 export async function broadcastLineAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  if (!(await getEntitlements(db, tenant.id)).promoBroadcast) {
+    redirect(`/dashboard/${slug}/broadcast?error=plan`);
+  }
   const raw = String(formData.get("message") ?? "").trim();
   const imageUrl = toImageUrl(formData.get("imageUrl"));
   const confirmed = formData.get("confirm") === "on";
@@ -813,6 +817,9 @@ export async function cancelScheduledBroadcastAction(formData: FormData) {
 export async function createRoomAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  if (!(await getEntitlements(db, tenant.id)).hotelModule) {
+    redirect(`/dashboard/${slug}/hotel?error=plan`);
+  }
   const name = String(formData.get("name") ?? "").trim();
   if (name) {
     await createRoom(db, tenant.id, {
@@ -839,6 +846,9 @@ export async function deleteRoomAction(formData: FormData) {
 export async function createCourseAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  if (!(await getEntitlements(db, tenant.id)).courseModule) {
+    redirect(`/dashboard/${slug}/courses?error=plan`);
+  }
   const name = String(formData.get("name") ?? "").trim();
   if (name) {
     await createCourse(db, tenant.id, {
