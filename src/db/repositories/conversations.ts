@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, ne } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
-import { conversations, messages } from "@/db/schema";
+import { channels, conversations, customerIdentities, messages } from "@/db/schema";
 
 export async function openConversation(
   db: DbClient,
@@ -197,6 +197,73 @@ export async function setConversationStatus(
     )
     .returning();
   return row ?? null;
+}
+
+/** Take over (HANDOFF, pause the bot) or release (OPEN, bot resumes) a
+ *  conversation, recording who is handling it. */
+export async function setConversationHandling(
+  db: DbClient,
+  tenantId: string,
+  conversationId: string,
+  opts: {
+    status: (typeof conversations.status.enumValues)[number];
+    assignedUserId?: string | null;
+  },
+) {
+  const [row] = await db
+    .update(conversations)
+    .set({
+      status: opts.status,
+      assignedUserId: opts.assignedUserId ?? null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(conversations.tenantId, tenantId),
+        eq(conversations.id, conversationId),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+/** The conversation row plus the customer's external id on its channel and the
+ *  channel type — everything needed to send a manual reply. */
+export async function getConversationSendContext(
+  db: DbClient,
+  tenantId: string,
+  conversationId: string,
+) {
+  const [conv] = await db
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.tenantId, tenantId),
+        eq(conversations.id, conversationId),
+      ),
+    );
+  if (!conv) return null;
+  const [channel] = await db
+    .select({ type: channels.type })
+    .from(channels)
+    .where(and(eq(channels.tenantId, tenantId), eq(channels.id, conv.channelId)));
+  const [identity] = await db
+    .select({ externalId: customerIdentities.externalId })
+    .from(customerIdentities)
+    .where(
+      and(
+        eq(customerIdentities.tenantId, tenantId),
+        eq(customerIdentities.customerId, conv.customerId),
+        eq(customerIdentities.channelId, conv.channelId),
+      ),
+    );
+  if (!channel || !identity) return null;
+  return {
+    channelId: conv.channelId,
+    channelType: channel.type,
+    externalId: identity.externalId,
+  };
 }
 
 /**

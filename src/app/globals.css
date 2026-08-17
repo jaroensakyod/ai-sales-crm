@@ -419,6 +419,26 @@ form.card {
   opacity: 0.7;
   margin-top: 4px;
 }
+.reply-box {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-top: 16px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  padding-top: 8px;
+}
+.reply-box textarea {
+  flex: 1;
+  resize: vertical;
+  min-height: 44px;
+}
+.reply-box button {
+  flex: none;
+  height: 42px;
+  padding: 0 22px;
+}
 
 /* ---------- Login ---------- */
 .login-wrap {

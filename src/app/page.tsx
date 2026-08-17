@@ -395,7 +395,7 @@ export default function Home() {
           ))}
         </div>
         <div className="hfoot-bar">
-          <span>© 2026 AI Sales CRM · เริ่มต้น ฿290/เดือน</span>
+          <span>© 2026 AI Sales CRM</span>
           <span className="hfoot-legal">
             <Link href="/privacy">นโยบายความเป็นส่วนตัว</Link>
             <Link href="/terms">ข้อกำหนดการใช้บริการ</Link>

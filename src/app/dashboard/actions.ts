@@ -12,8 +12,10 @@ import {
 import { getConnectedLineChannel } from "@/db/repositories/line";
 import { createRoom, deleteRoom } from "@/db/repositories/hotel";
 import { createCourse, deleteCourse } from "@/db/repositories/course";
+import { setConversationHandling } from "@/db/repositories/conversations";
 import { getOwnerSession } from "@/features/auth/owner";
 import { getEntitlements } from "@/features/billing/entitlements";
+import { sendManualReply } from "@/features/messaging/manual-reply";
 import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
@@ -869,4 +871,50 @@ export async function deleteCourseAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deleteCourse(db, tenant.id, id);
   redirect(`/dashboard/${slug}/courses?ok=1`);
+}
+
+// ---- Inbox / live handoff ------------------------------------------------
+
+/** Agent sends a reply to the customer. Sending implies taking over: the
+ *  conversation moves to HANDOFF so the bot stays quiet until it's released. */
+export async function replyInboxAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const conversationId = String(formData.get("conversationId") ?? "");
+  const message = String(formData.get("message") ?? "");
+  const { db, tenant, session } = await tenantForSlug(slug, "edit_sales");
+  const base = `/dashboard/${slug}/inbox/${conversationId}`;
+  if (!message.trim()) redirect(`${base}?error=empty`);
+
+  const result = await sendManualReply(db, tenant.id, conversationId, message);
+  if (!result.ok) redirect(`${base}?error=send`);
+
+  await setConversationHandling(db, tenant.id, conversationId, {
+    status: "HANDOFF",
+    assignedUserId: session.userId || null,
+  });
+  redirect(`${base}?ok=sent`);
+}
+
+/** Take over without sending — pause the bot on this conversation. */
+export async function takeOverConversationAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const conversationId = String(formData.get("conversationId") ?? "");
+  const { db, tenant, session } = await tenantForSlug(slug, "edit_sales");
+  await setConversationHandling(db, tenant.id, conversationId, {
+    status: "HANDOFF",
+    assignedUserId: session.userId || null,
+  });
+  redirect(`/dashboard/${slug}/inbox/${conversationId}?ok=taken`);
+}
+
+/** Hand the conversation back to the bot. */
+export async function releaseConversationAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const conversationId = String(formData.get("conversationId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  await setConversationHandling(db, tenant.id, conversationId, {
+    status: "OPEN",
+    assignedUserId: null,
+  });
+  redirect(`/dashboard/${slug}/inbox/${conversationId}?ok=released`);
 }

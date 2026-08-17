@@ -205,6 +205,13 @@ export async function handleInboundText(
 
   if (!args.send) return { status: "processed", replied: false };
 
+  // A human has taken over (status HANDOFF) — record the inbound so the agent
+  // sees it in the inbox, but stay silent. The bot must never talk over the
+  // person handling the conversation; it resumes only when they release it.
+  if (conversation.status === "HANDOFF") {
+    return { status: "processed", replied: false };
+  }
+
   // Abuse guards — before any AI/commerce, so floods and prompt-injection never
   // cost a model call or bend the bot off-task.
   const recent = await countInboundSince(
