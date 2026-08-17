@@ -120,7 +120,20 @@
 .hcta h2 { font-size: clamp(26px, 3.2vw, 34px); margin: 0 0 12px; letter-spacing: -.02em; }
 .hcta p { font-size: 17px; opacity: .92; margin: 0 0 24px; }
 
-.hfoot { max-width: 1120px; margin: 0 auto; padding: 40px 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13.5px; display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: center; }
+.hfoot { max-width: 1120px; margin: 0 auto; padding: 56px 24px 32px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13.5px; }
+.hfoot-top { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 32px; padding-bottom: 40px; }
+.hfoot-brand p { margin: 12px 0 0; max-width: 30ch; line-height: 1.6; }
+.hfoot-col { display: flex; flex-direction: column; gap: 11px; }
+.hfoot-h { font-weight: 800; color: var(--text); font-size: 13.5px; margin-bottom: 3px; }
+.hfoot-col a { color: var(--muted); }
+.hfoot-col a:hover { color: var(--primary); }
+.hfoot-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 24px; border-top: 1px solid var(--border); }
+.hfoot-legal { display: flex; gap: 18px; flex-wrap: wrap; }
+.hfoot-legal a { color: var(--muted); }
+.hfoot-legal a:hover { color: var(--primary); }
+@media (max-width: 760px) {
+  .hfoot-top { grid-template-columns: 1fr 1fr; gap: 26px; }
+}
 
 @media (max-width: 900px) {
   .hhero-grid { grid-template-columns: 1fr; gap: 32px; }

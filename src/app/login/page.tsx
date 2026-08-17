@@ -48,7 +48,9 @@ export default async function LoginPage({
         </Link>
 
         <p className="login-fine">
-          การเข้าใช้งานถือว่ายอมรับเงื่อนไขการใช้บริการและนโยบายความเป็นส่วนตัว
+          การเข้าใช้งานถือว่ายอมรับ{" "}
+          <Link href="/terms">ข้อกำหนดการใช้บริการ</Link> และ{" "}
+          <Link href="/privacy">นโยบายความเป็นส่วนตัว</Link>
         </p>
       </div>
     </div>

@@ -131,6 +131,46 @@ const CMP: { group: string; rows: { label: string; cells: (boolean | string)[] }
   },
 ];
 
+const FOOT_COLS = [
+  {
+    title: "ฟีเจอร์",
+    links: [
+      { label: "AI ตอบแชท", href: "/#features" },
+      { label: "ปิดการขาย + ตรวจสลิป", href: "/#features" },
+      { label: "จอง/เช็คคิว", href: "/#features" },
+      { label: "ยิงโปรฯ LINE", href: "/#features" },
+      { label: "วิเคราะห์ + CRM", href: "/#features" },
+    ],
+  },
+  {
+    title: "ประเภทธุรกิจ",
+    links: [
+      { label: "ขายสินค้า", href: "/#biz" },
+      { label: "บริการ / นัดหมาย", href: "/#biz" },
+      { label: "โรงแรม / ที่พัก", href: "/#biz" },
+      { label: "คอร์ส / สมาชิก", href: "/#biz" },
+    ],
+  },
+  {
+    title: "เริ่มใช้งาน",
+    links: [
+      { label: "ราคา", href: "/#pricing" },
+      { label: "วิธีใช้งาน", href: "/#how" },
+      { label: "คำถามที่พบบ่อย", href: "/#faq" },
+      { label: "ทดลองฟรี 14 วัน", href: "/dashboard/new" },
+      { label: "เข้าสู่ระบบ", href: "/login" },
+    ],
+  },
+  {
+    title: "กฎหมาย & ความเป็นส่วนตัว",
+    links: [
+      { label: "นโยบายความเป็นส่วนตัว", href: "/privacy" },
+      { label: "ข้อกำหนดการใช้บริการ", href: "/terms" },
+      { label: "ข้อตกลงประมวลผลข้อมูล (PDPA)", href: "/data-processing" },
+    ],
+  },
+];
+
 const FAQ = [
   { q: "ต้องเขียนโปรแกรมเป็นไหม", a: "ไม่ต้องเลยครับ — เชื่อมช่องทางด้วยการวางลิงก์ (มีคู่มือในระบบ) แล้วใส่ข้อมูลร้านผ่านหน้าเว็บ บอทก็เริ่มตอบให้ทันที" },
   { q: "บอทตอบเหมือนคนจริงแค่ไหน", a: "จำบทสนทนาก่อนหน้าได้ เลือกโทนการตอบได้ ตอบสั้นเป็นธรรมชาติ — ลูกค้าแทบแยกไม่ออกว่าเป็นบอท" },
@@ -404,9 +444,30 @@ export default function Home() {
       </section>
 
       <footer className="hfoot">
-        <div className="hbrand">🛍️ AI Sales CRM</div>
-        <div>ผู้ช่วยขาย AI สำหรับร้านค้าไทย บน LINE &amp; Facebook</div>
-        <div>© 2026 · เริ่มต้น ฿290/เดือน</div>
+        <div className="hfoot-top">
+          <div className="hfoot-brand">
+            <div className="hbrand">🛍️ AI Sales CRM</div>
+            <p>ผู้ช่วยขาย AI สำหรับร้านค้าไทย บน LINE &amp; Facebook — ตอบแชท ปิดการขาย รับจอง เก็บเงิน ครบในตัวเดียว</p>
+          </div>
+          {FOOT_COLS.map((col) => (
+            <div key={col.title} className="hfoot-col">
+              <div className="hfoot-h">{col.title}</div>
+              {col.links.map((l) => (
+                <Link key={l.label} href={l.href}>
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="hfoot-bar">
+          <span>© 2026 AI Sales CRM · เริ่มต้น ฿290/เดือน</span>
+          <span className="hfoot-legal">
+            <Link href="/privacy">นโยบายความเป็นส่วนตัว</Link>
+            <Link href="/terms">ข้อกำหนดการใช้บริการ</Link>
+            <Link href="/data-processing">ข้อตกลงประมวลผลข้อมูล (PDPA)</Link>
+          </span>
+        </div>
       </footer>
     </div>
   );
