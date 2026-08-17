@@ -8,6 +8,7 @@ import {
 } from "@/db/repositories/orders";
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { runAutomations } from "@/features/automation/engine";
+import { scheduleCartRecovery } from "@/features/reminders/order-events";
 import { matchHandoff, matchProduct } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
@@ -80,6 +81,19 @@ export async function tryCheckout(
     conversationId: ctx.conversationId,
     channelId: ctx.channelId,
   });
+
+  // Nudge if the order is still unpaid a few hours from now. Cancelled
+  // automatically by the engine's status guard once they pay.
+  if (ctx.channelId) {
+    await scheduleCartRecovery(db, {
+      tenantId: ctx.tenantId,
+      customerId: ctx.customerId,
+      conversationId: ctx.conversationId,
+      channelId: ctx.channelId,
+      orderId: order.id,
+      total,
+    });
+  }
 
   const reply =
     `รับ ${product.name} จำนวน ${quantity} ชิ้น ` +

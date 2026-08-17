@@ -37,6 +37,7 @@ import {
 import { deleteKnowledgeDocument } from "@/db/repositories/knowledge";
 import { moveLeadStage } from "@/db/repositories/leads";
 import { applyDiscount, updateOrderStatus } from "@/db/repositories/orders";
+import { scheduleReviewRequest } from "@/features/reminders/order-events";
 import { upsertPaymentSettings } from "@/db/repositories/payment-settings";
 import {
   createPromotion,
@@ -488,6 +489,11 @@ export async function updateOrderStatusAction(formData: FormData) {
       entityId: orderId,
       data: { status },
     });
+    // Order handed over → ask for a review a day later (best-effort; no-op if
+    // the order has no reachable channel).
+    if (status === "FULFILLED") {
+      await scheduleReviewRequest(db, { tenantId: tenant.id, orderId });
+    }
   }
   redirect(`/dashboard/${slug}/orders/${orderId}`);
 }

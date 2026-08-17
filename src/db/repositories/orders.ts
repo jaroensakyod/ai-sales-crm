@@ -3,7 +3,60 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { DbClient } from "@/db/client";
 import { getTenantAiSettings } from "@/db/repositories/ai";
 import { getProduct, getVariant } from "@/db/repositories/products";
-import { customers, orderItems, orders, payments } from "@/db/schema";
+import {
+  conversations,
+  customers,
+  orderItems,
+  orders,
+  payments,
+} from "@/db/schema";
+
+/**
+ * Everything needed to message the customer about an order via follow-ups:
+ * the conversation it came from and the channel to reach them on. Returns null
+ * when the order has no conversation (e.g. created in the dashboard) — we can't
+ * push without a channel. Also returns the current status so callers/guards can
+ * decide whether a queued reminder is still relevant.
+ */
+export async function getOrderFollowupContext(
+  db: DbClient,
+  tenantId: string,
+  orderId: string,
+) {
+  const [row] = await db
+    .select({
+      status: orders.status,
+      total: orders.total,
+      customerId: orders.customerId,
+      conversationId: orders.conversationId,
+      channelId: conversations.channelId,
+    })
+    .from(orders)
+    .leftJoin(conversations, eq(conversations.id, orders.conversationId))
+    .where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId)));
+  if (!row || !row.conversationId || !row.channelId) return null;
+  return {
+    status: row.status,
+    total: Number(row.total),
+    customerId: row.customerId,
+    conversationId: row.conversationId,
+    channelId: row.channelId,
+  };
+}
+
+/** Lightweight status lookup (used by the follow-up engine to skip reminders
+ *  for orders that have since been paid or cancelled). */
+export async function getOrderStatus(
+  db: DbClient,
+  tenantId: string,
+  orderId: string,
+): Promise<(typeof orders.status.enumValues)[number] | null> {
+  const [row] = await db
+    .select({ status: orders.status })
+    .from(orders)
+    .where(and(eq(orders.tenantId, tenantId), eq(orders.id, orderId)));
+  return row?.status ?? null;
+}
 
 export async function listOrders(db: DbClient, tenantId: string) {
   return db

@@ -10,6 +10,7 @@ import {
   markFollowup,
 } from "@/db/repositories/followups";
 import { getLineChannelContext } from "@/db/repositories/line";
+import { getOrderStatus } from "@/db/repositories/orders";
 import { channels, customerIdentities } from "@/db/schema";
 import { getEntitlements } from "@/features/billing/entitlements";
 import { createLineClient, pushText } from "@/features/line/client";
@@ -77,6 +78,24 @@ export async function processDueFollowups(
       });
       result.skipped++;
       continue;
+    }
+
+    // Order-tied reminders (cart recovery) are pointless once the order is paid
+    // or cancelled — drop them so we never nudge someone who already paid.
+    const orderId =
+      f.payload && typeof f.payload === "object"
+        ? (f.payload as { orderId?: string }).orderId
+        : undefined;
+    if (orderId) {
+      const status = await getOrderStatus(db, f.tenantId, orderId);
+      const open = status === "DRAFT" || status === "PENDING_PAYMENT";
+      if (!open) {
+        await markFollowup(db, f.tenantId, f.id, "SKIPPED", {
+          reason: "order_not_open",
+        });
+        result.skipped++;
+        continue;
+      }
     }
 
     const [channel] = await db

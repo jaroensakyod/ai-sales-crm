@@ -500,6 +500,34 @@ form.card {
   border-radius: 6px;
 }
 
+/* Peak-hours mini bar chart (24 columns) */
+.peak-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 130px;
+}
+.peak-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+.peak-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--primary);
+  border-radius: 3px 3px 0 0;
+}
+.peak-label {
+  font-size: 0.62rem;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1;
+}
+
 /* ---------- Landing ---------- */
 .landing {
   max-width: 860px;

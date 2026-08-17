@@ -1,7 +1,7 @@
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
-import { customers, messages, orders } from "@/db/schema";
+import { customers, messages, orderItems, orders } from "@/db/schema";
 
 function monthStartUtc(now = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -70,4 +70,54 @@ export async function customerInsights(
     messagesThisMonth: msgs?.n ?? 0,
     topCustomers,
   };
+}
+
+/** Best-selling products by units sold, across paid/fulfilled orders. Groups by
+ *  the name snapshot so it still works for products edited or deleted later. */
+export async function bestSellers(
+  db: DbClient,
+  tenantId: string,
+  limit = 5,
+): Promise<{ name: string; qty: number; revenue: number }[]> {
+  return db
+    .select({
+      name: orderItems.nameSnapshot,
+      qty: sql<number>`sum(${orderItems.quantity})::int`,
+      revenue: sql<number>`sum(${orderItems.quantity} * ${orderItems.unitPrice})::float`,
+    })
+    .from(orderItems)
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .where(
+      and(
+        eq(orderItems.tenantId, tenantId),
+        inArray(orders.status, ["PAID", "FULFILLED"]),
+      ),
+    )
+    .groupBy(orderItems.nameSnapshot)
+    .orderBy(desc(sql`sum(${orderItems.quantity})`))
+    .limit(limit);
+}
+
+/** Inbound-message volume by hour of day (Bangkok time), 0–23. Fills missing
+ *  hours with 0 so the caller can render a full 24-bar chart. */
+export async function peakHours(
+  db: DbClient,
+  tenantId: string,
+): Promise<{ hour: number; count: number }[]> {
+  const rows = await db
+    .select({
+      hour: sql<number>`extract(hour from ${messages.sentAt} at time zone 'Asia/Bangkok')::int`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(messages)
+    .where(
+      and(eq(messages.tenantId, tenantId), eq(messages.direction, "INBOUND")),
+    )
+    .groupBy(sql`1`);
+
+  const byHour = new Map(rows.map((r) => [r.hour, r.count]));
+  return Array.from({ length: 24 }, (_, h) => ({
+    hour: h,
+    count: byHour.get(h) ?? 0,
+  }));
 }

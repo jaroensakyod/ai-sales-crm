@@ -6,7 +6,11 @@ import {
   getLeadScoreStats,
   getObjectionBreakdown,
 } from "@/db/repositories/analytics";
-import { customerInsights } from "@/db/repositories/insights";
+import {
+  bestSellers,
+  customerInsights,
+  peakHours,
+} from "@/db/repositories/insights";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requireTenantAuth } from "@/features/auth/session";
 import { getEntitlements } from "@/features/billing/entitlements";
@@ -37,7 +41,13 @@ export default async function AnalyticsPage({
   if (!tenant) notFound();
 
   const entitlements = await getEntitlements(db, tenant.id);
-  const ci = await customerInsights(db, tenant.id);
+  const [ci, sellers, hours] = await Promise.all([
+    customerInsights(db, tenant.id),
+    bestSellers(db, tenant.id),
+    peakHours(db, tenant.id),
+  ]);
+  const maxHour = Math.max(1, ...hours.map((h) => h.count));
+  const busiest = hours.reduce((a, b) => (b.count > a.count ? b : a), hours[0]);
 
   return (
     <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
@@ -88,6 +98,62 @@ export default async function AnalyticsPage({
             </tbody>
           </table>
         </div>
+      )}
+
+      <h2>สินค้าขายดี (Best sellers)</h2>
+      {sellers.length === 0 ? (
+        <p className="muted">ยังไม่มีสินค้าที่ขายได้</p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>สินค้า</th>
+                <th>ขายได้ (ชิ้น)</th>
+                <th>ยอดขายรวม</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sellers.map((s) => (
+                <tr key={s.name}>
+                  <td>{s.name}</td>
+                  <td>{s.qty.toLocaleString("th-TH")}</td>
+                  <td>{Number(s.revenue).toLocaleString("th-TH")} บาท</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <h2>ช่วงเวลาที่ลูกค้าทักเข้ามา (Peak hours)</h2>
+      {busiest && busiest.count > 0 ? (
+        <>
+          <p className="muted">
+            ลูกค้าทักมากสุดช่วง {String(busiest.hour).padStart(2, "0")}:00–
+            {String((busiest.hour + 1) % 24).padStart(2, "0")}:00 น. ·
+            ควรเตรียมคนตอบช่วงนี้
+          </p>
+          <div className="card">
+            <div className="peak-chart">
+              {hours.map((h) => (
+                <div key={h.hour} className="peak-col" title={`${h.hour}:00 · ${h.count} ข้อความ`}>
+                  <div
+                    className="peak-bar"
+                    style={{ height: `${(h.count / maxHour) * 100}%` }}
+                  />
+                  {h.hour % 3 === 0 ? (
+                    <span className="peak-label">{h.hour}</span>
+                  ) : (
+                    <span className="peak-label">&nbsp;</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <p className="muted">ยังไม่มีข้อความเข้ามากพอจะสรุปช่วงเวลา</p>
       )}
 
       <h2>วิเคราะห์เชิงลึก (Objection &amp; Lead)</h2>
