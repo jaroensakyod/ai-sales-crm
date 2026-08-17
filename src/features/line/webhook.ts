@@ -14,6 +14,7 @@ import type { RouterHandlers } from "@/features/router/types";
 import {
   createLineClient,
   fetchLineMessageContent,
+  fetchLineProfile,
   replyImage,
   replyText,
 } from "./client";
@@ -111,6 +112,20 @@ export async function processLineWebhook(
   let skipped = 0;
   let replied = 0;
 
+  // LINE events carry no display name — fetch it lazily (cached per request) so
+  // the CRM shows real names instead of "(unnamed)".
+  const profileCache = new Map<
+    string,
+    { displayName?: string; avatarUrl?: string } | undefined
+  >();
+  const getProfile = async (uid: string) => {
+    if (profileCache.has(uid)) return profileCache.get(uid);
+    const token = decryptSecret(context.connection!.accessTokenEncrypted);
+    const p = (await fetchLineProfile(token, uid)) ?? undefined;
+    profileCache.set(uid, p);
+    return p;
+  };
+
   for (const event of events) {
     const userId = event.source?.userId;
     const fromUser = event.type === "message" && event.source?.type === "user";
@@ -142,6 +157,7 @@ export async function processLineWebhook(
         channelMessageId: messageId,
         at,
         send,
+        profile: await getProfile(userId),
         loadImage: () =>
           fetchLineMessageContent(
             decryptSecret(context.connection!.accessTokenEncrypted),
@@ -184,6 +200,7 @@ export async function processLineWebhook(
         text: transcript,
         channelMessageId: messageId,
         at,
+        profile: await getProfile(userId),
         routerHandlers: deps.routerHandlers,
         send,
         sendImage,
@@ -204,6 +221,7 @@ export async function processLineWebhook(
       text: event.message.text ?? "",
       channelMessageId: event.message.id,
       at,
+      profile: await getProfile(userId),
       routerHandlers: deps.routerHandlers,
       send,
       sendImage,

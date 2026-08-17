@@ -64,6 +64,23 @@ export async function resolveCustomerByIdentity(
 ): Promise<{ customerId: string; identityId: string; created: boolean }> {
   const found = await selectIdentity(db, tenantId, channelId, externalId);
   if (found) {
+    // Backfill the name once we learn it (webhooks fetch the profile lazily),
+    // so customers created before we had it stop showing as "(unnamed)".
+    if (profile?.displayName && !found.displayName) {
+      await db
+        .update(customerIdentities)
+        .set({ displayName: profile.displayName, avatarUrl: profile.avatarUrl })
+        .where(eq(customerIdentities.id, found.id));
+      await db
+        .update(customers)
+        .set({ displayName: profile.displayName, updatedAt: new Date() })
+        .where(
+          and(
+            eq(customers.tenantId, tenantId),
+            eq(customers.id, found.customerId),
+          ),
+        );
+    }
     return { customerId: found.customerId, identityId: found.id, created: false };
   }
 

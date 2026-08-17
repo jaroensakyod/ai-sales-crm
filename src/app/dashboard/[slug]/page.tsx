@@ -15,7 +15,11 @@ import { requireTenantAuth } from "@/features/auth/session";
 import { resolveBudgetTier } from "@/features/billing/budget";
 import { PLAN_PRICE_THB, type Plan } from "@/features/billing/plans";
 
-import { changePlanAction } from "../actions";
+import {
+  changePlanAction,
+  releaseConversationAction,
+  takeOverConversationAction,
+} from "../actions";
 
 import { Shell } from "./_components/shell";
 
@@ -154,6 +158,7 @@ export default async function TenantOverview({
                 <th>ลูกค้า</th>
                 <th>สถานะ</th>
                 <th>ลูกค้าทักล่าสุด</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -170,6 +175,27 @@ export default async function TenantOverview({
                     </span>
                   </td>
                   <td>{when(c.lastInboundAt)}</td>
+                  <td>
+                    {c.status === "HANDOFF" ? (
+                      <form action={releaseConversationAction}>
+                        <input type="hidden" name="slug" value={slug} />
+                        <input type="hidden" name="conversationId" value={c.id} />
+                        <input type="hidden" name="back" value="overview" />
+                        <button type="submit" className="ghost sm">
+                          ให้บอทตอบ
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={takeOverConversationAction}>
+                        <input type="hidden" name="slug" value={slug} />
+                        <input type="hidden" name="conversationId" value={c.id} />
+                        <input type="hidden" name="back" value="overview" />
+                        <button type="submit" className="ghost sm">
+                          รับเรื่องเอง
+                        </button>
+                      </form>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

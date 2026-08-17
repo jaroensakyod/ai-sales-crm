@@ -909,28 +909,38 @@ export async function replyInboxAction(formData: FormData) {
   redirect(`${base}?ok=sent`);
 }
 
+/** Where to return after a status change: the thread, or the overview list
+ *  (when the toggle was pressed from the overview). */
+function inboxRedirect(slug: string, conversationId: string, back: string, ok: string) {
+  return back === "overview"
+    ? `/dashboard/${slug}?ok=${ok}`
+    : `/dashboard/${slug}/inbox/${conversationId}?ok=${ok}`;
+}
+
 /** Take over without sending — pause the bot on this conversation. */
 export async function takeOverConversationAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const conversationId = String(formData.get("conversationId") ?? "");
+  const back = String(formData.get("back") ?? "");
   const { db, tenant, session } = await tenantForSlug(slug, "edit_sales");
   await setConversationHandling(db, tenant.id, conversationId, {
     status: "HANDOFF",
     assignedUserId: session.userId || null,
   });
-  redirect(`/dashboard/${slug}/inbox/${conversationId}?ok=taken`);
+  redirect(inboxRedirect(slug, conversationId, back, "taken"));
 }
 
 /** Hand the conversation back to the bot. */
 export async function releaseConversationAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const conversationId = String(formData.get("conversationId") ?? "");
+  const back = String(formData.get("back") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await setConversationHandling(db, tenant.id, conversationId, {
     status: "OPEN",
     assignedUserId: null,
   });
-  redirect(`/dashboard/${slug}/inbox/${conversationId}?ok=released`);
+  redirect(inboxRedirect(slug, conversationId, back, "released"));
 }
 
 // ---- Outbound webhooks (API integration) ---------------------------------

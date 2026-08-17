@@ -13,6 +13,23 @@ export function createLineClient(accessToken: string) {
 export type LineClient = ReturnType<typeof createLineClient>;
 
 /**
+ * Fetch a LINE user's public profile (display name + avatar) so the CRM can
+ * show a real name instead of "(unnamed)". LINE webhook events don't include
+ * the name, so we call the profile endpoint. Returns null on failure.
+ */
+export async function fetchLineProfile(
+  accessToken: string,
+  userId: string,
+): Promise<{ displayName?: string; avatarUrl?: string } | null> {
+  try {
+    const profile = await createLineClient(accessToken).getProfile(userId);
+    return { displayName: profile.displayName, avatarUrl: profile.pictureUrl };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Download an inbound message's binary content (image slips, voice notes, …)
  * via the Messaging API's content endpoint, returned as base64. Uses the data
  * host, not the regular API host. Returns null on any failure so callers can
