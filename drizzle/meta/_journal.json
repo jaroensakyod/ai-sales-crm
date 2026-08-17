@@ -120,6 +120,13 @@
       "when": 1786958226076,
       "tag": "0016_regular_lionheart",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786969039889,
+      "tag": "0017_graceful_titania",
+      "breakpoints": true
     }
   ]
 }

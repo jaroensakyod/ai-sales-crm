@@ -52,6 +52,26 @@ export function wantsProductImage(text: string): boolean {
   return IMAGE_REQUEST_KEYWORDS.some((k) => n.includes(k));
 }
 
+const REVIEW_KEYWORDS = [
+  "รีวิว",
+  "review",
+  "คนอื่นใช้",
+  "มีคนใช้",
+  "ใช้แล้วเป็นไง",
+  "ใช้แล้วเป็นยังไง",
+  "ผลตอบรับ",
+  "ประสบการณ์",
+  "feedback",
+  "ฟีดแบค",
+  "น่าเชื่อถือ",
+];
+
+/** Customer is asking for social proof ("มีรีวิวไหม"). */
+export function wantsReview(text: string): boolean {
+  const n = text.toLowerCase();
+  return REVIEW_KEYWORDS.some((k) => n.includes(k));
+}
+
 /** Parse a quantity like "2 ชิ้น", "3 ห่อ", "x2", "จำนวน 5"; defaults to 1. */
 export function parseQuantity(text: string): number {
   const m =

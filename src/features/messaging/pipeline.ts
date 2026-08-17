@@ -21,6 +21,7 @@ import {
   resolveCustomerByIdentity,
 } from "@/db/repositories/customers";
 import { createKnowledgeGap, findOpenGap } from "@/db/repositories/gaps";
+import { listReviews } from "@/db/repositories/reviews";
 import { addLeadEvent } from "@/db/repositories/leads";
 import {
   applyConsentReply,
@@ -39,7 +40,7 @@ import { tryHotelBooking } from "@/features/hotel/book-from-chat";
 import { tryCourseEnroll } from "@/features/course/enroll-from-chat";
 import { verifySlip, type SlipVerdict } from "@/features/payment/slip-verify";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
-import { wantsProductImage } from "@/features/sales/order-intent";
+import { wantsProductImage, wantsReview } from "@/features/sales/order-intent";
 
 /** Tappable suggestion chips under a reply; tapping `label` sends `text`. */
 export type QuickReply = { label: string; text: string };
@@ -361,6 +362,35 @@ export async function handleInboundText(
       return { status: "processed", replied: true };
     }
     // No product identified → fall through so the AI can ask which one.
+  }
+
+  // "มีรีวิวไหม" — send social proof. One review image per reply (LINE's reply
+  // token is single-use); falls back to text testimonials, else lets the AI answer.
+  if (wantsReview(args.text)) {
+    const revs = await listReviews(db, args.tenantId);
+    const withImage = revs.find((r) => r.imageUrl);
+    if (withImage?.imageUrl && args.sendImage) {
+      const caption = withImage.caption
+        ? `"${withImage.caption}"${withImage.authorName ? ` — ${withImage.authorName}` : ""}`
+        : "รีวิวจากลูกค้าค่ะ";
+      await args.sendImage(args.externalId, withImage.imageUrl, caption);
+      await recordOutboundMessage(db, args.tenantId, conversation.id, {
+        body: `[ส่งรีวิว] ${caption}`,
+      });
+      return { status: "processed", replied: true };
+    }
+    const textReviews = revs
+      .filter((r) => r.caption)
+      .slice(0, 3)
+      .map((r) => `"${r.caption}"${r.authorName ? ` — ${r.authorName}` : ""}`)
+      .join("\n");
+    if (textReviews) {
+      const reply = `รีวิวจากลูกค้าของเราค่ะ\n${textReviews}`;
+      await args.send(args.externalId, reply);
+      await recordOutboundMessage(db, args.tenantId, conversation.id, { body: reply });
+      return { status: "processed", replied: true };
+    }
+    // No reviews yet → fall through so the AI answers naturally.
   }
 
   // PDPA profiling opt-in (risk #3): if the customer hasn't decided yet and this

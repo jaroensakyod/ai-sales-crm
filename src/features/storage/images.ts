@@ -6,10 +6,9 @@ export type UploadResult =
   | { ok: true; url: string }
   | { ok: false; reason: string };
 
-/** Allowed image types LINE/Facebook can render, and the size ceiling. */
+/** Image types LINE/Facebook can render, and the size ceiling. */
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_BYTES = 5 * 1024 * 1024;
-
 const EXT: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -17,14 +16,13 @@ const EXT: Record<string, string> = {
 };
 
 /**
- * Upload a product image to Supabase Storage (public bucket) and return its
- * permanent public URL — the one the bot sends to customers. Creates the bucket
- * on first use. Uses the service-role key server-side. Returns a typed failure
- * instead of throwing so the dashboard can show a friendly message.
+ * Upload an image to the public Supabase Storage bucket under `prefix/` and
+ * return its permanent public URL — the one the bot sends to customers. Creates
+ * the bucket on first use. Server-side only (service-role key). Returns a typed
+ * failure instead of throwing so the dashboard can show a friendly message.
  */
-export async function uploadProductImage(
-  tenantId: string,
-  productId: string,
+export async function uploadImage(
+  prefix: string,
   file: { bytes: ArrayBuffer; contentType: string },
 ): Promise<UploadResult> {
   const cfg = getSupabaseStorage();
@@ -37,28 +35,39 @@ export async function uploadProductImage(
 
   await ensureBucket(cfg);
 
-  // Stable-ish path per product; a timestamp busts CDN/LINE caching on replace.
-  const path = `${tenantId}/${productId}-${Date.now()}.${EXT[type]}`;
-  const res = await fetch(
-    `${cfg.url}/storage/v1/object/${BUCKET}/${path}`,
-    {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${cfg.serviceKey}`,
-        apikey: cfg.serviceKey,
-        "content-type": type,
-        "x-upsert": "true",
-        "cache-control": "3600",
-      },
-      body: file.bytes,
+  // Timestamp busts CDN/LINE caching when an image is replaced.
+  const path = `${prefix}-${Date.now()}.${EXT[type]}`;
+  const res = await fetch(`${cfg.url}/storage/v1/object/${BUCKET}/${path}`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${cfg.serviceKey}`,
+      apikey: cfg.serviceKey,
+      "content-type": type,
+      "x-upsert": "true",
+      "cache-control": "3600",
     },
-  );
+    body: file.bytes,
+  });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     return { ok: false, reason: `upload_failed ${res.status}: ${body.slice(0, 200)}` };
   }
-
   return { ok: true, url: `${cfg.url}/storage/v1/object/public/${BUCKET}/${path}` };
+}
+
+export function uploadProductImage(
+  tenantId: string,
+  productId: string,
+  file: { bytes: ArrayBuffer; contentType: string },
+) {
+  return uploadImage(`${tenantId}/${productId}`, file);
+}
+
+export function uploadReviewImage(
+  tenantId: string,
+  file: { bytes: ArrayBuffer; contentType: string },
+) {
+  return uploadImage(`${tenantId}/reviews/${crypto.randomUUID()}`, file);
 }
 
 /** Create the public bucket if it doesn't exist (idempotent — ignores 409). */
@@ -78,6 +87,6 @@ async function ensureBucket(cfg: { url: string; serviceKey: string }) {
       allowed_mime_types: [...ALLOWED],
     }),
   }).catch(() => {
-    // Already exists / transient — the upload call will surface a real error.
+    // Already exists / transient — the upload call surfaces a real error.
   });
 }

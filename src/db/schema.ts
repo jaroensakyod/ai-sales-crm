@@ -23,3 +23,4 @@ export * from "./tables/hotel";
 export * from "./tables/course";
 export * from "./tables/tags";
 export * from "./tables/webhooks";
+export * from "./tables/reviews";

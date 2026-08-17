@@ -15,6 +15,7 @@ import { createCourse, deleteCourse } from "@/db/repositories/course";
 import { randomBytes } from "node:crypto";
 
 import { setConversationHandling } from "@/db/repositories/conversations";
+import { createReview, deleteReview } from "@/db/repositories/reviews";
 import {
   createWebhookEndpoint,
   deleteWebhookEndpoint,
@@ -23,7 +24,10 @@ import {
 import { getOwnerSession } from "@/features/auth/owner";
 import { getEntitlements } from "@/features/billing/entitlements";
 import { sendManualReply } from "@/features/messaging/manual-reply";
-import { uploadProductImage } from "@/features/storage/product-images";
+import {
+  uploadProductImage,
+  uploadReviewImage,
+} from "@/features/storage/images";
 import { enqueueWebhookEvent } from "@/features/webhooks/dispatch";
 import { broadcastPromo, createLineClient } from "@/features/line/client";
 import { decryptSecret } from "@/lib/crypto";
@@ -370,6 +374,41 @@ export async function uploadProductImageAction(formData: FormData) {
   }
   await updateProduct(db, tenant.id, id, { imageUrl: result.url });
   redirect(`${base}?ok=image`);
+}
+
+// ---- Reviews (social proof, capped per shop) -----------------------------
+
+export async function addReviewAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const caption = String(formData.get("caption") ?? "");
+  const authorName = String(formData.get("authorName") ?? "");
+  const file = formData.get("image");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const base = `/dashboard/${slug}/reviews`;
+
+  let imageUrl: string | null = null;
+  if (file instanceof File && file.size > 0) {
+    const up = await uploadReviewImage(tenant.id, {
+      bytes: await file.arrayBuffer(),
+      contentType: file.type,
+    });
+    if (!up.ok) {
+      redirect(`${base}?error=${up.reason === "not_configured" ? "storage" : "upload"}`);
+    }
+    imageUrl = up.url;
+  }
+
+  const result = await createReview(db, tenant.id, { imageUrl, caption, authorName });
+  if (!result.ok) redirect(`${base}?error=${result.reason}`);
+  redirect(`${base}?ok=added`);
+}
+
+export async function deleteReviewAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("reviewId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  await deleteReview(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/reviews?ok=deleted`);
 }
 
 export async function addVariantAction(formData: FormData) {
