@@ -355,24 +355,60 @@ export default async function SettingsPage({
         </form>
 
         <h2>เชื่อม Facebook Page</h2>
-        <form action={connectFacebookAction} className="card">
-          <input type="hidden" name="slug" value={slug} />
-          <label>
-            ชื่อที่แสดง
-            <input name="displayName" placeholder="เพจของร้าน" />
-          </label>
-          <label>
-            Page ID
-            <input name="pageId" required />
-          </label>
-          <label>
-            Page Access Token
-            <input name="accessToken" required />
-          </label>
-          <button type="submit" style={{ marginTop: 12 }}>
-            เชื่อม Facebook
-          </button>
-        </form>
+        {ok === "fb_connected" ? (
+          <p className="ok">เชื่อมเพจ Facebook สำเร็จแล้ว 🎉</p>
+        ) : null}
+        {error === "fb_oauth" ? (
+          <p className="error">เชื่อม Facebook ไม่สำเร็จ ลองใหม่อีกครั้ง</p>
+        ) : null}
+        {error === "fb_nopages" ? (
+          <p className="error">
+            ไม่พบเพจในบัญชีนี้ — ต้องเป็นแอดมินของเพจ และเลือกอนุญาตเพจตอนล็อกอิน
+          </p>
+        ) : null}
+        {error === "fb_cancelled" ? (
+          <p className="error">ยกเลิกการเชื่อม Facebook</p>
+        ) : null}
+        {error === "fb_notconfigured" ? (
+          <p className="error">ระบบยังไม่ได้ตั้งค่า META_APP_ID / META_APP_SECRET</p>
+        ) : null}
+
+        <div className="card">
+          <p style={{ marginTop: 0, fontWeight: 500 }}>วิธีง่าย (แนะนำ)</p>
+          <p className="muted" style={{ fontSize: "0.85rem" }}>
+            กดปุ่มด้านล่าง แล้วล็อกอิน Facebook เลือกเพจของคุณ ระบบจะดึงข้อมูลและ
+            เปิดรับข้อความให้อัตโนมัติ ไม่ต้องหา Page ID / Token เอง
+          </p>
+          <a href={`/api/connect/facebook?slug=${slug}`}>
+            <button type="button" style={{ marginTop: 4 }}>
+              เชื่อมต่อ Facebook (เลือกเพจอัตโนมัติ)
+            </button>
+          </a>
+        </div>
+
+        <details style={{ marginTop: 8 }}>
+          <summary className="muted" style={{ cursor: "pointer" }}>
+            หรือกรอกเอง (Page ID + Access Token)
+          </summary>
+          <form action={connectFacebookAction} className="card" style={{ marginTop: 8 }}>
+            <input type="hidden" name="slug" value={slug} />
+            <label>
+              ชื่อที่แสดง
+              <input name="displayName" placeholder="เพจของร้าน" />
+            </label>
+            <label>
+              Page ID
+              <input name="pageId" required />
+            </label>
+            <label>
+              Page Access Token
+              <input name="accessToken" required />
+            </label>
+            <button type="submit" style={{ marginTop: 12 }}>
+              เชื่อม Facebook
+            </button>
+          </form>
+        </details>
 
         <h2>คลังความรู้ (AI ใช้ค้นตอบ FAQ)</h2>
         {knowledgeDocs.length === 0 ? (
