@@ -106,6 +106,12 @@ export const tenantAiSettings = pgTable(
     // greeting or "what do you sell?" — no need for them to ask for a picture.
     welcomeImageUrl: text("welcome_image_url"),
     welcomeMessage: text("welcome_message"),
+    // Follow-up (push) toggles — each auto push costs 1 LINE message per recipient,
+    // so the merchant can turn off chasing people who haven't bought yet to save
+    // quota. Default on to preserve existing behaviour.
+    followupCartRecovery: boolean("followup_cart_recovery").notNull().default(true),
+    followupReviewRequest: boolean("followup_review_request").notNull().default(true),
+    followupReminder: boolean("followup_reminder").notNull().default(true),
     // Internal safety net, not shown to merchant (docs/04-risks.md).
     softCapUsd: numeric("soft_cap_usd", { precision: 12, scale: 2 }),
     ...timestamps,

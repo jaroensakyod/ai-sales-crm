@@ -25,6 +25,9 @@ export async function updateTenantAiSettings(
     emojiLevel?: string | null;
     welcomeImageUrl?: string | null;
     welcomeMessage?: string | null;
+    followupCartRecovery?: boolean;
+    followupReviewRequest?: boolean;
+    followupReminder?: boolean;
   },
 ) {
   await db

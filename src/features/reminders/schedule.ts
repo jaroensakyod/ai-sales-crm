@@ -1,4 +1,5 @@
 import type { DbClient } from "@/db/client";
+import { getTenantAiSettings } from "@/db/repositories/ai";
 import { scheduleFollowup } from "@/db/repositories/followups";
 
 /** Remind this long before the appointment / stay. */
@@ -23,6 +24,10 @@ export async function scheduleReminder(
     now?: Date;
   },
 ): Promise<boolean> {
+  // Merchant can switch off appointment/stay reminders.
+  const settings = await getTenantAiSettings(db, args.tenantId);
+  if (settings && settings.followupReminder === false) return false;
+
   const now = args.now ?? new Date();
   const remindAt = new Date(args.at.getTime() - REMINDER_LEAD_MS);
   if (remindAt.getTime() <= now.getTime()) return false;

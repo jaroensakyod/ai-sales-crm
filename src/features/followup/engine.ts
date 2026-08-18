@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
+import { getTenantAiSettings } from "@/db/repositories/ai";
 import {
   isWithin24hWindow,
   recordOutboundMessage,
@@ -24,6 +25,14 @@ export type PushFn = (args: {
   toExternalId: string;
   text: string;
 }) => Promise<void>;
+
+/** Maps a scheduled follow-up's reason to the merchant on/off toggle that gates
+ *  it (so quota isn't spent on a follow-up type the merchant switched off). */
+const REASON_TOGGLE = {
+  cart_recovery: "followupCartRecovery",
+  review_request: "followupReviewRequest",
+  reminder: "followupReminder",
+} as const;
 
 export type FollowupRunResult = {
   processed: number;
@@ -78,6 +87,23 @@ export async function processDueFollowups(
       });
       result.skipped++;
       continue;
+    }
+
+    // Merchant follow-up on/off toggles — honour one flipped off AFTER the row
+    // was scheduled, so we never spend LINE quota the merchant disabled.
+    const toggleKey =
+      f.reason && f.reason in REASON_TOGGLE
+        ? REASON_TOGGLE[f.reason as keyof typeof REASON_TOGGLE]
+        : undefined;
+    if (toggleKey) {
+      const settings = await getTenantAiSettings(db, f.tenantId);
+      if (settings && settings[toggleKey] === false) {
+        await markFollowup(db, f.tenantId, f.id, "SKIPPED", {
+          reason: `followup_disabled_${f.reason}`,
+        });
+        result.skipped++;
+        continue;
+      }
     }
 
     // Order-tied reminders (cart recovery) are pointless once the order is paid

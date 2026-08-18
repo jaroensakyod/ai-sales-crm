@@ -1,4 +1,5 @@
 import type { DbClient } from "@/db/client";
+import { getTenantAiSettings } from "@/db/repositories/ai";
 import { scheduleFollowup } from "@/db/repositories/followups";
 import { getOrderFollowupContext } from "@/db/repositories/orders";
 
@@ -27,6 +28,10 @@ export async function scheduleCartRecovery(
     now?: Date;
   },
 ): Promise<void> {
+  // Merchant can switch off unpaid-order chasing to save LINE quota.
+  const settings = await getTenantAiSettings(db, args.tenantId);
+  if (settings && settings.followupCartRecovery === false) return;
+
   const now = args.now ?? new Date();
   const total = args.total.toLocaleString("th-TH");
   await scheduleFollowup(db, args.tenantId, {
@@ -54,6 +59,10 @@ export async function scheduleReviewRequest(
   db: DbClient,
   args: { tenantId: string; orderId: string; now?: Date },
 ): Promise<boolean> {
+  // Merchant can switch off the post-purchase review ask.
+  const settings = await getTenantAiSettings(db, args.tenantId);
+  if (settings && settings.followupReviewRequest === false) return false;
+
   const ctx = await getOrderFollowupContext(db, args.tenantId, args.orderId);
   if (!ctx) return false;
   const now = args.now ?? new Date();

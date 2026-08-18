@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getTenantAiSettings } from "@/db/repositories/ai";
 import { scheduleFollowup } from "@/db/repositories/followups";
 import { getOrderFollowupContext } from "@/db/repositories/orders";
 import {
@@ -15,9 +16,14 @@ vi.mock("@/db/repositories/followups", () => ({
 vi.mock("@/db/repositories/orders", () => ({
   getOrderFollowupContext: vi.fn(),
 }));
+// Follow-up toggles default ON (null settings). Individual tests override.
+vi.mock("@/db/repositories/ai", () => ({
+  getTenantAiSettings: vi.fn(async () => null),
+}));
 
 const schedule = vi.mocked(scheduleFollowup);
 const orderCtx = vi.mocked(getOrderFollowupContext);
+const settings = vi.mocked(getTenantAiSettings);
 const db = {} as never;
 
 describe("scheduleCartRecovery", () => {
@@ -42,6 +48,19 @@ describe("scheduleCartRecovery", () => {
     expect(arg.reason).toBe("cart_recovery");
     expect((arg.payload as { orderId: string }).orderId).toBe("o1");
     expect(arg.scheduledAt.getTime()).toBe(now.getTime() + CART_RECOVERY_DELAY_MS);
+  });
+
+  it("does nothing when the merchant turned cart recovery off", async () => {
+    settings.mockResolvedValueOnce({ followupCartRecovery: false } as never);
+    await scheduleCartRecovery(db, {
+      tenantId: "t1",
+      customerId: "c1",
+      conversationId: "conv1",
+      channelId: "ch1",
+      orderId: "o1",
+      total: 1200,
+    });
+    expect(schedule).not.toHaveBeenCalled();
   });
 });
 

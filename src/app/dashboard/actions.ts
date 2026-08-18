@@ -582,6 +582,11 @@ export async function updateAiSettingsAction(formData: FormData) {
     replyTone: String(formData.get("replyTone") ?? "").trim() || null,
     replyMode: String(formData.get("replyMode") ?? "").trim() || null,
     emojiLevel: String(formData.get("emojiLevel") ?? "").trim() || null,
+    // Unchecked checkboxes submit nothing → false. A hidden "1" marker before each
+    // checkbox lets us tell "form submitted with box off" from "field not on form".
+    followupCartRecovery: formData.get("followupCartRecovery") === "on",
+    followupReviewRequest: formData.get("followupReviewRequest") === "on",
+    followupReminder: formData.get("followupReminder") === "on",
   });
   redirect(`/dashboard/${slug}/settings?ok=ai`);
 }
