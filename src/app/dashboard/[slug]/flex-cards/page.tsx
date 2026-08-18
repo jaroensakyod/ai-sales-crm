@@ -10,6 +10,7 @@ import { getEntitlements } from "@/features/billing/entitlements";
 import {
   broadcastFlexCardAction,
   deleteFlexCardAction,
+  updateFlexCardTriggerAction,
 } from "../../actions";
 import { Shell } from "../_components/shell";
 import { CarouselComposer } from "./_components/carousel-composer";
@@ -21,6 +22,7 @@ const OK_MSG: Record<string, string> = {
   saved: "บันทึกการ์ดเรียบร้อยแล้ว",
   deleted: "ลบการ์ดแล้ว",
   broadcast: "ส่งบรอดแคสต์การ์ดให้เพื่อน LINE แล้ว",
+  trigger: "ตั้งคำ trigger เรียบร้อยแล้ว — ลูกค้าพิมพ์คำนี้แล้วบอทจะส่งการ์ดให้",
 };
 const ERR_MSG: Record<string, string> = {
   empty: "กรุณากรอกชื่อการ์ดและหัวข้อ",
@@ -107,6 +109,26 @@ export default async function FlexCardsPage({
                   </button>
                 </form>
               </div>
+
+              <form
+                action={updateFlexCardTriggerAction}
+                className="row"
+                style={{ marginTop: 10, gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}
+              >
+                <input type="hidden" name="slug" value={slug} />
+                <input type="hidden" name="cardId" value={c.id} />
+                <label style={{ flex: 1, minWidth: 180, margin: 0 }}>
+                  คำที่ให้บอทส่งการ์ดนี้อัตโนมัติ
+                  <input
+                    name="triggerKeyword"
+                    defaultValue={c.triggerKeyword ?? ""}
+                    placeholder="เช่น โปรโมชั่น"
+                  />
+                </label>
+                <button type="submit" className="sm">
+                  บันทึกคำ
+                </button>
+              </form>
 
               {canBroadcast ? (
                 <form

@@ -40,6 +40,7 @@ import {
   deleteFlexCard,
   flexCardToMessageCard,
   getFlexCard,
+  updateFlexCardTrigger,
 } from "@/db/repositories/flexCards";
 import type { CarouselItem } from "@/db/tables/flexCards";
 import { suggestCaptions } from "@/features/ai/captions";
@@ -1020,6 +1021,16 @@ export async function deleteFlexCardAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deleteFlexCard(db, tenant.id, id);
   redirect(`/dashboard/${slug}/flex-cards?ok=deleted`);
+}
+
+/** Set/clear the chat trigger keyword on an existing card. */
+export async function updateFlexCardTriggerAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("cardId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const kw = String(formData.get("triggerKeyword") ?? "").trim() || null;
+  await updateFlexCardTrigger(db, tenant.id, id, kw);
+  redirect(`/dashboard/${slug}/flex-cards?ok=trigger`);
 }
 
 /** Broadcast a saved Flex card to all LINE friends (same quota + confirm rules

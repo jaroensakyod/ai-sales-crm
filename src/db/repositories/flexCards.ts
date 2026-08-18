@@ -74,6 +74,20 @@ export async function createFlexCard(
   return row;
 }
 
+/** Set/clear a card's chat trigger keyword (so existing cards can be made
+ *  auto-sendable without recreating them). */
+export async function updateFlexCardTrigger(
+  db: DbClient,
+  tenantId: string,
+  id: string,
+  triggerKeyword: string | null,
+) {
+  await db
+    .update(flexCards)
+    .set({ triggerKeyword, updatedAt: new Date() })
+    .where(and(eq(flexCards.tenantId, tenantId), eq(flexCards.id, id)));
+}
+
 export async function deleteFlexCard(db: DbClient, tenantId: string, id: string) {
   await db
     .delete(flexCards)
