@@ -30,7 +30,19 @@ import {
   uploadReviewImage,
 } from "@/features/storage/images";
 import { enqueueWebhookEvent } from "@/features/webhooks/dispatch";
-import { broadcastPromo, createLineClient } from "@/features/line/client";
+import {
+  broadcastFlex,
+  broadcastPromo,
+  createLineClient,
+} from "@/features/line/client";
+import {
+  createFlexCard,
+  deleteFlexCard,
+  flexCardToMessageCard,
+  getFlexCard,
+} from "@/db/repositories/flexCards";
+import type { CarouselItem } from "@/db/tables/flexCards";
+import { suggestCaptions } from "@/features/ai/captions";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
 import {
@@ -926,6 +938,117 @@ export async function broadcastLineAction(formData: FormData) {
     meta: { chars: text.length, hasImage: Boolean(imageUrl) },
   });
   redirect(`/dashboard/${slug}/broadcast?ok=1`);
+}
+
+// ── Flex cards (merchant-designed rich cards) ────────────────────────────────
+
+export async function saveFlexCardAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const name = String(formData.get("name") ?? "").trim();
+  const headline = String(formData.get("headline") ?? "").trim();
+  if (!name || !headline) {
+    redirect(`/dashboard/${slug}/flex-cards?error=empty`);
+  }
+  const buttonKind = formData.get("buttonKind") === "url" ? "url" : "message";
+  const styleRaw = String(formData.get("style") ?? "plain");
+  const style = ["plain", "promo", "minimal"].includes(styleRaw) ? styleRaw : "plain";
+  await createFlexCard(db, tenant.id, {
+    name,
+    kind: "single",
+    style,
+    headline,
+    body: String(formData.get("body") ?? "").trim() || null,
+    priceLabel: String(formData.get("priceLabel") ?? "").trim() || null,
+    imageUrl: toImageUrl(formData.get("imageUrl")),
+    buttonLabel: String(formData.get("buttonLabel") ?? "").trim() || null,
+    buttonKind,
+    buttonValue: String(formData.get("buttonValue") ?? "").trim() || null,
+    triggerKeyword: String(formData.get("triggerKeyword") ?? "").trim() || null,
+  });
+  redirect(`/dashboard/${slug}/flex-cards?ok=saved`);
+}
+
+/** AI-suggested sales captions for the composer's "เสนอแคปชั่น (AI)" button.
+ *  Called directly from the client component (not a form submit). */
+export async function suggestCaptionsAction(
+  slug: string,
+  input: { headline: string; description?: string },
+): Promise<string[]> {
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  return suggestCaptions(db, tenant.id, {
+    headline: String(input.headline ?? "").slice(0, 200),
+    description: input.description ? String(input.description).slice(0, 500) : undefined,
+  });
+}
+
+/** Save a carousel card built from several products. `items` arrives as a JSON
+ *  string of CarouselItem[] from the composer's hidden field. */
+export async function saveCarouselCardAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const name = String(formData.get("name") ?? "").trim();
+  const styleRaw = String(formData.get("style") ?? "plain");
+  const style = ["plain", "promo", "minimal"].includes(styleRaw) ? styleRaw : "plain";
+  let items: CarouselItem[] = [];
+  try {
+    const parsed = JSON.parse(String(formData.get("items") ?? "[]"));
+    if (Array.isArray(parsed)) {
+      items = parsed
+        .filter((it) => it && typeof it.headline === "string")
+        .slice(0, 10);
+    }
+  } catch {
+    items = [];
+  }
+  if (!name || items.length === 0) {
+    redirect(`/dashboard/${slug}/flex-cards?error=carousel`);
+  }
+  await createFlexCard(db, tenant.id, {
+    name,
+    kind: "carousel",
+    style,
+    items,
+    triggerKeyword: String(formData.get("triggerKeyword") ?? "").trim() || null,
+  });
+  redirect(`/dashboard/${slug}/flex-cards?ok=saved`);
+}
+
+export async function deleteFlexCardAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("cardId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  await deleteFlexCard(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/flex-cards?ok=deleted`);
+}
+
+/** Broadcast a saved Flex card to all LINE friends (same quota + confirm rules
+ *  as the plain promo broadcast). */
+export async function broadcastFlexCardAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("cardId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  if (!(await getEntitlements(db, tenant.id)).promoBroadcast) {
+    redirect(`/dashboard/${slug}/flex-cards?error=plan`);
+  }
+  if (formData.get("confirm") !== "on") {
+    redirect(`/dashboard/${slug}/flex-cards?error=confirm`);
+  }
+  const card = await getFlexCard(db, tenant.id, id);
+  if (!card) redirect(`/dashboard/${slug}/flex-cards?error=notfound`);
+  const line = await getConnectedLineChannel(db, tenant.id);
+  if (!line) redirect(`/dashboard/${slug}/flex-cards?error=nochannel`);
+  try {
+    const token = decryptSecret(line.connection.accessTokenEncrypted);
+    await broadcastFlex(createLineClient(token), flexCardToMessageCard(card));
+  } catch {
+    redirect(`/dashboard/${slug}/flex-cards?error=send`);
+  }
+  await recordUsageEvent(db, tenant.id, {
+    type: "line_broadcast",
+    meta: { flexCardId: card.id },
+  });
+  redirect(`/dashboard/${slug}/flex-cards?ok=broadcast`);
 }
 
 /** Cancel a still-pending scheduled broadcast. */
