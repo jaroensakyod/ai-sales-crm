@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { createDbClient, createDbSqlClient, type DbClient } from "@/db/client";
 import { createTenant, deleteTenant } from "@/db/repositories/tenants";
 import { upsertPaymentSettings } from "@/db/repositories/payment-settings";
+import { createQuickReply } from "@/db/repositories/quickReplies";
 import { channels, orderItems, orders, payments, products } from "@/db/schema";
 import {
   handleInboundImage,
@@ -263,6 +264,24 @@ describe.skipIf(!hasDb)("chat checkout (integration)", () => {
     });
     expect(sent[0]).toContain("ลิปสติกสีแดง");
     expect(sent[0]).toContain("390");
+  });
+
+  it("a tapped quick-reply button returns its canned answer", async () => {
+    await createQuickReply(db, tenantId, {
+      label: "เวลาทำการ",
+      reply: "ร้านเปิดทุกวัน 9:00–20:00 น. ค่ะ",
+    });
+    sent.length = 0;
+    const res = await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: `Uqr-${suffix}`,
+      text: "เวลาทำการ", // exactly the button label (a tap)
+      channelMessageId: `qr1-${suffix}`,
+      send,
+    });
+    expect(res.replied).toBe(true);
+    expect(sent[0]).toContain("9:00–20:00");
   });
 
   it("customer can tap 'back to AI' to undo a mis-tapped handoff", async () => {

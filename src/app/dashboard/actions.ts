@@ -43,6 +43,10 @@ import {
   updateFlexCardTrigger,
 } from "@/db/repositories/flexCards";
 import type { CarouselItem } from "@/db/tables/flexCards";
+import {
+  createQuickReply,
+  deleteQuickReply,
+} from "@/db/repositories/quickReplies";
 import { suggestCaptions } from "@/features/ai/captions";
 import { decryptSecret } from "@/lib/crypto";
 import { recordAudit } from "@/db/repositories/audit";
@@ -1060,6 +1064,29 @@ export async function broadcastFlexCardAction(formData: FormData) {
     meta: { flexCardId: card.id },
   });
   redirect(`/dashboard/${slug}/flex-cards?ok=broadcast`);
+}
+
+// ── Quick-reply menu (merchant-defined tap buttons) ──────────────────────────
+
+export async function createQuickReplyAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const label = String(formData.get("label") ?? "").trim().slice(0, 20);
+  const reply = String(formData.get("reply") ?? "").trim();
+  if (!label || !reply) {
+    redirect(`/dashboard/${slug}/quick-replies?error=empty`);
+  }
+  const sortOrder = Number(formData.get("sortOrder") ?? 0) || 0;
+  await createQuickReply(db, tenant.id, { label, reply, sortOrder });
+  redirect(`/dashboard/${slug}/quick-replies?ok=saved`);
+}
+
+export async function deleteQuickReplyAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("id") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  await deleteQuickReply(db, tenant.id, id);
+  redirect(`/dashboard/${slug}/quick-replies?ok=deleted`);
 }
 
 /** Cancel a still-pending scheduled broadcast. */

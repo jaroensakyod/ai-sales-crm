@@ -25,3 +25,4 @@ export * from "./tables/tags";
 export * from "./tables/webhooks";
 export * from "./tables/reviews";
 export * from "./tables/flexCards";
+export * from "./tables/quickReplies";

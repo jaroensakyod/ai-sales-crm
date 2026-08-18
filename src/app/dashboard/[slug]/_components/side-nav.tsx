@@ -40,6 +40,7 @@ const ITEMS: {
   { href: "/reviews", label: "รีวิวลูกค้า", icon: "⭐", perm: "edit_sales" },
   { href: "/broadcast", label: "ยิงโปรฯ LINE", icon: "📣", perm: "manage_settings", ent: "promoBroadcast" },
   { href: "/flex-cards", label: "การ์ด Flex", icon: "🎴", perm: "edit_sales" },
+  { href: "/quick-replies", label: "ปุ่มเมนูตอบเร็ว", icon: "⚡", perm: "edit_sales" },
   { href: "/webhooks", label: "API / Webhook", icon: "🔗", perm: "manage_settings", ent: "apiWebhooks" },
   { href: "/tags", label: "แท็กคุมคำตอบ", icon: "🏷️", perm: "manage_settings" },
   { href: "/automation", label: "ระบบอัตโนมัติ", icon: "⚡", perm: "manage_settings" },

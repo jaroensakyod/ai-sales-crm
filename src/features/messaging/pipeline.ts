@@ -24,6 +24,7 @@ import {
 import { getTenantAiSettings } from "@/db/repositories/ai";
 import { createKnowledgeGap, findOpenGap } from "@/db/repositories/gaps";
 import { listReviews } from "@/db/repositories/reviews";
+import { listActiveQuickReplies } from "@/db/repositories/quickReplies";
 import { addLeadEvent } from "@/db/repositories/leads";
 import {
   applyConsentReply,
@@ -109,6 +110,18 @@ function productCarousel(
     cards,
     fallback: cards.map((c) => c.headline).join(" · "),
   };
+}
+
+/** Chips shown under normal bot replies: the merchant's menu buttons first, then
+ *  the "talk to a human" escape hatch. LINE/FB allow at most 13 quick replies. */
+function menuChips(
+  menu: { label: string }[],
+): QuickReply[] {
+  const chips: QuickReply[] = menu
+    .slice(0, 12)
+    .map((m) => ({ label: m.label, text: m.label }));
+  chips.push(TALK_TO_HUMAN);
+  return chips.slice(0, 13);
 }
 
 /** Did the customer ask to return to the bot (tapped the resume chip)? */
@@ -352,6 +365,21 @@ export async function handleInboundText(
     await args.send(args.externalId, JAILBREAK_REPLY);
     await recordOutboundMessage(db, args.tenantId, conversation.id, {
       body: JAILBREAK_REPLY,
+    });
+    return { status: "processed", replied: true };
+  }
+
+  // Merchant quick-reply menu — loaded once and reused for both tap-detection and
+  // the chips attached to the final reply. A tap sends the label back verbatim;
+  // match it exactly and answer with the canned reply (self-service, no human).
+  const menu = await listActiveQuickReplies(db, args.tenantId);
+  const tapped = menu.find(
+    (m) => m.label.trim().toLowerCase() === args.text.trim().toLowerCase(),
+  );
+  if (tapped) {
+    await args.send(args.externalId, tapped.reply, menuChips(menu));
+    await recordOutboundMessage(db, args.tenantId, conversation.id, {
+      body: tapped.reply,
     });
     return { status: "processed", replied: true };
   }
@@ -647,11 +675,11 @@ export async function handleInboundText(
     await markConsentPrompted(db, args.tenantId, customerId);
   }
 
-  // On a normal reply, offer "talk to a human". On a handoff, offer the reverse —
-  // "back to AI" — so a mis-tap is one tap to undo (honoured only while no admin
-  // has taken over; see the resume guard above).
+  // On a normal reply, show the merchant menu + "talk to a human". On a handoff,
+  // offer the reverse — "back to AI" — so a mis-tap is one tap to undo (honoured
+  // only while no admin has taken over; see the resume guard above).
   const quickReplies =
-    decision.action === "handoff" ? [BACK_TO_AI] : [TALK_TO_HUMAN];
+    decision.action === "handoff" ? [BACK_TO_AI] : menuChips(menu);
   await args.send(args.externalId, replyText, quickReplies);
   await recordOutboundMessage(db, args.tenantId, conversation.id, {
     body: replyText,
