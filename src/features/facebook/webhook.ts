@@ -10,11 +10,13 @@ import {
   type SendFn,
   type SendImageFn,
 } from "@/features/messaging/pipeline";
+import type { SendCardFn } from "@/features/messaging/cards";
 import { transcribeVoice } from "@/features/messaging/voice";
 import type { RouterHandlers } from "@/features/router/types";
 
 import {
   fetchImageAsBase64,
+  sendFacebookCard,
   sendFacebookImage,
   sendFacebookText,
 } from "./client";
@@ -30,6 +32,9 @@ type FbMessaging = {
     is_echo?: boolean;
     attachments?: FbAttachment[];
   };
+  /** A card button tap (template postback). payload carries the same text a
+   *  quick-reply would, so we route it through the normal text pipeline. */
+  postback?: { payload?: string; mid?: string };
 };
 type FbEntry = { id?: string; messaging?: FbMessaging[] };
 
@@ -39,6 +44,8 @@ export type FbProcessDeps = {
   send?: SendFn;
   /** Override the image transport (tests inject a spy). */
   sendImage?: SendImageFn;
+  /** Override the card transport (tests inject a spy). */
+  sendCard?: SendCardFn;
 };
 
 export type FbWebhookResult =
@@ -111,10 +118,44 @@ async function runMessagings(
     }
     return sendImage;
   };
+  let sendCard = deps.sendCard;
+  const getSendCard = (): SendCardFn => {
+    if (!sendCard) {
+      const token = decryptSecret(target.accessTokenEncrypted);
+      sendCard = (psid, card) => sendFacebookCard(token, psid, card);
+    }
+    return sendCard;
+  };
 
   const counts: Counts = { processed: 0, skipped: 0, replied: 0 };
   for (const m of messagings) {
     const psid = m.sender?.id;
+
+    // Card button tap (postback) — route its payload as if the customer typed it.
+    // Postbacks carry no message.mid; synthesize a dedup id from psid+timestamp.
+    const postbackPayload = m.postback?.payload;
+    if (postbackPayload && psid) {
+      const pbId = m.postback?.mid ?? `pb:${psid}:${m.timestamp ?? ""}`;
+      const r = await handleInboundText(db, {
+        tenantId: target.tenantId,
+        channelId: target.channelId,
+        externalId: psid,
+        text: postbackPayload,
+        channelMessageId: pbId,
+        at: m.timestamp ? new Date(m.timestamp) : undefined,
+        routerHandlers: deps.routerHandlers,
+        send: getSend(),
+        sendImage: getSendImage(),
+        sendCard: getSendCard(),
+      });
+      if (r.status === "duplicate") counts.skipped++;
+      else {
+        counts.processed++;
+        if (r.replied) counts.replied++;
+      }
+      continue;
+    }
+
     const text = m.message?.text;
     const image = m.message?.attachments?.find((a) => a.type === "image");
     const audioUrl = m.message?.attachments?.find((a) => a.type === "audio")
@@ -157,6 +198,7 @@ async function runMessagings(
         routerHandlers: deps.routerHandlers,
         send: getSend(),
         sendImage: getSendImage(),
+        sendCard: getSendCard(),
       });
       if (r.status === "duplicate") counts.skipped++;
       else {
@@ -191,6 +233,7 @@ async function runMessagings(
             routerHandlers: deps.routerHandlers,
             send: getSend(),
             sendImage: getSendImage(),
+            sendCard: getSendCard(),
           });
 
     if (result.status === "duplicate") {

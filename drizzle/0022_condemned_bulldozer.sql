@@ -1,0 +1,1 @@
+ALTER TABLE "flex_cards" ADD COLUMN "trigger_keyword" text;

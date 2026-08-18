@@ -14,12 +14,19 @@ import { matchHandoff, matchProductOrVariant } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
 
+import type { MessageCard } from "@/features/messaging/cards";
+
 import {
   hasBuyIntent,
   hasConfirmIntent,
   looksLikeQuestion,
   parseQuantity,
 } from "./order-intent";
+
+/** Button texts must match what tryConfirmOrder / matchHandoff detect, so a card
+ *  button routes exactly like the equivalent quick-reply chip. */
+const CONFIRM_ACTION = { label: "✅ ยืนยันสั่งซื้อ", text: "ยืนยันสั่งซื้อ" };
+const HUMAN_ACTION = { label: "คุยกับแอดมิน", text: "คุยกับแอดมิน" };
 
 export type CheckoutResult = {
   orderId: string;
@@ -28,7 +35,41 @@ export type CheckoutResult = {
    *  "ยืนยันสั่งซื้อ". The pipeline attaches the confirm chip in this case and does
    *  NOT reveal the bank account yet (account is only sent on confirm). */
   awaitingConfirm?: boolean;
+  /** Rich card the channel renders (LINE Flex / FB template). Falls back to
+   *  `reply` text on channels/tests without card support. */
+  card?: MessageCard;
 } | null;
+
+/** Build the payment card from the store's payout settings + order total. Mirrors
+ *  buildPaymentInstruction, but as structured rows the channel renders richly. */
+function buildPaymentCard(
+  settings: Awaited<ReturnType<typeof getPaymentSettings>>,
+  total: number,
+  fallback: string,
+): MessageCard {
+  const rows: { label: string; value: string }[] = [];
+  if (settings?.bankName || settings?.bankAccountNo) {
+    rows.push({
+      label: settings?.bankName ?? "ธนาคาร",
+      value: settings?.bankAccountNo ?? "-",
+    });
+    if (settings?.bankAccountName) {
+      rows.push({ label: "ชื่อบัญชี", value: settings.bankAccountName });
+    }
+  }
+  if (settings?.promptpayId) {
+    rows.push({ label: "พร้อมเพย์", value: settings.promptpayId });
+  }
+  return {
+    kind: "payment",
+    title: "ช่องทางชำระเงิน 💳",
+    amountLabel: `ยอดชำระ ${total.toLocaleString("th-TH")} บาท`,
+    rows,
+    note: "โอนแล้วส่งสลิปในแชทได้เลยนะคะ ทางร้านจะตรวจสอบและยืนยันให้ค่ะ 🙏",
+    actions: [HUMAN_ACTION],
+    fallback,
+  };
+}
 
 function draftSummaryReply(productName: string, quantity: number, total: number) {
   return (
@@ -120,11 +161,21 @@ export async function tryCheckout(
   const detail = await getOrder(db, ctx.tenantId, order.id);
   const total = Number(detail?.order.total ?? 0);
   const displayName = variant ? `${product.name} (${variant.name})` : product.name;
+  const reply = draftSummaryReply(displayName, quantity, total);
 
   return {
     orderId: order.id,
-    reply: draftSummaryReply(displayName, quantity, total),
+    reply,
     awaitingConfirm: true,
+    card: {
+      kind: "order_confirm",
+      title: "ยืนยันคำสั่งซื้อ",
+      productName: displayName,
+      imageUrl: product.imageUrl ?? null,
+      detail: `จำนวน ${quantity} • รวม ${total.toLocaleString("th-TH")} บาท`,
+      actions: [CONFIRM_ACTION, HUMAN_ACTION],
+      fallback: reply,
+    },
   };
 }
 
@@ -200,10 +251,12 @@ export async function tryConfirmOrder(
     customerId: ctx.customerId,
   });
 
+  const confirmReply =
+    `รับทราบค่ะ ยอดชำระ ${total.toLocaleString("th-TH")} บาท ✅\n\n` +
+    buildPaymentInstruction(paySettings, { total });
   return {
     orderId: existing.id,
-    reply:
-      `รับทราบค่ะ ยอดชำระ ${total.toLocaleString("th-TH")} บาท ✅\n\n` +
-      buildPaymentInstruction(paySettings, { total }),
+    reply: confirmReply,
+    card: buildPaymentCard(paySettings, total, confirmReply),
   };
 }

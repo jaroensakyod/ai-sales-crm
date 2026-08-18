@@ -1,5 +1,7 @@
 import { messagingApi } from "@line/bot-sdk";
 
+import type { CardAction, MessageCard } from "@/features/messaging/cards";
+
 /**
  * Build a Messaging API client from an OA's (already decrypted) access token.
  * One client per connection — tokens are per-tenant, never a shared env var.
@@ -213,6 +215,252 @@ export async function broadcastPromo(
   if (input.text) messages.push({ type: "text", text: input.text });
   if (messages.length === 0) return;
   await client.broadcast({ messages });
+}
+
+// ── Flex cards ──────────────────────────────────────────────────────────────
+
+function flexButtons(
+  actions: CardAction[],
+  firstPrimary: boolean,
+): messagingApi.FlexComponent[] {
+  return actions.map((a, i) => ({
+    type: "button",
+    style: firstPrimary && i === 0 ? "primary" : "secondary",
+    height: "sm",
+    action: a.url
+      ? { type: "uri", label: a.label.slice(0, 20), uri: a.url }
+      : { type: "message", label: a.label.slice(0, 20), text: a.text ?? a.label },
+  }));
+}
+
+function orderBubble(card: Extract<MessageCard, { kind: "order_confirm" }>) {
+  const bubble: messagingApi.FlexBubble = {
+    type: "bubble",
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "md",
+      contents: [
+        { type: "text", text: card.title, weight: "bold", size: "lg" },
+        { type: "text", text: card.productName, size: "md", wrap: true },
+        {
+          type: "text",
+          text: card.detail,
+          size: "sm",
+          color: "#888888",
+          wrap: true,
+        },
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: flexButtons(card.actions, true),
+    },
+  };
+  if (card.imageUrl) {
+    bubble.hero = {
+      type: "image",
+      url: card.imageUrl,
+      size: "full",
+      aspectRatio: "20:13",
+      aspectMode: "cover",
+    };
+  }
+  return bubble;
+}
+
+function paymentBubble(card: Extract<MessageCard, { kind: "payment" }>) {
+  const rows: messagingApi.FlexComponent[] = card.rows.map((r) => ({
+    type: "box",
+    layout: "horizontal",
+    contents: [
+      { type: "text", text: r.label, size: "sm", color: "#888888", flex: 2 },
+      {
+        type: "text",
+        text: r.value,
+        size: "sm",
+        weight: "bold",
+        align: "end",
+        wrap: true,
+        flex: 4,
+      },
+    ],
+  }));
+  const body: messagingApi.FlexComponent[] = [
+    { type: "text", text: card.title, weight: "bold", size: "lg" },
+    {
+      type: "text",
+      text: card.amountLabel,
+      weight: "bold",
+      size: "md",
+      color: "#1DB446",
+    },
+    { type: "separator", margin: "md" },
+    ...rows,
+  ];
+  if (card.note) {
+    body.push({
+      type: "text",
+      text: card.note,
+      size: "xs",
+      color: "#888888",
+      wrap: true,
+      margin: "md",
+    });
+  }
+  const bubble: messagingApi.FlexBubble = {
+    type: "bubble",
+    body: { type: "box", layout: "vertical", spacing: "sm", contents: body },
+  };
+  if (card.actions?.length) {
+    bubble.footer = {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: flexButtons(card.actions, false),
+    };
+  }
+  return bubble;
+}
+
+/** Per-style colors for a custom card. */
+function styleColors(style: string | undefined) {
+  switch (style) {
+    case "promo":
+      return { accent: "#D85A30", price: "#D85A30", header: "โปรพิเศษ 🔥" };
+    case "minimal":
+      return { accent: "#444444", price: "#444444", header: null };
+    default:
+      return { accent: "#185FA5", price: "#1DB446", header: null };
+  }
+}
+
+function customBubble(card: Extract<MessageCard, { kind: "custom_flex" }>) {
+  const colors = styleColors(card.style);
+  const body: messagingApi.FlexComponent[] = [
+    { type: "text", text: card.headline, weight: "bold", size: "lg", wrap: true },
+  ];
+  if (card.body) {
+    body.push({
+      type: "text",
+      text: card.body,
+      size: "sm",
+      color: "#666666",
+      wrap: true,
+    });
+  }
+  if (card.priceLabel) {
+    body.push({
+      type: "text",
+      text: card.priceLabel,
+      weight: "bold",
+      size: "md",
+      color: colors.price,
+      margin: "md",
+    });
+  }
+  const bubble: messagingApi.FlexBubble = {
+    type: "bubble",
+    body: { type: "box", layout: "vertical", spacing: "sm", contents: body },
+  };
+  // "promo" style adds a coloured ribbon header.
+  if (colors.header) {
+    bubble.header = {
+      type: "box",
+      layout: "vertical",
+      backgroundColor: colors.accent,
+      paddingAll: "10px",
+      contents: [
+        {
+          type: "text",
+          text: colors.header,
+          color: "#ffffff",
+          weight: "bold",
+          size: "sm",
+        },
+      ],
+    };
+  }
+  if (card.imageUrl) {
+    bubble.hero = {
+      type: "image",
+      url: card.imageUrl,
+      size: "full",
+      aspectRatio: "20:13",
+      aspectMode: "cover",
+    };
+  }
+  if (card.actions.length) {
+    // "minimal" uses outline (secondary) buttons; others a coloured primary.
+    const buttons = flexButtons(card.actions, card.style !== "minimal").map(
+      (b) =>
+        card.style === "minimal"
+          ? b
+          : { ...b, color: colors.accent },
+    );
+    bubble.footer = {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: buttons,
+    };
+  }
+  return bubble;
+}
+
+/** Turn a channel-agnostic card into a LINE Flex message. altText (shown in
+ *  notifications / unsupported clients) reuses the card's plain-text fallback. */
+export function buildFlexMessage(card: MessageCard): messagingApi.FlexMessage {
+  let contents: messagingApi.FlexContainer;
+  if (card.kind === "order_confirm") contents = orderBubble(card);
+  else if (card.kind === "payment") contents = paymentBubble(card);
+  else if (card.kind === "carousel") {
+    contents = {
+      type: "carousel",
+      contents: card.cards.slice(0, 12).map(customBubble),
+    };
+  } else contents = customBubble(card);
+  return {
+    type: "flex",
+    altText: card.fallback.slice(0, 400),
+    contents,
+  };
+}
+
+/** Reply with a Flex card using the single-use reply token. */
+export async function replyFlex(
+  client: LineClient,
+  replyToken: string,
+  card: MessageCard,
+): Promise<void> {
+  await client.replyMessage({
+    replyToken,
+    messages: [buildFlexMessage(card)],
+  });
+}
+
+/** Push a Flex card (counts toward quota, like any push). */
+export async function pushFlex(
+  client: LineClient,
+  toUserId: string,
+  card: MessageCard,
+): Promise<void> {
+  await client.pushMessage({
+    to: toUserId,
+    messages: [buildFlexMessage(card)],
+  });
+}
+
+/** Broadcast a merchant-designed Flex card to ALL friends of the OA. Counts
+ *  toward the monthly quota per recipient (risk #4) — merchant-initiated, gated
+ *  by a confirm step in the dashboard. */
+export async function broadcastFlex(
+  client: LineClient,
+  card: MessageCard,
+): Promise<void> {
+  await client.broadcast({ messages: [buildFlexMessage(card)] });
 }
 
 /** Proactively push to a user. Counts toward the monthly quota (risk #4) — only

@@ -8,6 +8,7 @@ import {
   type SendImageFn,
   type QuickReply,
 } from "@/features/messaging/pipeline";
+import type { MessageCard, SendCardFn } from "@/features/messaging/cards";
 import { transcribeVoice } from "@/features/messaging/voice";
 import type { RouterHandlers } from "@/features/router/types";
 
@@ -15,6 +16,7 @@ import {
   createLineClient,
   fetchLineMessageContent,
   fetchLineProfile,
+  replyFlex,
   replyImage,
   replyText,
 } from "./client";
@@ -41,6 +43,10 @@ export type LineReplyImageFn = (
   imageUrl: string,
   caption?: string,
 ) => Promise<void>;
+export type LineReplyCardFn = (
+  replyToken: string,
+  card: MessageCard,
+) => Promise<void>;
 
 export type ProcessDeps = {
   /** Level 2/3 handlers for the router (RAG, Gemini). */
@@ -49,6 +55,8 @@ export type ProcessDeps = {
   reply?: LineReplyFn;
   /** Override the image transport (tests inject a spy). */
   replyImage?: LineReplyImageFn;
+  /** Override the Flex-card transport (tests inject a spy). */
+  replyCard?: LineReplyCardFn;
 };
 
 export type LineWebhookResult =
@@ -105,6 +113,14 @@ export async function processLineWebhook(
     }
     return replyImg;
   };
+  let replyCard = deps.replyCard;
+  const getReplyCard = (): LineReplyCardFn => {
+    if (!replyCard) {
+      const client = ensureClient();
+      replyCard = (replyToken, card) => replyFlex(client, replyToken, card);
+    }
+    return replyCard;
+  };
 
   const tenantId = context.channel.tenantId;
   const events = payload.events ?? [];
@@ -144,6 +160,9 @@ export async function processLineWebhook(
       : undefined;
     const sendImage: SendImageFn | undefined = replyToken
       ? (_to, imageUrl, caption) => getReplyImage()(replyToken, imageUrl, caption)
+      : undefined;
+    const sendCard: SendCardFn | undefined = replyToken
+      ? (_to, card) => getReplyCard()(replyToken, card)
       : undefined;
     const at = event.timestamp ? new Date(event.timestamp) : undefined;
 
@@ -225,6 +244,7 @@ export async function processLineWebhook(
       routerHandlers: deps.routerHandlers,
       send,
       sendImage,
+      sendCard,
     });
 
     if (result.status === "duplicate") {

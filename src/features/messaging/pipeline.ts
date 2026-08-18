@@ -36,6 +36,11 @@ import { matchProduct } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { routeMessage } from "@/features/router/router";
 import type { RouterHandlers } from "@/features/router/types";
+import type { SendCardFn } from "@/features/messaging/cards";
+import {
+  findFlexCardByTrigger,
+  flexCardToMessageCard,
+} from "@/db/repositories/flexCards";
 import { tryCheckout, tryConfirmOrder } from "@/features/sales/checkout";
 import { tryBooking } from "@/features/booking/book-from-chat";
 import { tryHotelBooking } from "@/features/hotel/book-from-chat";
@@ -249,6 +254,9 @@ export async function handleInboundText(
     routerHandlers?: RouterHandlers;
     send?: SendFn;
     sendImage?: SendImageFn;
+    /** Rich-card sender (LINE Flex / FB template). When absent, cards degrade to
+     *  their plain-text fallback via `send`. */
+    sendCard?: SendCardFn;
   },
 ): Promise<InboundResult> {
   const { customerId } = await resolveCustomerByIdentity(
@@ -334,7 +342,11 @@ export async function handleInboundText(
     text: args.text,
   });
   if (confirmed) {
-    await args.send(args.externalId, confirmed.reply);
+    if (args.sendCard && confirmed.card) {
+      await args.sendCard(args.externalId, confirmed.card);
+    } else {
+      await args.send(args.externalId, confirmed.reply);
+    }
     await recordOutboundMessage(db, args.tenantId, conversation.id, {
       body: confirmed.reply,
       category: "TRANSACTIONAL",
@@ -356,11 +368,16 @@ export async function handleInboundText(
     text: args.text,
   });
   if (checkout) {
-    // A drafted order gets the confirm chip; an already-confirmed re-send doesn't.
-    const chips = checkout.awaitingConfirm
-      ? [CONFIRM_ORDER, TALK_TO_HUMAN]
-      : undefined;
-    await args.send(args.externalId, checkout.reply, chips);
+    if (args.sendCard && checkout.card) {
+      // Card carries its own buttons (confirm / talk-to-human).
+      await args.sendCard(args.externalId, checkout.card);
+    } else {
+      // Text fallback: a drafted order gets the confirm chip; a re-send doesn't.
+      const chips = checkout.awaitingConfirm
+        ? [CONFIRM_ORDER, TALK_TO_HUMAN]
+        : undefined;
+      await args.send(args.externalId, checkout.reply, chips);
+    }
     await recordOutboundMessage(db, args.tenantId, conversation.id, {
       body: checkout.reply,
       category: "TRANSACTIONAL",
@@ -508,6 +525,26 @@ export async function handleInboundText(
       return { status: "processed", replied: true };
     }
     // No reviews yet → fall through so the AI answers naturally.
+  }
+
+  // Merchant-designed card triggers: if the message contains a card's trigger
+  // keyword, send that card (LINE Flex / FB template) — or its text fallback on a
+  // channel without card support. Fires after checkout/booking so a real buy
+  // message still creates an order first.
+  {
+    const triggered = await findFlexCardByTrigger(db, args.tenantId, args.text);
+    if (triggered) {
+      const card = flexCardToMessageCard(triggered);
+      if (args.sendCard) {
+        await args.sendCard(args.externalId, card);
+      } else {
+        await args.send(args.externalId, card.fallback, [TALK_TO_HUMAN]);
+      }
+      await recordOutboundMessage(db, args.tenantId, conversation.id, {
+        body: `[ส่งการ์ด] ${triggered.name}`,
+      });
+      return { status: "processed", replied: true };
+    }
   }
 
   // PDPA profiling opt-in (risk #3): if the customer hasn't decided yet and this

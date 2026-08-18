@@ -24,3 +24,4 @@ export * from "./tables/course";
 export * from "./tables/tags";
 export * from "./tables/webhooks";
 export * from "./tables/reviews";
+export * from "./tables/flexCards";

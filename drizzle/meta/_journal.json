@@ -141,6 +141,27 @@
       "when": 1787023616095,
       "tag": "0019_omniscient_risque",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1787025399567,
+      "tag": "0020_eminent_white_tiger",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787026814175,
+      "tag": "0021_legal_unus",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1787027525378,
+      "tag": "0022_condemned_bulldozer",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,5 @@
+import type { CardAction, MessageCard } from "@/features/messaging/cards";
+
 const GRAPH_API = "https://graph.facebook.com/v21.0";
 
 /** Tappable suggestion chips shown under a reply (mirrors the LINE type). */
@@ -98,6 +100,142 @@ export async function sendFacebookImage(
   }
   if (caption?.trim()) {
     await sendFacebookText(pageAccessToken, recipientId, caption);
+  }
+}
+
+// ── Rich cards (Messenger templates) ─────────────────────────────────────────
+// Messenger has no Flex; we use the generic/button templates. Card buttons are
+// `postback` type — their payload is the SAME text a quick-reply would send, so
+// the webhook's postback handler routes them through the normal pipeline.
+
+type FbPostbackButton = { type: "postback"; title: string; payload: string };
+type FbUrlButton = { type: "web_url"; title: string; url: string };
+type FbButton = FbPostbackButton | FbUrlButton;
+
+function fbButtons(actions: CardAction[]): FbButton[] {
+  return actions.slice(0, 3).map((a) =>
+    a.url
+      ? { type: "web_url", title: a.label.slice(0, 20), url: a.url }
+      : { type: "postback", title: a.label.slice(0, 20), payload: a.text ?? a.label },
+  );
+}
+
+/** One Messenger generic-template element from a custom card. */
+function fbElement(card: Extract<MessageCard, { kind: "custom_flex" }>) {
+  const subtitle = [card.body, card.priceLabel].filter(Boolean).join(" • ");
+  return {
+    title: card.headline.slice(0, 80),
+    ...(card.imageUrl ? { image_url: card.imageUrl } : {}),
+    subtitle: subtitle.slice(0, 80),
+    buttons: fbButtons(card.actions),
+  };
+}
+
+export function fbCardAttachment(card: MessageCard) {
+  if (card.kind === "carousel") {
+    // Messenger generic template shows up to 10 swipeable cards.
+    return {
+      type: "template",
+      payload: {
+        template_type: "generic",
+        elements: card.cards.slice(0, 10).map(fbElement),
+      },
+    };
+  }
+  if (card.kind === "order_confirm") {
+    if (card.imageUrl) {
+      return {
+        type: "template",
+        payload: {
+          template_type: "generic",
+          elements: [
+            {
+              title: card.productName.slice(0, 80),
+              image_url: card.imageUrl,
+              subtitle: card.detail.slice(0, 80),
+              buttons: fbButtons(card.actions),
+            },
+          ],
+        },
+      };
+    }
+    return {
+      type: "template",
+      payload: {
+        template_type: "button",
+        text: `${card.title}\n${card.productName}\n${card.detail}`.slice(0, 640),
+        buttons: fbButtons(card.actions),
+      },
+    };
+  }
+  if (card.kind === "custom_flex") {
+    const subtitle = [card.body, card.priceLabel].filter(Boolean).join(" • ");
+    if (card.imageUrl) {
+      return {
+        type: "template",
+        payload: {
+          template_type: "generic",
+          elements: [
+            {
+              title: card.headline.slice(0, 80),
+              image_url: card.imageUrl,
+              subtitle: subtitle.slice(0, 80),
+              buttons: fbButtons(card.actions),
+            },
+          ],
+        },
+      };
+    }
+    return {
+      type: "template",
+      payload: {
+        template_type: "button",
+        text: `${card.headline}${subtitle ? `\n${subtitle}` : ""}`.slice(0, 640),
+        buttons: fbButtons(
+          card.actions.length
+            ? card.actions
+            : [{ label: "ดูรายละเอียด", text: "สนใจ" }],
+        ),
+      },
+    };
+  }
+
+  // Payment: button template holds the full instruction (≤640) + a contact button.
+  const lines = [card.amountLabel, ...card.rows.map((r) => `${r.label}: ${r.value}`)];
+  if (card.note) lines.push(card.note);
+  return {
+    type: "template",
+    payload: {
+      template_type: "button",
+      text: `${card.title}\n${lines.join("\n")}`.slice(0, 640),
+      buttons: fbButtons(card.actions ?? [{ label: "คุยกับแอดมิน", text: "คุยกับแอดมิน" }]),
+    },
+  };
+}
+
+/** Send a rich card as a Messenger template. Falls back to the card's plain-text
+ *  fallback if the template call fails, so the customer is never left on read. */
+export async function sendFacebookCard(
+  pageAccessToken: string,
+  recipientId: string,
+  card: MessageCard,
+): Promise<void> {
+  const res = await fetch(
+    `${GRAPH_API}/me/messages?access_token=${encodeURIComponent(pageAccessToken)}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        messaging_type: "RESPONSE",
+        message: { attachment: fbCardAttachment(card) },
+      }),
+    },
+  );
+  if (!res.ok) {
+    // Template rejected (bad image URL, etc.) — degrade to text so the customer
+    // still gets the order/payment details.
+    await sendFacebookText(pageAccessToken, recipientId, card.fallback);
   }
 }
 
