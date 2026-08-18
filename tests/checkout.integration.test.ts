@@ -233,6 +233,38 @@ describe.skipIf(!hasDb)("chat checkout (integration)", () => {
     expect(sent[0]).toContain("1,790");
   });
 
+  it("'มีสินค้าอะไรบ้าง' sends a product carousel via sendCard", async () => {
+    const cards: { kind: string }[] = [];
+    const res = await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: `Ucat-${suffix}`,
+      text: "มีสินค้าอะไรบ้างคะ",
+      channelMessageId: `cat1-${suffix}`,
+      send,
+      sendCard: async (_to, c) => {
+        cards.push(c);
+      },
+    });
+    expect(res.replied).toBe(true);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].kind).toBe("carousel");
+  });
+
+  it("'มีสินค้าอะไรบ้าง' lists products as text when the channel has no cards", async () => {
+    sent.length = 0;
+    await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: `Ucat2-${suffix}`,
+      text: "ขายอะไรบ้าง",
+      channelMessageId: `cat2-${suffix}`,
+      send, // no sendCard → text list
+    });
+    expect(sent[0]).toContain("ลิปสติกสีแดง");
+    expect(sent[0]).toContain("390");
+  });
+
   it("customer can tap 'back to AI' to undo a mis-tapped handoff", async () => {
     const ext = `Uresume-${suffix}`;
     // Tap "คุยกับแอดมิน" → conversation goes to HANDOFF (bot goes silent).

@@ -36,7 +36,7 @@ import { matchProduct } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { routeMessage } from "@/features/router/router";
 import type { RouterHandlers } from "@/features/router/types";
-import type { SendCardFn } from "@/features/messaging/cards";
+import type { MessageCard, SendCardFn } from "@/features/messaging/cards";
 import {
   findFlexCardByTrigger,
   flexCardToMessageCard,
@@ -48,6 +48,7 @@ import { tryCourseEnroll } from "@/features/course/enroll-from-chat";
 import { verifySlip, type SlipVerdict } from "@/features/payment/slip-verify";
 import { syncLeadOnInbound } from "@/features/sales/lead-sync";
 import {
+  wantsCatalog,
   wantsProductImage,
   wantsReview,
   wantsWelcome,
@@ -86,6 +87,29 @@ const BACK_TO_AI: QuickReply = {
   label: "🤖 กลับมาคุยกับ AI",
   text: "กลับมาคุยกับ AI",
 };
+
+/** Build a swipeable product carousel from the live catalog (each bubble = one
+ *  product with a "สั่งซื้อ {name}" button that routes into the order flow). */
+function productCarousel(
+  products: Awaited<ReturnType<typeof loadProducts>>,
+): MessageCard {
+  const cards = products.slice(0, 10).map((p) => ({
+    kind: "custom_flex" as const,
+    imageUrl: p.imageUrl ?? null,
+    headline: p.name,
+    priceLabel: p.price
+      ? `เพียง ${Number(p.price).toLocaleString("th-TH")} บาท`
+      : undefined,
+    style: "plain" as const,
+    actions: [{ label: "สั่งซื้อเลย", text: `สั่งซื้อ ${p.name}` }],
+    fallback: p.name,
+  }));
+  return {
+    kind: "carousel",
+    cards,
+    fallback: cards.map((c) => c.headline).join(" · "),
+  };
+}
 
 /** Did the customer ask to return to the bot (tapped the resume chip)? */
 function wantsBackToAi(text: string): boolean {
@@ -480,8 +504,47 @@ export async function handleInboundText(
     // No product identified → fall through so the AI can ask which one.
   }
 
-  // First greeting / "what do you sell?" → auto-send the shop's promo banner
-  // (no need for the customer to ask for a picture). Only if one is configured.
+  // "มีสินค้าอะไรบ้าง" → show the catalog. Priority: a merchant Flex card whose
+  // trigger matches, else an auto-built product carousel (Flex), else a plain
+  // text list of every product (channels without card support). Kept separate
+  // from the welcome greeting so the two never collide.
+  if (wantsCatalog(args.text)) {
+    const custom = await findFlexCardByTrigger(db, args.tenantId, args.text);
+    if (custom && args.sendCard) {
+      await args.sendCard(args.externalId, flexCardToMessageCard(custom));
+      await recordOutboundMessage(db, args.tenantId, conversation.id, {
+        body: `[ส่งการ์ด] ${custom.name}`,
+      });
+      return { status: "processed", replied: true };
+    }
+    const catalog = await loadProducts(db, args.tenantId);
+    if (catalog.length === 0) {
+      const reply = "ตอนนี้ยังไม่มีสินค้าในระบบค่ะ เดี๋ยวแอดมินแจ้งเพิ่มให้นะคะ";
+      await args.send(args.externalId, reply);
+      await recordOutboundMessage(db, args.tenantId, conversation.id, { body: reply });
+      return { status: "processed", replied: true };
+    }
+    if (args.sendCard) {
+      await args.sendCard(args.externalId, productCarousel(catalog));
+      await recordOutboundMessage(db, args.tenantId, conversation.id, {
+        body: `[ส่งการ์ดสินค้า] ${catalog.length} รายการ`,
+      });
+      return { status: "processed", replied: true };
+    }
+    // No card support on this channel → list every product as text.
+    const list = catalog
+      .map((p) => `• ${p.name} — ${Number(p.price).toLocaleString("th-TH")} บาท`)
+      .join("\n");
+    const reply =
+      `สินค้าของเรามีดังนี้ค่ะ\n${list}\n\n` +
+      `สนใจตัวไหน พิมพ์ "สั่งซื้อ ชื่อสินค้า" ได้เลยนะคะ 😊`;
+    await args.send(args.externalId, reply);
+    await recordOutboundMessage(db, args.tenantId, conversation.id, { body: reply });
+    return { status: "processed", replied: true };
+  }
+
+  // First greeting → auto-send the shop's promo banner (no need for the customer
+  // to ask for a picture). Only if one is configured.
   if (args.sendImage && wantsWelcome(args.text)) {
     const s = await getTenantAiSettings(db, args.tenantId);
     if (s?.welcomeImageUrl) {

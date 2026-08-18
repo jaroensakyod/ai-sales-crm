@@ -99,27 +99,43 @@ export function wantsReview(text: string): boolean {
   return REVIEW_KEYWORDS.some((k) => n.includes(k));
 }
 
+// Pure greetings only — "what products do you have?" now goes to the catalog
+// handler (product carousel), not the welcome banner, so the two never collide.
 const WELCOME_KEYWORDS = [
   "สวัสดี",
   "หวัดดี",
   "hello",
   "hi ",
-  "มีอะไรบ้าง",
-  "มีสินค้าอะไร",
-  "มีบริการอะไร",
-  "ขายอะไร",
-  "มีอะไรขาย",
   "สนใจสินค้า",
-  "ดูสินค้า",
-  "สอบถามสินค้า",
 ];
 
-/** A greeting or "what do you sell?" — triggers the auto promo banner. */
+/** A greeting — triggers the auto promo banner. */
 export function wantsWelcome(text: string): boolean {
   const n = text.trim().toLowerCase();
   // Bare "hi" (whole message) counts too, but "hi" inside a word shouldn't.
   if (n === "hi") return true;
   return WELCOME_KEYWORDS.some((k) => n.includes(k));
+}
+
+// "What do you sell / show me the products" — the customer wants the catalog.
+const CATALOG_KEYWORDS = [
+  "มีสินค้าอะไรบ้าง",
+  "สินค้าอะไรบ้าง",
+  "มีสินค้าอะไร",
+  "มีอะไรบ้าง",
+  "มีอะไรขาย",
+  "ขายอะไร",
+  "ดูสินค้า",
+  "สอบถามสินค้า",
+  "มีของอะไรบ้าง",
+  "แคตตาล็อก",
+  "เมนูสินค้า",
+];
+
+/** Customer is asking to see the product list ("มีสินค้าอะไรบ้าง"). */
+export function wantsCatalog(text: string): boolean {
+  const n = text.trim().toLowerCase();
+  return CATALOG_KEYWORDS.some((k) => n.includes(k.toLowerCase()));
 }
 
 /** Parse a quantity like "2 ชิ้น", "3 ห่อ", "x2", "จำนวน 5"; defaults to 1. */
