@@ -84,6 +84,13 @@ export function matchHandoff(text: string): string | null {
   return containsAny(text, HANDOFF_KEYWORDS);
 }
 
+export type VariantLike = {
+  id: string;
+  name: string;
+  sku: string | null;
+  price: string | null;
+};
+
 export type ProductLike = {
   id: string;
   name: string;
@@ -93,6 +100,7 @@ export type ProductLike = {
   currency: string;
   description?: string | null;
   imageUrl?: string | null;
+  variants?: VariantLike[];
 };
 
 /**
@@ -128,4 +136,69 @@ export function matchProduct<T extends ProductLike>(
     }
   }
   return best?.product ?? null;
+}
+
+/** Match aliases for a variant: full name + SKU (>= 2 chars, so short version
+ *  labels like "pdf"/"ปก" still match). */
+function variantAliases(v: VariantLike): string[] {
+  const seen = new Set<string>();
+  for (const a of [v.name, v.sku ?? ""]) {
+    const nrm = normalize(a).trim();
+    if (nrm.length >= 2) seen.add(nrm);
+  }
+  return [...seen];
+}
+
+function bestVariant(
+  n: string,
+  variants: VariantLike[],
+): { variant: VariantLike; len: number } | null {
+  let best: { variant: VariantLike; len: number } | null = null;
+  for (const v of variants) {
+    for (const alias of variantAliases(v)) {
+      if (n.includes(alias) && (!best || alias.length > best.len)) {
+        best = { variant: v, len: alias.length };
+      }
+    }
+  }
+  return best;
+}
+
+export type ProductMatch<T extends ProductLike> = {
+  product: T;
+  variant?: VariantLike;
+};
+
+/**
+ * Match a product AND (optionally) a specific variant the customer named.
+ * Priority:
+ *   1. If the text names a product directly, return it — plus its variant if the
+ *      text also names one (e.g. "อีบุ๊กดูดวง แบบ pdf").
+ *   2. Otherwise a bare variant label ("pdf", "เล่มปกแข็ง") still resolves — but
+ *      ONLY when it points to exactly one product (unambiguous). If two different
+ *      products both have a matching variant, we return null and let the AI ask.
+ */
+export function matchProductOrVariant<T extends ProductLike>(
+  text: string,
+  products: T[],
+): ProductMatch<T> | null {
+  const n = normalize(text);
+
+  const product = matchProduct(text, products);
+  if (product) {
+    const v = bestVariant(n, product.variants ?? []);
+    return v ? { product, variant: v.variant } : { product };
+  }
+
+  // No product named — try a bare variant alias across the whole catalog.
+  const hits: { product: T; variant: VariantLike; len: number }[] = [];
+  for (const p of products) {
+    const v = bestVariant(n, p.variants ?? []);
+    if (v) hits.push({ product: p, variant: v.variant, len: v.len });
+  }
+  if (hits.length === 0) return null;
+  const distinctProducts = new Set(hits.map((h) => h.product.id));
+  if (distinctProducts.size > 1) return null; // ambiguous
+  hits.sort((a, b) => b.len - a.len);
+  return { product: hits[0].product, variant: hits[0].variant };
 }

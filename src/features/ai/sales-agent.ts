@@ -8,7 +8,6 @@ import { getMonthlyAiSpend } from "@/db/repositories/billing";
 import { listServices } from "@/db/repositories/booking";
 import { getRecentMessages } from "@/db/repositories/conversations";
 import { getActivePromotions } from "@/db/repositories/promotions";
-import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { listActiveTags } from "@/db/repositories/tags";
 import { resolveBudgetTier } from "@/features/billing/budget";
 import {
@@ -20,7 +19,6 @@ import {
 import { toneInstruction } from "./tone";
 import { emojiInstruction, replyModeInstruction } from "./reply-mode";
 import { loadProducts } from "@/features/router/rules";
-import { paymentSummaryForAi } from "@/features/payment/instruction";
 import type { LevelHandler } from "@/features/router/types";
 import { toPlainText } from "@/lib/validation";
 
@@ -46,7 +44,6 @@ export function buildSalesSystemPrompt(args: {
   settings: AiSettings;
   catalog: Catalog;
   promotions?: Promotions;
-  paymentInfo?: string | null;
   services?: Services;
   tagGuidance?: string | null;
   tone?: string | null;
@@ -61,7 +58,18 @@ export function buildSalesSystemPrompt(args: {
       const stock =
         p.stock == null ? "" : p.stock > 0 ? ` (คงเหลือ ${p.stock})` : " (สินค้าหมด)";
       const desc = p.description ? ` — ${p.description}` : "";
-      return `- ${p.name}: ${price}${stock}${desc}`;
+      // Variants (e.g. an ebook's PDF vs hardcover) each with their own price so
+      // the AI can explain the options without inventing numbers.
+      const variants = (p.variants ?? [])
+        .map((v) => {
+          const vp =
+            v.price != null
+              ? `${Number(v.price).toLocaleString("th-TH")} ${p.currency}`
+              : price;
+          return `\n    • ${v.name}: ${vp}`;
+        })
+        .join("");
+      return `- ${p.name}: ${price}${stock}${desc}${variants}`;
     })
     .join("\n");
 
@@ -95,10 +103,12 @@ export function buildSalesSystemPrompt(args: {
 
   const serviceLines = (args.services ?? [])
     .filter((s) => s.isActive)
-    .map(
-      (s) =>
-        `- ${s.name}: ${Number(s.price).toLocaleString("th-TH")} ${s.currency} (${s.durationMin} นาที)`,
-    )
+    .map((s) => {
+      // Include the service description so the AI can actually explain what each
+      // service is (name/price/duration alone told it almost nothing before).
+      const desc = s.description ? ` — ${s.description}` : "";
+      return `- ${s.name}: ${Number(s.price).toLocaleString("th-TH")} ${s.currency} (${s.durationMin} นาที)${desc}`;
+    })
     .join("\n");
 
   const tone = toneInstruction(args.tone);
@@ -125,9 +135,10 @@ export function buildSalesSystemPrompt(args: {
       ? `\nบริการที่จองได้ (ลูกค้าถามได้ ให้แนะนำแล้วบอกให้แจ้งวันเวลาที่สะดวก):\n${serviceLines}`
       : "",
     promoLines ? `\nโปรโมชั่นที่ใช้ได้ตอนนี้ (เสนอลูกค้าได้):\n${promoLines}` : "",
-    args.paymentInfo
-      ? `\nช่องทางชำระเงินของร้าน (บอกลูกค้าได้เมื่อถูกถาม ห้ามแก้เลขบัญชี):\n${args.paymentInfo}`
-      : "",
+    // Payment details are NEVER put in the AI's mouth — the account number is
+    // sent only by the deterministic checkout flow after the customer confirms
+    // the order. The AI must not invent or volunteer bank/PromptPay details.
+    `\nเรื่องการชำระเงิน: ห้ามพิมพ์เลขบัญชี/พร้อมเพย์เอง และห้ามแต่งเลขบัญชีขึ้นมาเด็ดขาด ถ้าลูกค้าจะโอน/ถามวิธีจ่าย ให้ชวนยืนยันสั่งซื้อก่อน (เช่น 'กดยืนยันสั่งซื้อได้เลยค่ะ เดี๋ยวระบบส่งข้อมูลการโอนให้') ระบบจะส่งเลขบัญชีให้เองหลังลูกค้ายืนยัน`,
     args.settings?.systemPromptExtra
       ? `\nข้อมูลเพิ่มเติมจากร้าน:\n${args.settings.systemPromptExtra}`
       : "",
@@ -152,9 +163,6 @@ export function createAiReasonHandler(
     const settings = await getTenantAiSettings(db, ctx.tenantId);
     const catalog = await loadProducts(db, ctx.tenantId);
     const promotions = await getActivePromotions(db, ctx.tenantId);
-    const paymentInfo = paymentSummaryForAi(
-      await getPaymentSettings(db, ctx.tenantId),
-    );
     const services = await listServices(db, ctx.tenantId);
     // TAG classification (hybrid): keyword first (free/instant); if nothing
     // matched, fall back to AI so paraphrases like "มันเกินงบ" still hit "ต่อราคา".
@@ -185,7 +193,6 @@ export function createAiReasonHandler(
       settings,
       catalog,
       promotions,
-      paymentInfo,
       services,
       tagGuidance,
       tone: settings?.replyTone,

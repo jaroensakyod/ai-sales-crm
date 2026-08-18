@@ -61,7 +61,7 @@ describe.skipIf(!hasDb)("chat checkout (integration)", () => {
     await createDbSqlClient().end();
   });
 
-  it("creates an order + sends payment instruction on a buy message", async () => {
+  it("drafts an order + asks to confirm (no account yet) on a buy message", async () => {
     await handleInboundText(db, {
       tenantId,
       channelId,
@@ -71,17 +71,18 @@ describe.skipIf(!hasDb)("chat checkout (integration)", () => {
       send,
     });
 
-    // Reply has the total (2*390=780) + bank instruction.
+    // Reply has the total (2*390=780) and asks to confirm — but NOT the account
+    // number yet (only revealed after the customer confirms — risk #9).
     expect(sent[0]).toContain("780");
-    expect(sent[0]).toContain("กสิกร");
-    expect(sent[0]).toContain("แจ้งสลิป");
+    expect(sent[0]).toContain("ยืนยันสั่งซื้อ");
+    expect(sent[0]).not.toContain("กสิกร");
 
-    // Order persisted, PENDING_PAYMENT (not PAID — risk #9), with 1 line x2.
+    // Order persisted as DRAFT (awaiting confirmation), with 1 line x2.
     const [order] = await db
       .select()
       .from(orders)
       .where(eq(orders.tenantId, tenantId));
-    expect(order.status).toBe("PENDING_PAYMENT");
+    expect(order.status).toBe("DRAFT");
     expect(Number(order.total)).toBe(780);
     const items = await db
       .select()
@@ -89,6 +90,28 @@ describe.skipIf(!hasDb)("chat checkout (integration)", () => {
       .where(eq(orderItems.orderId, order.id));
     expect(items).toHaveLength(1);
     expect(items[0].quantity).toBe(2);
+  });
+
+  it("confirming the draft sends the account + moves to PENDING_PAYMENT", async () => {
+    sent.length = 0;
+    await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: `Ubuy-${suffix}`, // same customer, has a DRAFT order
+      text: "ยืนยันสั่งซื้อ",
+      channelMessageId: `co1b-${suffix}`,
+      send,
+    });
+
+    // NOW the account + slip instruction are sent.
+    expect(sent[0]).toContain("กสิกร");
+    expect(sent[0]).toContain("แจ้งสลิป");
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.tenantId, tenantId));
+    expect(order.status).toBe("PENDING_PAYMENT");
   });
 
   it("a price question does NOT create an order", async () => {
@@ -175,5 +198,75 @@ describe.skipIf(!hasDb)("chat checkout (integration)", () => {
       await db.select().from(orders).where(eq(orders.tenantId, tenantId))
     ).filter((o) => o.status === "PAID");
     expect(paidOrders).toHaveLength(0);
+  });
+
+  it("a slip with NO order is OCR'd, acknowledged with the amount, and handed off", async () => {
+    const ext = `Uorphan-${suffix}`;
+    // Just say hi so a conversation exists — but never create an order.
+    await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: ext,
+      text: "สวัสดีค่ะ",
+      channelMessageId: `orphanhi-${suffix}`,
+      send,
+    });
+    sent.length = 0;
+
+    const res = await handleInboundImage(db, {
+      tenantId,
+      channelId,
+      externalId: ext,
+      channelMessageId: `orphanimg-${suffix}`,
+      slipUrl: "https://example.com/orphan.jpg",
+      send,
+      loadImage: async () => ({ data: "x", mimeType: "image/jpeg" }),
+      // Stub OCR: reads 1,790 baht off the slip.
+      verify: async () => ({
+        status: "MISMATCH",
+        verifiedAmount: 1790,
+        parsed: { amount: 1790 },
+      }),
+    });
+    expect(res.replied).toBe(true);
+    expect(sent[0]).toContain("ได้รับสลิปโอนเงิน");
+    expect(sent[0]).toContain("1,790");
+  });
+
+  it("customer can tap 'back to AI' to undo a mis-tapped handoff", async () => {
+    const ext = `Uresume-${suffix}`;
+    // Tap "คุยกับแอดมิน" → conversation goes to HANDOFF (bot goes silent).
+    await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: ext,
+      text: "คุยกับแอดมิน",
+      channelMessageId: `resume1-${suffix}`,
+      send,
+    });
+    // While in HANDOFF the bot stays silent on a normal message.
+    sent.length = 0;
+    const silent = await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: ext,
+      text: "มีสินค้าอะไรบ้าง",
+      channelMessageId: `resume2-${suffix}`,
+      send,
+    });
+    expect(silent.replied).toBe(false);
+
+    // Tapping "back to AI" resumes the bot (no admin claimed it).
+    sent.length = 0;
+    const resumed = await handleInboundText(db, {
+      tenantId,
+      channelId,
+      externalId: ext,
+      text: "กลับมาคุยกับ AI",
+      channelMessageId: `resume3-${suffix}`,
+      send,
+    });
+    expect(resumed.replied).toBe(true);
+    expect(sent[0]).toContain("กลับมาที่ผู้ช่วย AI");
   });
 });

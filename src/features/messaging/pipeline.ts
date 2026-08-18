@@ -5,6 +5,7 @@ import {
   getRecentMessages,
   recordInboundMessage,
   recordOutboundMessage,
+  setConversationStatus,
 } from "@/db/repositories/conversations";
 import {
   FLOOD_WINDOW_MS,
@@ -35,7 +36,7 @@ import { matchProduct } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { routeMessage } from "@/features/router/router";
 import type { RouterHandlers } from "@/features/router/types";
-import { tryCheckout } from "@/features/sales/checkout";
+import { tryCheckout, tryConfirmOrder } from "@/features/sales/checkout";
 import { tryBooking } from "@/features/booking/book-from-chat";
 import { tryHotelBooking } from "@/features/hotel/book-from-chat";
 import { tryCourseEnroll } from "@/features/course/enroll-from-chat";
@@ -65,6 +66,32 @@ const TALK_TO_HUMAN: QuickReply = {
   label: "คุยกับแอดมิน",
   text: "คุยกับแอดมิน",
 };
+
+/** Shown under a drafted order: one tap confirms the purchase, which
+ *  tryConfirmOrder catches and only THEN sends the bank account details. */
+const CONFIRM_ORDER: QuickReply = {
+  label: "ยืนยันสั่งซื้อ",
+  text: "ยืนยันสั่งซื้อ",
+};
+
+/** Shown on a handoff reply so a customer who tapped "คุยกับแอดมิน" by mistake
+ *  can hand the chat back to the bot — but only while no admin has actually
+ *  taken over (see the resume guard in handleInboundText). */
+const BACK_TO_AI: QuickReply = {
+  label: "🤖 กลับมาคุยกับ AI",
+  text: "กลับมาคุยกับ AI",
+};
+
+/** Did the customer ask to return to the bot (tapped the resume chip)? */
+function wantsBackToAi(text: string): boolean {
+  const n = text.trim().toLowerCase();
+  return (
+    n.includes("กลับมาคุยกับ ai") ||
+    n.includes("กลับไปคุยกับ ai") ||
+    n.includes("คุยกับ ai") ||
+    n.includes("คุยกับบอท")
+  );
+}
 
 /** Deliver a product image (+ optional caption). Wired per channel. */
 export type SendImageFn = (
@@ -163,6 +190,33 @@ export async function handleInboundImage(
     return { status: "processed", replied: true };
   }
 
+  // No open order — but the image might still be a payment slip the customer sent
+  // before we recorded an order (e.g. they paid off a chat quote). Try OCR: if it
+  // reads like a transfer slip, treat it as an orphan payment — acknowledge with
+  // the amount and hand off so an admin can match it to the right order, instead
+  // of the old "ไม่ทราบว่าต้องการสอบถามเรื่องไหน" dead-end.
+  if (args.loadImage) {
+    const image = await args.loadImage();
+    if (image) {
+      // orderTotal 0 → we only care whether an amount was read off the slip.
+      const verdict = await (args.verify ?? verifySlip)(image, 0);
+      if (verdict.verifiedAmount != null) {
+        const amtStr = verdict.verifiedAmount.toLocaleString("th-TH");
+        const reply =
+          `ได้รับสลิปโอนเงินแล้วค่ะ (ยอด ${amtStr} บาท) 🙏 ` +
+          `แต่ยังไม่พบออเดอร์ในระบบ รบกวนแจ้งชื่อสินค้า/รายการที่สั่งด้วยนะคะ ` +
+          `เดี๋ยวแอดมินตรวจสอบและยืนยันให้ค่ะ`;
+        await setConversationStatus(db, args.tenantId, conversation.id, "HANDOFF");
+        await args.send(args.externalId, reply);
+        await recordOutboundMessage(db, args.tenantId, conversation.id, {
+          body: reply,
+          category: "TRANSACTIONAL",
+        });
+        return { status: "processed", replied: true };
+      }
+    }
+  }
+
   const reply = "ได้รับรูปแล้วค่ะ ไม่ทราบว่าต้องการสอบถามเรื่องไหน แจ้งได้เลยนะคะ";
   await args.send(args.externalId, reply);
   await recordOutboundMessage(db, args.tenantId, conversation.id, { body: reply });
@@ -226,6 +280,23 @@ export async function handleInboundText(
 
   if (!args.send) return { status: "processed", replied: false };
 
+  // Resume: the customer tapped "🤖 กลับมาคุยกับ AI" (or asked to talk to the bot).
+  // Only honour it while NO admin has claimed the chat (assignedUserId null) — a
+  // customer-initiated handoff sets status via setConversationStatus and leaves
+  // assignedUserId null, whereas a real takeover stamps the agent's id. This lets
+  // a mis-tap of "คุยกับแอดมิน" bounce straight back without overriding a live agent.
+  if (
+    conversation.status === "HANDOFF" &&
+    conversation.assignedUserId == null &&
+    wantsBackToAi(args.text)
+  ) {
+    await setConversationStatus(db, args.tenantId, conversation.id, "OPEN");
+    const reply = "กลับมาที่ผู้ช่วย AI แล้วนะคะ 😊 มีอะไรให้ช่วยต่อไหมคะ";
+    await args.send(args.externalId, reply);
+    await recordOutboundMessage(db, args.tenantId, conversation.id, { body: reply });
+    return { status: "processed", replied: true };
+  }
+
   // A human has taken over (status HANDOFF) — record the inbound so the agent
   // sees it in the inbox, but stay silent. The bot must never talk over the
   // person handling the conversation; it resumes only when they release it.
@@ -253,8 +324,30 @@ export async function handleInboundText(
     return { status: "processed", replied: true };
   }
 
-  // Checkout: a clear "buy this product" message creates the order + sends the
-  // payment instruction (DB prices only, payment stays unconfirmed — risk #5/#9).
+  // Confirm: the customer tapped "ยืนยันสั่งซื้อ" (or typed a clear yes) on a
+  // drafted order. Promote it to PENDING_PAYMENT and NOW send the bank account.
+  const confirmed = await tryConfirmOrder(db, {
+    tenantId: args.tenantId,
+    customerId,
+    conversationId: conversation.id,
+    channelId: args.channelId,
+    text: args.text,
+  });
+  if (confirmed) {
+    await args.send(args.externalId, confirmed.reply);
+    await recordOutboundMessage(db, args.tenantId, conversation.id, {
+      body: confirmed.reply,
+      category: "TRANSACTIONAL",
+    });
+    await addLeadEvent(db, args.tenantId, sync.leadId, "order_created", {
+      orderId: confirmed.orderId,
+    });
+    return { status: "processed", replied: true };
+  }
+
+  // Checkout: a clear "buy this product" message drafts an order and asks the
+  // customer to confirm (DB prices only — risk #5). The bank account is NOT sent
+  // here; it's revealed only after confirmation above (risk #9).
   const checkout = await tryCheckout(db, {
     tenantId: args.tenantId,
     customerId,
@@ -263,13 +356,14 @@ export async function handleInboundText(
     text: args.text,
   });
   if (checkout) {
-    await args.send(args.externalId, checkout.reply);
+    // A drafted order gets the confirm chip; an already-confirmed re-send doesn't.
+    const chips = checkout.awaitingConfirm
+      ? [CONFIRM_ORDER, TALK_TO_HUMAN]
+      : undefined;
+    await args.send(args.externalId, checkout.reply, chips);
     await recordOutboundMessage(db, args.tenantId, conversation.id, {
       body: checkout.reply,
       category: "TRANSACTIONAL",
-    });
-    await addLeadEvent(db, args.tenantId, sync.leadId, "order_created", {
-      orderId: checkout.orderId,
     });
     return { status: "processed", replied: true };
   }
@@ -453,10 +547,11 @@ export async function handleInboundText(
     await markConsentPrompted(db, args.tenantId, customerId);
   }
 
-  // Offer a one-tap "talk to a human" on normal bot replies — but not when we're
-  // already handing off (they're getting a human anyway).
+  // On a normal reply, offer "talk to a human". On a handoff, offer the reverse —
+  // "back to AI" — so a mis-tap is one tap to undo (honoured only while no admin
+  // has taken over; see the resume guard above).
   const quickReplies =
-    decision.action === "handoff" ? undefined : [TALK_TO_HUMAN];
+    decision.action === "handoff" ? [BACK_TO_AI] : [TALK_TO_HUMAN];
   await args.send(args.externalId, replyText, quickReplies);
   await recordOutboundMessage(db, args.tenantId, conversation.id, {
     body: replyText,

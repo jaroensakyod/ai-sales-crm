@@ -26,12 +26,39 @@ const QTY_UNIT = new RegExp(`(\\d+)\\s*(${UNIT})`);
 
 const QUESTION_MARKERS = ["ไหม", "มั้ย", "หรือเปล่า", "รึเปล่า", "เหรอ", "?"];
 
+/** True if the message reads as a question rather than a statement/selection.
+ *  Used so "แบบ pdf มีไหม" (asking) doesn't get treated as picking the PDF version. */
+export function looksLikeQuestion(text: string): boolean {
+  const n = text.toLowerCase();
+  return QUESTION_MARKERS.some((q) => n.includes(q));
+}
+
 export function hasBuyIntent(text: string): boolean {
   const n = text.toLowerCase();
   if (QUESTION_MARKERS.some((q) => n.includes(q))) return false;
   if (BUY_KEYWORDS.some((k) => n.includes(k.toLowerCase()))) return true;
   // Soft verb + an explicit quantity/unit is a strong enough buying signal.
   return SOFT_BUY_KEYWORDS.some((k) => n.includes(k)) && QTY_UNIT.test(text);
+}
+
+// The customer taps "ยืนยันสั่งซื้อ" (or types a clear yes to the confirm prompt).
+// Only meaningful when a DRAFT order is already awaiting confirmation — the caller
+// checks that, so we can keep this loose enough to catch a plain "ยืนยัน"/"ok".
+const CONFIRM_KEYWORDS = [
+  "ยืนยันสั่งซื้อ",
+  "ยืนยันคำสั่งซื้อ",
+  "ยืนยันออเดอร์",
+  "ยืนยัน",
+  "confirm",
+  "ตกลงสั่ง",
+  "เอาเลย",
+  "สั่งเลย",
+  "ปิดการขาย",
+];
+
+export function hasConfirmIntent(text: string): boolean {
+  const n = text.trim().toLowerCase();
+  return CONFIRM_KEYWORDS.some((k) => n.includes(k.toLowerCase()));
 }
 
 // "Can I see a photo?" — the customer wants to see the product image.

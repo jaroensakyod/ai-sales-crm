@@ -1,16 +1,18 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
-import { products } from "@/db/schema";
+import { productVariants, products } from "@/db/schema";
 
-import type { ProductLike } from "./intent";
+import type { ProductLike, VariantLike } from "./intent";
 
-/** Live product read for Level 1 — AI never invents price/stock (docs/02-plan.md). */
+/** Live product read for Level 1 — AI never invents price/stock (docs/02-plan.md).
+ *  Variants (e.g. an ebook's PDF vs hardcover) are attached so the checkout flow
+ *  can match a version the customer names and price it from the DB. */
 export async function loadProducts(
   db: DbClient,
   tenantId: string,
 ): Promise<ProductLike[]> {
-  return db
+  const rows = await db
     .select({
       id: products.id,
       name: products.name,
@@ -23,6 +25,36 @@ export async function loadProducts(
     })
     .from(products)
     .where(and(eq(products.tenantId, tenantId), eq(products.isActive, true)));
+
+  if (rows.length === 0) return rows;
+
+  const variantRows = await db
+    .select({
+      id: productVariants.id,
+      productId: productVariants.productId,
+      name: productVariants.name,
+      sku: productVariants.sku,
+      price: productVariants.price,
+    })
+    .from(productVariants)
+    .where(
+      and(
+        eq(productVariants.tenantId, tenantId),
+        inArray(
+          productVariants.productId,
+          rows.map((r) => r.id),
+        ),
+      ),
+    );
+
+  const byProduct = new Map<string, VariantLike[]>();
+  for (const v of variantRows) {
+    const list = byProduct.get(v.productId) ?? [];
+    list.push({ id: v.id, name: v.name, sku: v.sku, price: v.price });
+    byProduct.set(v.productId, list);
+  }
+
+  return rows.map((r) => ({ ...r, variants: byProduct.get(r.id) ?? [] }));
 }
 
 function formatPrice(price: string, currency: string): string {

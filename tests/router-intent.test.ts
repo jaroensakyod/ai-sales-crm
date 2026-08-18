@@ -5,6 +5,7 @@ import {
   hasStockIntent,
   matchHandoff,
   matchProduct,
+  matchProductOrVariant,
   productAliases,
   type ProductLike,
 } from "@/features/router/intent";
@@ -74,5 +75,56 @@ describe("product matching", () => {
   it("prefers the most specific (longest) alias", () => {
     // Both the full name and SKU could match; longest alias wins deterministically.
     expect(matchProduct("สนใจ ลิปสติกสีแดง Matte", CATALOG)?.id).toBe("1");
+  });
+});
+
+describe("product + variant matching", () => {
+  const EBOOKS: ProductLike[] = [
+    {
+      id: "e1",
+      name: "อีบุ๊กดูดวง",
+      sku: "EBOOK-01",
+      price: "2290",
+      stock: null,
+      currency: "THB",
+      variants: [
+        { id: "v-pdf", name: "PDF", sku: null, price: "1790" },
+        { id: "v-hard", name: "เล่มปกแข็ง", sku: null, price: "2290" },
+      ],
+    },
+  ];
+
+  it("resolves a bare variant label to its product + variant", () => {
+    const m = matchProductOrVariant("pdf", EBOOKS);
+    expect(m?.product.id).toBe("e1");
+    expect(m?.variant?.id).toBe("v-pdf");
+  });
+
+  it("matches a product named with its variant", () => {
+    const m = matchProductOrVariant("เอาอีบุ๊กดูดวง แบบเล่มปกแข็ง", EBOOKS);
+    expect(m?.product.id).toBe("e1");
+    expect(m?.variant?.id).toBe("v-hard");
+  });
+
+  it("matches a product with no variant named (variant left unset)", () => {
+    const m = matchProductOrVariant("สนใจอีบุ๊กดูดวงค่ะ", EBOOKS);
+    expect(m?.product.id).toBe("e1");
+    expect(m?.variant).toBeUndefined();
+  });
+
+  it("is ambiguous when a bare variant label spans two products → null", () => {
+    const twoPdf: ProductLike[] = [
+      { ...EBOOKS[0] },
+      {
+        id: "e2",
+        name: "คู่มือฮวงจุ้ย",
+        sku: "EBOOK-02",
+        price: "990",
+        stock: null,
+        currency: "THB",
+        variants: [{ id: "v2-pdf", name: "PDF", sku: null, price: "990" }],
+      },
+    ];
+    expect(matchProductOrVariant("pdf", twoPdf)).toBeNull();
   });
 });
