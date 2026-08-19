@@ -139,3 +139,38 @@ export async function connectFacebookChannel(
   const subscribed = await subscribePageWebhook(input.accessToken, input.pageId);
   return { ...channel, subscribed };
 }
+
+/**
+ * Connect an Instagram DM channel. Instagram messaging rides on the Messenger
+ * Platform: the webhook (`object: "instagram"`) reuses our Facebook webhook and
+ * pipeline, and replies go through the same Send API with the LINKED PAGE's
+ * access token. So we store the IG account id as the route key (pageId column)
+ * and the page token for sending — the inbound/reply code needs no IG-specific
+ * branch. Webhook subscription for IG is set once in the Meta console.
+ */
+export async function connectInstagramChannel(
+  db: DbClient,
+  tenantId: string,
+  input: { displayName: string; igAccountId: string; accessToken: string },
+) {
+  await assertChannelQuota(db, tenantId);
+  const [channel] = await db
+    .insert(channels)
+    .values({
+      tenantId,
+      type: "INSTAGRAM",
+      displayName: input.displayName,
+      externalId: input.igAccountId,
+    })
+    .onConflictDoNothing({
+      target: [channels.tenantId, channels.type, channels.externalId],
+    })
+    .returning();
+  if (!channel) throw new Error("instagram channel already exists");
+
+  await upsertFacebookConnection(db, tenantId, channel.id, {
+    pageId: input.igAccountId, // route key: entry[].id on IG webhooks
+    accessToken: input.accessToken, // linked page token, used by the Send API
+  });
+  return channel;
+}

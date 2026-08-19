@@ -16,6 +16,7 @@ import { hasGeminiApiKey } from "@/lib/env";
 import {
   addKnowledgeAction,
   connectFacebookAction,
+  connectInstagramAction,
   connectLineAction,
   deleteKnowledgeAction,
   updateAiSettingsAction,
@@ -409,6 +410,34 @@ export default async function SettingsPage({
             </button>
           </form>
         </details>
+
+        <h2>เชื่อม Instagram (ตอบ DM)</h2>
+        {ok === "ig" ? <p className="ok">เชื่อม Instagram สำเร็จแล้ว 🎉</p> : null}
+        {error === "ig" ? (
+          <p className="error">เชื่อม Instagram ไม่สำเร็จ (อาจเชื่อมไปแล้ว/ข้อมูลผิด)</p>
+        ) : null}
+        <p className="muted" style={{ fontSize: "0.85rem" }}>
+          บอทจะตอบ DM ใน Instagram เหมือน Facebook เลย — IG ต้องเป็นบัญชี Professional
+          ที่ผูกกับเพจ Facebook และตั้ง webhook ของ Instagram ในหน้า Meta แล้ว
+        </p>
+        <form action={connectInstagramAction} className="card">
+          <input type="hidden" name="slug" value={slug} />
+          <label>
+            ชื่อที่แสดง
+            <input name="displayName" placeholder="IG ของร้าน" />
+          </label>
+          <label>
+            Instagram Account ID (IG Business ID)
+            <input name="igAccountId" required placeholder="เช่น 17841400000000000" />
+          </label>
+          <label>
+            Page Access Token (ของเพจที่ผูกกับ IG)
+            <input name="accessToken" required />
+          </label>
+          <button type="submit" style={{ marginTop: 12 }}>
+            เชื่อม Instagram
+          </button>
+        </form>
 
         <h2>คลังความรู้ (AI ใช้ค้นตอบ FAQ)</h2>
         {knowledgeDocs.length === 0 ? (

@@ -12,6 +12,7 @@ import {
   products,
 } from "@/db/schema";
 import { computeFacebookSignature } from "@/features/facebook/signature";
+import { connectInstagramChannel } from "@/features/onboarding/service";
 import {
   processFacebookWebhook,
   processFacebookWebhookByPage,
@@ -173,6 +174,42 @@ describe.skipIf(!hasDb)("Facebook webhook (integration)", () => {
       },
     });
     expect(res.ok && res.processed).toBe(1);
+    expect(sent[0]).toContain("390");
+  });
+
+  it("routes an Instagram DM (object=instagram) through the same pipeline", async () => {
+    const igId = `ig-${suffix}`;
+    const igUser = `IGSID-${suffix}`;
+    await connectInstagramChannel(db, tenantId, {
+      displayName: "IG ของร้าน",
+      igAccountId: igId,
+      accessToken: "page-token-unused-in-test",
+    });
+    // IG messaging uses the same entry[].messaging shape, keyed by the IG id.
+    const payload = JSON.stringify({
+      object: "instagram",
+      entry: [
+        {
+          id: igId,
+          messaging: [
+            {
+              sender: { id: igUser },
+              timestamp: Date.now(),
+              message: { mid: `ig1-${suffix}`, text: "ลิปสติกสีแดง ราคาเท่าไหร่คะ" },
+            },
+          ],
+        },
+      ],
+    });
+    const sig = computeFacebookSignature(APP_SECRET, payload);
+    const sent: string[] = [];
+    const res = await processFacebookWebhookByPage(db, payload, sig, {
+      send: async (_to, text) => {
+        sent.push(text);
+      },
+    });
+    expect(res.ok && res.processed).toBe(1);
+    expect(res.ok && res.replied).toBe(1);
     expect(sent[0]).toContain("390");
   });
 

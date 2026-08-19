@@ -114,6 +114,7 @@ import { ingestKnowledge } from "@/features/ai/rag";
 import { answerGap } from "@/features/knowledge/answer-gap";
 import {
   connectFacebookChannel,
+  connectInstagramChannel,
   connectLineChannel,
   createStore,
 } from "@/features/onboarding/service";
@@ -190,6 +191,24 @@ export async function connectFacebookAction(formData: FormData) {
     // duplicate channel / bad input
   }
   redirect(`/dashboard/${slug}/settings?${ok ? "ok=fb" : "error=fb"}`);
+}
+
+export async function connectInstagramAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+
+  let ok = false;
+  try {
+    await connectInstagramChannel(db, tenant.id, {
+      displayName: String(formData.get("displayName") ?? "Instagram"),
+      igAccountId: String(formData.get("igAccountId") ?? "").trim(),
+      accessToken: String(formData.get("accessToken") ?? "").trim(),
+    });
+    ok = true;
+  } catch {
+    // duplicate channel / bad input
+  }
+  redirect(`/dashboard/${slug}/settings?${ok ? "ok=ig" : "error=ig"}`);
 }
 
 export async function addKnowledgeAction(formData: FormData) {

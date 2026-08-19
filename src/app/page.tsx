@@ -13,7 +13,7 @@ export const metadata = {
 const CHANNELS = [
   { name: "LINE", color: "#06c755", soon: false },
   { name: "Facebook", color: "#1877f2", soon: false },
-  { name: "Instagram", color: "#e1306c", soon: true },
+  { name: "Instagram", color: "#e1306c", soon: false },
   { name: "WhatsApp", color: "#25d366", soon: true },
 ];
 
