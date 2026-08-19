@@ -39,7 +39,11 @@ export function facebookAuthUrl(state: string): string | null {
     client_id: c.clientId,
     redirect_uri: c.redirectUri,
     state,
-    scope: "public_profile,email",
+    // Only public_profile is default-available on a fresh app. `email` needs the
+    // Email permission enabled/reviewed, and requesting it before that throws
+    // "Invalid Scopes: email". Owners are keyed by FB user id, not email, so we
+    // don't need it. Add "email" back once the permission is granted.
+    scope: "public_profile",
   });
   return `https://www.facebook.com/v21.0/dialog/oauth?${q}`;
 }
