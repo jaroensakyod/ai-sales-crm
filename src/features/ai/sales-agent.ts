@@ -10,11 +10,7 @@ import { getRecentMessages } from "@/db/repositories/conversations";
 import { getActivePromotions } from "@/db/repositories/promotions";
 import { listActiveTags } from "@/db/repositories/tags";
 import { resolveBudgetTier } from "@/features/billing/budget";
-import {
-  buildTagGuidance,
-  classifyTags,
-  classifyTagsAI,
-} from "@/features/tags/classify";
+import { buildTagGuidance, classifyTags } from "@/features/tags/classify";
 
 import { toneInstruction } from "./tone";
 import { emojiInstruction, replyModeInstruction } from "./reply-mode";
@@ -160,35 +156,34 @@ export function createAiReasonHandler(
   const generate = deps.generate ?? generateWithGemini;
 
   return async (ctx) => {
-    const settings = await getTenantAiSettings(db, ctx.tenantId);
-    const catalog = await loadProducts(db, ctx.tenantId);
-    const promotions = await getActivePromotions(db, ctx.tenantId);
-    const services = await listServices(db, ctx.tenantId);
-    // TAG classification (hybrid): keyword first (free/instant); if nothing
-    // matched, fall back to AI so paraphrases like "มันเกินงบ" still hit "ต่อราคา".
-    const activeTags = await listActiveTags(db, ctx.tenantId);
-    let matchedTags = classifyTags(ctx.text, activeTags);
-    if (matchedTags.length === 0 && activeTags.length > 0) {
-      matchedTags = await classifyTagsAI(ctx.text, activeTags, async (a) => {
-        const r = await generate({
-          model: settings?.defaultModel ?? "gemini-flash-lite",
-          systemInstruction: a.systemInstruction,
-          userText: a.userText,
-        });
-        return r.text;
-      });
+    // Everything the prompt needs, fetched in ONE parallel batch instead of 7
+    // sequential round-trips to the DB (each one was ~50-100ms to Supabase).
+    const [settings, catalog, promotions, services, activeTags, historyRaw, spend] =
+      await Promise.all([
+        getTenantAiSettings(db, ctx.tenantId),
+        loadProducts(db, ctx.tenantId),
+        getActivePromotions(db, ctx.tenantId),
+        listServices(db, ctx.tenantId),
+        listActiveTags(db, ctx.tenantId),
+        ctx.conversationId
+          ? getRecentMessages(db, ctx.tenantId, ctx.conversationId, 8)
+          : Promise.resolve<{ direction: "INBOUND" | "OUTBOUND"; body: string }[]>([]),
+        getMonthlyAiSpend(db, ctx.tenantId),
+      ]);
+
+    // TAG steering: keyword-only (instant). The AI paraphrase fallback was
+    // dropped because it fired a whole extra Gemini round-trip before every
+    // reply — the single biggest latency source. Keyword tags still steer.
+    const tagGuidance = buildTagGuidance(classifyTags(ctx.text, activeTags));
+
+    // Short-term memory: last few turns. The current inbound is already recorded,
+    // so drop its trailing duplicate before feeding it back.
+    let history = historyRaw;
+    const last = history[history.length - 1];
+    if (last && last.direction === "INBOUND" && last.body === ctx.text) {
+      history = history.slice(0, -1);
     }
-    const tagGuidance = buildTagGuidance(matchedTags);
-    // Short-term memory: last few turns of THIS conversation. The current inbound
-    // is already recorded, so drop its trailing duplicate before feeding it back.
-    let history: { direction: "INBOUND" | "OUTBOUND"; body: string }[] = [];
-    if (ctx.conversationId) {
-      history = await getRecentMessages(db, ctx.tenantId, ctx.conversationId, 8);
-      const last = history[history.length - 1];
-      if (last && last.direction === "INBOUND" && last.body === ctx.text) {
-        history = history.slice(0, -1);
-      }
-    }
+
     const systemInstruction = buildSalesSystemPrompt({
       settings,
       catalog,
@@ -203,7 +198,6 @@ export function createAiReasonHandler(
 
     // Graceful soft-cap (Phase 2): degrade cost instead of blocking the customer.
     const softCapUsd = settings?.softCapUsd ? Number(settings.softCapUsd) : null;
-    const spend = await getMonthlyAiSpend(db, ctx.tenantId);
     const tier = resolveBudgetTier({ monthlySpendUsd: spend, softCapUsd });
     if (tier === "l3_disabled") {
       // Over the hard ceiling — skip L3 (router falls to a human handoff). L1/L2
