@@ -32,6 +32,18 @@ function baht(n: number) {
 function when(d: Date | null) {
   return d ? new Date(d).toLocaleString("th-TH") : "-";
 }
+function channelLabel(type: string | null): { label: string; color: string } {
+  switch (type) {
+    case "LINE":
+      return { label: "💬 LINE", color: "#06c755" };
+    case "MESSENGER":
+      return { label: "f Facebook", color: "#1877f2" };
+    case "INSTAGRAM":
+      return { label: "📷 Instagram", color: "#e1306c" };
+    default:
+      return { label: type ?? "-", color: "#888" };
+  }
+}
 function statusClass(s: string) {
   if (s === "PAID" || s === "CLOSED") return "paid";
   if (s === "HANDOFF") return "handoff";
@@ -215,6 +227,7 @@ export default async function TenantOverview({
             <thead>
               <tr>
                 <th>ลูกค้า</th>
+                <th>ช่องทาง</th>
                 <th>สถานะ</th>
                 <th>ลูกค้าทักล่าสุด</th>
                 <th></th>
@@ -227,6 +240,17 @@ export default async function TenantOverview({
                     <Link href={`/dashboard/${slug}/inbox/${c.id}`}>
                       {c.customerName ?? "(ไม่ระบุชื่อ)"}
                     </Link>
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        color: channelLabel(c.channelType).color,
+                        fontWeight: 500,
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      {channelLabel(c.channelType).label}
+                    </span>
                   </td>
                   <td>
                     <span className={`badge ${statusClass(c.status)}`}>

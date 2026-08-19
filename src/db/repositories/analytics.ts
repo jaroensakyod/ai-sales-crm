@@ -3,6 +3,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { DbClient } from "@/db/client";
 import {
   aiRuns,
+  channels,
   conversations,
   customers,
   leads,
@@ -150,9 +151,11 @@ export async function listRecentConversations(
       lastInboundAt: conversations.lastInboundAt,
       updatedAt: conversations.updatedAt,
       customerName: customers.displayName,
+      channelType: channels.type,
     })
     .from(conversations)
     .innerJoin(customers, eq(customers.id, conversations.customerId))
+    .leftJoin(channels, eq(channels.id, conversations.channelId))
     .where(eq(conversations.tenantId, tenantId))
     .orderBy(desc(conversations.updatedAt))
     .limit(limit);
