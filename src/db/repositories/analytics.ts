@@ -18,6 +18,70 @@ export type TenantOverview = {
   ai: { calls: number; costUsd: number; byLevel: Record<number, number> };
 };
 
+export type BotImpact = {
+  /** Orders that came from a chat (orders.conversationId set) vs keyed in by hand. */
+  chatOrders: number;
+  chatPaid: number;
+  chatRevenue: number;
+  manualOrders: number;
+  /** Total conversations and how many turned into at least one order. */
+  conversations: number;
+  convertedConversations: number;
+  /** Paid chat orders created outside 09:00–18:00 (Asia/Bangkok) — sales the bot
+   *  captured while the shop was likely closed. */
+  afterHoursPaid: number;
+  afterHoursRevenue: number;
+};
+
+/**
+ * Honest "what the bot did" numbers. Everything is bot-ATTRIBUTED (orders that
+ * originated from a chat), not a true with-vs-without A/B — there's no baseline
+ * cohort. Profit isn't here because products have no cost field yet.
+ */
+export async function getBotImpact(
+  db: DbClient,
+  tenantId: string,
+): Promise<BotImpact> {
+  const fromChat = sql`${orders.conversationId} is not null`;
+  const paidChat = sql`${orders.conversationId} is not null and ${orders.status} = 'PAID'`;
+  const afterHours = sql`${paidChat} and extract(hour from ${orders.createdAt} at time zone 'Asia/Bangkok') not between 9 and 17`;
+
+  const [o] = await db
+    .select({
+      chatOrders: sql<number>`(count(*) filter (where ${fromChat}))::int`,
+      chatPaid: sql<number>`(count(*) filter (where ${paidChat}))::int`,
+      chatRevenue: sql<number>`coalesce(sum(${orders.total}) filter (where ${paidChat}), 0)::float`,
+      manualOrders: sql<number>`(count(*) filter (where ${orders.conversationId} is null))::int`,
+      afterHoursPaid: sql<number>`(count(*) filter (where ${afterHours}))::int`,
+      afterHoursRevenue: sql<number>`coalesce(sum(${orders.total}) filter (where ${afterHours}), 0)::float`,
+    })
+    .from(orders)
+    .where(eq(orders.tenantId, tenantId));
+
+  const [c] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(conversations)
+    .where(eq(conversations.tenantId, tenantId));
+
+  const [cc] = await db
+    .select({
+      converted: sql<number>`count(distinct ${orders.conversationId})::int`,
+    })
+    .from(orders)
+    .where(and(eq(orders.tenantId, tenantId), fromChat));
+
+  return {
+    chatOrders: o.chatOrders,
+    chatPaid: o.chatPaid,
+    chatRevenue: o.chatRevenue,
+    manualOrders: o.manualOrders,
+    conversations: c.total,
+    convertedConversations: cc.converted,
+    afterHoursPaid: o.afterHoursPaid,
+    afterHoursRevenue: o.afterHoursRevenue,
+  };
+}
+
 export async function getTenantOverview(
   db: DbClient,
   tenantId: string,

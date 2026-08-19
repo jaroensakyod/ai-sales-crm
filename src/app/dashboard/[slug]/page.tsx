@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createDbClient } from "@/db/client";
 import { getTenantAiSettings } from "@/db/repositories/ai";
 import {
+  getBotImpact,
   getTenantOverview,
   listRecentConversations,
   listRecentOrders,
@@ -49,14 +50,22 @@ export default async function TenantOverview({
   const tenant = await getTenantBySlug(db, slug);
   if (!tenant) notFound();
 
-  const [overview, conversations, orders, settings, monthlySpend] =
+  const [overview, botImpact, conversations, orders, settings, monthlySpend] =
     await Promise.all([
       getTenantOverview(db, tenant.id),
+      getBotImpact(db, tenant.id),
       listRecentConversations(db, tenant.id, 10),
       listRecentOrders(db, tenant.id, 10),
       getTenantAiSettings(db, tenant.id),
       getMonthlyAiSpend(db, tenant.id),
     ]);
+  // Chat→order close rate (share of conversations that produced an order).
+  const chatConversion =
+    botImpact.conversations > 0
+      ? Math.round(
+          (botImpact.convertedConversations / botImpact.conversations) * 100,
+        )
+      : 0;
   const subscription = await getSubscription(db, tenant.id);
   const currentPlan: Plan = (subscription?.plan as Plan) ?? "FREE";
   const softCapUsd = settings?.softCapUsd ? Number(settings.softCapUsd) : null;
@@ -121,6 +130,56 @@ export default async function TenantOverview({
             </div>
           </div>
         </div>
+
+        <h2>ผลของแชทบอท 🤖</h2>
+        <p className="muted" style={{ marginTop: 0 }}>
+          ยอดที่ปิดการขายผ่านแชท (ออเดอร์ที่เกิดจากบทสนทนา) — บอทช่วยขายให้จริงเท่าไหร่
+        </p>
+        <div className="grid">
+          <div className="card kpi">
+            <div className="label">ยอดขายจากแชทบอท</div>
+            <div className="value">{baht(botImpact.chatRevenue)}</div>
+            <div className="sub">
+              {botImpact.chatPaid} ออเดอร์ที่จ่ายแล้ว (จากทั้งหมด {botImpact.chatOrders} ที่มาจากแชท)
+            </div>
+          </div>
+          <div className="card kpi">
+            <div className="label">อัตราปิดการขายจากแชท</div>
+            <div className="value">{chatConversion}%</div>
+            <div className="sub">
+              {botImpact.convertedConversations} จาก {botImpact.conversations} บทสนทนา กลายเป็นออเดอร์
+            </div>
+          </div>
+          <div className="card kpi">
+            <div className="label">ออเดอร์นอกเวลาทำการ ⏰</div>
+            <div className="value">{baht(botImpact.afterHoursRevenue)}</div>
+            <div className="sub">
+              {botImpact.afterHoursPaid} ออเดอร์ที่บอทปิดให้ตอนร้านปิด (ก่อน 9 โมง / หลัง 6 โมงเย็น)
+            </div>
+          </div>
+          <div className="card kpi">
+            <div className="label">บอทดูแลเอง</div>
+            <div className="value">
+              {overview.conversations.total > 0
+                ? Math.round(
+                    ((overview.conversations.total -
+                      overview.conversations.handoff) /
+                      overview.conversations.total) *
+                      100,
+                  )
+                : 0}
+              %
+            </div>
+            <div className="sub">
+              ไม่ต้องส่งต่อให้แอดมิน ({overview.conversations.handoff} รายส่งต่อคน)
+            </div>
+          </div>
+        </div>
+        <p className="muted" style={{ fontSize: "0.78rem", marginTop: 8 }}>
+          * เป็นยอดที่ <strong>มาจากแชท</strong> โดยตรง ไม่ใช่การเทียบ &quot;ใช้บอท vs
+          ไม่ใช้บอท&quot; (ต้องมีข้อมูลช่วงก่อนใช้บอทมาเทียบ) — และยังไม่รวม
+          <strong>กำไร</strong> เพราะระบบยังไม่มีช่องต้นทุนสินค้า
+        </p>
 
         <h2>แพ็กเกจ</h2>
         <div className="card">
