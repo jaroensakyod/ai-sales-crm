@@ -46,9 +46,13 @@ export function facebookConnectUrl(redirectUri: string, state: string): string {
     client_id: process.env.META_APP_ID ?? "",
     redirect_uri: redirectUri,
     state,
-    scope: SCOPES,
     response_type: "code",
   });
+  // Facebook Login for Business apps carry the page permissions in a Configuration
+  // (set FB_CONNECT_CONFIG_ID). Classic apps request them as a scope instead.
+  const configId = process.env.FB_CONNECT_CONFIG_ID;
+  if (configId) q.set("config_id", configId);
+  else q.set("scope", SCOPES);
   return `https://www.facebook.com/v21.0/dialog/oauth?${q.toString()}`;
 }
 

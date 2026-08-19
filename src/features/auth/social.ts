@@ -39,12 +39,15 @@ export function facebookAuthUrl(state: string): string | null {
     client_id: c.clientId,
     redirect_uri: c.redirectUri,
     state,
-    // Only public_profile is default-available on a fresh app. `email` needs the
-    // Email permission enabled/reviewed, and requesting it before that throws
-    // "Invalid Scopes: email". Owners are keyed by FB user id, not email, so we
-    // don't need it. Add "email" back once the permission is granted.
-    scope: "public_profile",
+    response_type: "code",
   });
+  // "Facebook Login for Business" apps require a config_id (the permissions live
+  // in the Configuration, not a scope). Set FB_LOGIN_CONFIG_ID to use it. Classic
+  // Facebook Login apps use a plain scope instead. `email` needs the Email
+  // permission granted; owners are keyed by FB user id, so public_profile is enough.
+  const configId = process.env.FB_LOGIN_CONFIG_ID;
+  if (configId) q.set("config_id", configId);
+  else q.set("scope", "public_profile");
   return `https://www.facebook.com/v21.0/dialog/oauth?${q}`;
 }
 
