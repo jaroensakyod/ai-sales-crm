@@ -227,9 +227,11 @@ function flexButtons(
     type: "button",
     style: firstPrimary && i === 0 ? "primary" : "secondary",
     height: "sm",
-    action: a.url
-      ? { type: "uri", label: a.label.slice(0, 20), uri: a.url }
-      : { type: "message", label: a.label.slice(0, 20), text: a.text ?? a.label },
+    action: a.copy
+      ? { type: "clipboard", label: a.label.slice(0, 20), clipboardText: a.copy }
+      : a.url
+        ? { type: "uri", label: a.label.slice(0, 20), uri: a.url }
+        : { type: "message", label: a.label.slice(0, 20), text: a.text ?? a.label },
   }));
 }
 

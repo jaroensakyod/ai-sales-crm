@@ -9,11 +9,18 @@
  * button sends "ยืนยันสั่งซื้อ" → tryConfirmOrder). No new routing needed.
  */
 
-/** A tappable card button. Exactly one of `text` / `url`:
+/** A tappable card button. Exactly one of `text` / `url` / `copy`:
  *  - `text`: sends that message back as if the customer typed it (routes through
  *    the pipeline — used by the confirm button).
- *  - `url`: opens the link (used by merchant-designed promo cards). */
-export type CardAction = { label: string; text?: string; url?: string };
+ *  - `url`: opens the link (used by merchant-designed promo cards).
+ *  - `copy`: copies the string to the clipboard (LINE clipboard action; not
+ *    supported on Facebook, where the button is dropped). */
+export type CardAction = {
+  label: string;
+  text?: string;
+  url?: string;
+  copy?: string;
+};
 
 /** Order summary shown when a draft order awaits confirmation. */
 export type OrderConfirmCard = {

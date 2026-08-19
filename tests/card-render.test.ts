@@ -52,6 +52,34 @@ describe("LINE Flex rendering", () => {
     const msg = buildFlexMessage(PAYMENT);
     expect(JSON.stringify(msg)).toContain("200-8-20487-2");
   });
+
+  it("renders a copy-account button as a LINE clipboard action", () => {
+    const card: MessageCard = {
+      ...(PAYMENT as object),
+      actions: [
+        { label: "📋 คัดลอกเลขบัญชี", copy: "200-8-20487-2" },
+        { label: "คุยกับแอดมิน", text: "คุยกับแอดมิน" },
+      ],
+    } as MessageCard;
+    const msg = buildFlexMessage(card);
+    const footer = (msg.contents as { footer: { contents: { action: { type: string; clipboardText?: string } }[] } }).footer;
+    expect(footer.contents[0].action.type).toBe("clipboard");
+    expect(footer.contents[0].action.clipboardText).toBe("200-8-20487-2");
+  });
+
+  it("drops the copy button on Facebook (no clipboard action there)", () => {
+    const card: MessageCard = {
+      ...(PAYMENT as object),
+      actions: [
+        { label: "📋 คัดลอกเลขบัญชี", copy: "200-8-20487-2" },
+        { label: "คุยกับแอดมิน", text: "คุยกับแอดมิน" },
+      ],
+    } as MessageCard;
+    const att = fbCardAttachment(card) as { payload: { buttons: { title: string }[] } };
+    // Only the human button survives (copy is filtered out).
+    expect(att.payload.buttons).toHaveLength(1);
+    expect(att.payload.buttons[0].title).toBe("คุยกับแอดมิน");
+  });
 });
 
 describe("Facebook template rendering", () => {

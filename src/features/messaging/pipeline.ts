@@ -98,6 +98,9 @@ function productCarousel(
     kind: "custom_flex" as const,
     imageUrl: p.imageUrl ?? null,
     headline: p.name,
+    // Include the product description so the auto catalog looks the same as a
+    // merchant-built carousel (both show info) — no more "one has text, one doesn't".
+    body: p.description ?? undefined,
     priceLabel: p.price
       ? `เพียง ${Number(p.price).toLocaleString("th-TH")} บาท`
       : undefined,

@@ -113,11 +113,16 @@ type FbUrlButton = { type: "web_url"; title: string; url: string };
 type FbButton = FbPostbackButton | FbUrlButton;
 
 function fbButtons(actions: CardAction[]): FbButton[] {
-  return actions.slice(0, 3).map((a) =>
-    a.url
-      ? { type: "web_url", title: a.label.slice(0, 20), url: a.url }
-      : { type: "postback", title: a.label.slice(0, 20), payload: a.text ?? a.label },
-  );
+  return actions
+    // Messenger has no clipboard action — drop copy-only buttons (the value is
+    // already shown in the card text, which FB users can long-press to copy).
+    .filter((a) => !a.copy)
+    .slice(0, 3)
+    .map((a) =>
+      a.url
+        ? { type: "web_url", title: a.label.slice(0, 20), url: a.url }
+        : { type: "postback", title: a.label.slice(0, 20), payload: a.text ?? a.label },
+    );
 }
 
 /** One Messenger generic-template element from a custom card. */

@@ -60,13 +60,19 @@ function buildPaymentCard(
   if (settings?.promptpayId) {
     rows.push({ label: "พร้อมเพย์", value: settings.promptpayId });
   }
+  // Copy button (LINE clipboard) for the account/PromptPay number — flex text
+  // isn't selectable on LINE, so a one-tap copy saves the customer retyping it.
+  const copyTarget = settings?.bankAccountNo || settings?.promptpayId;
+  const actions = copyTarget
+    ? [{ label: "📋 คัดลอกเลขบัญชี", copy: copyTarget }, HUMAN_ACTION]
+    : [HUMAN_ACTION];
   return {
     kind: "payment",
     title: "ช่องทางชำระเงิน 💳",
     amountLabel: `ยอดชำระ ${total.toLocaleString("th-TH")} บาท`,
     rows,
     note: "โอนแล้วส่งสลิปในแชทได้เลยนะคะ ทางร้านจะตรวจสอบและยืนยันให้ค่ะ 🙏",
-    actions: [HUMAN_ACTION],
+    actions,
     fallback,
   };
 }
