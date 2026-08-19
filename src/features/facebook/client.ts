@@ -254,27 +254,37 @@ export async function fetchFacebookProfile(
   pageAccessToken: string,
   userId: string,
 ): Promise<{ displayName?: string; avatarUrl?: string } | null> {
-  try {
-    const res = await fetch(
-      `${GRAPH_API}/${encodeURIComponent(userId)}?fields=name,first_name,last_name,username,profile_pic&access_token=${encodeURIComponent(pageAccessToken)}`,
-    );
-    if (!res.ok) return null;
-    const j = (await res.json()) as {
-      name?: string;
-      first_name?: string;
-      last_name?: string;
-      username?: string;
-      profile_pic?: string;
-    };
-    const displayName =
-      j.name ||
-      [j.first_name, j.last_name].filter(Boolean).join(" ") ||
-      j.username ||
-      undefined;
-    return { displayName: displayName || undefined, avatarUrl: j.profile_pic };
-  } catch {
-    return null;
+  // Field sets differ by platform: Messenger PSIDs expose first_name/last_name,
+  // Instagram IGSIDs expose name/username. Requesting a field that doesn't exist
+  // on the node makes Graph reject the WHOLE request (error #100), so we try the
+  // Messenger set first, then the Instagram set, instead of one combined call.
+  const fieldSets = ["first_name,last_name,profile_pic", "name,username,profile_pic"];
+  for (const fields of fieldSets) {
+    try {
+      const res = await fetch(
+        `${GRAPH_API}/${encodeURIComponent(userId)}?fields=${fields}&access_token=${encodeURIComponent(pageAccessToken)}`,
+      );
+      if (!res.ok) continue;
+      const j = (await res.json()) as {
+        name?: string;
+        first_name?: string;
+        last_name?: string;
+        username?: string;
+        profile_pic?: string;
+      };
+      const displayName =
+        [j.first_name, j.last_name].filter(Boolean).join(" ") ||
+        j.name ||
+        j.username ||
+        undefined;
+      if (displayName || j.profile_pic) {
+        return { displayName: displayName || undefined, avatarUrl: j.profile_pic };
+      }
+    } catch {
+      // try the next field set
+    }
   }
+  return null;
 }
 
 /**
