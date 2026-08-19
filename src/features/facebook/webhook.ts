@@ -15,6 +15,7 @@ import { transcribeVoice } from "@/features/messaging/voice";
 import type { RouterHandlers } from "@/features/router/types";
 
 import {
+  fetchFacebookProfile,
   fetchImageAsBase64,
   sendFacebookCard,
   sendFacebookImage,
@@ -46,6 +47,8 @@ export type FbProcessDeps = {
   sendImage?: SendImageFn;
   /** Override the card transport (tests inject a spy). */
   sendCard?: SendCardFn;
+  /** Override the profile lookup (tests inject a fixed profile). */
+  profile?: { displayName?: string; avatarUrl?: string };
 };
 
 export type FbWebhookResult =
@@ -127,6 +130,21 @@ async function runMessagings(
     return sendCard;
   };
 
+  // Fetch the sender's name once per request (cached) so the CRM shows a real
+  // name instead of "(ไม่ระบุชื่อ)". Injectable for tests via deps.profile.
+  const profileCache = new Map<
+    string,
+    { displayName?: string; avatarUrl?: string } | undefined
+  >();
+  const getProfile = async (id: string) => {
+    if (deps.profile) return deps.profile;
+    if (profileCache.has(id)) return profileCache.get(id);
+    const token = decryptSecret(target.accessTokenEncrypted);
+    const p = (await fetchFacebookProfile(token, id)) ?? undefined;
+    profileCache.set(id, p);
+    return p;
+  };
+
   const counts: Counts = { processed: 0, skipped: 0, replied: 0 };
   for (const m of messagings) {
     const psid = m.sender?.id;
@@ -140,6 +158,7 @@ async function runMessagings(
         tenantId: target.tenantId,
         channelId: target.channelId,
         externalId: psid,
+        profile: await getProfile(psid),
         text: postbackPayload,
         channelMessageId: pbId,
         at: m.timestamp ? new Date(m.timestamp) : undefined,
@@ -192,6 +211,7 @@ async function runMessagings(
         tenantId: target.tenantId,
         channelId: target.channelId,
         externalId: psid,
+        profile: await getProfile(psid),
         text: transcript,
         channelMessageId: mid,
         at,
@@ -217,6 +237,7 @@ async function runMessagings(
             tenantId: target.tenantId,
             channelId: target.channelId,
             externalId: psid,
+            profile: await getProfile(psid),
             channelMessageId: mid,
             slipUrl,
             at,
@@ -227,6 +248,7 @@ async function runMessagings(
             tenantId: target.tenantId,
             channelId: target.channelId,
             externalId: psid,
+            profile: await getProfile(psid),
             text: text ?? "",
             channelMessageId: mid,
             at,

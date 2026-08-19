@@ -245,6 +245,39 @@ export async function sendFacebookCard(
 }
 
 /**
+ * Fetch a messaging user's public profile (name + avatar) so the CRM shows a
+ * real name instead of "(ไม่ระบุชื่อ)". Works for both Messenger (PSID →
+ * first/last name) and Instagram (IGSID → name/username) since all the fields
+ * are requested together. Returns null on failure (stays unnamed, never throws).
+ */
+export async function fetchFacebookProfile(
+  pageAccessToken: string,
+  userId: string,
+): Promise<{ displayName?: string; avatarUrl?: string } | null> {
+  try {
+    const res = await fetch(
+      `${GRAPH_API}/${encodeURIComponent(userId)}?fields=name,first_name,last_name,username,profile_pic&access_token=${encodeURIComponent(pageAccessToken)}`,
+    );
+    if (!res.ok) return null;
+    const j = (await res.json()) as {
+      name?: string;
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+      profile_pic?: string;
+    };
+    const displayName =
+      j.name ||
+      [j.first_name, j.last_name].filter(Boolean).join(" ") ||
+      j.username ||
+      undefined;
+    return { displayName: displayName || undefined, avatarUrl: j.profile_pic };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Download a Messenger CDN image (payment slip) as base64 for OCR. Returns null
  * on failure so slip handling degrades to a plain acknowledgement.
  */
