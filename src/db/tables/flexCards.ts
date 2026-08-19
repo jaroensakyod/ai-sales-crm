@@ -3,6 +3,10 @@ import { index, jsonb, pgTable, text, uuid } from "drizzle-orm/pg-core";
 import { timestamps } from "./_shared";
 import { tenantId } from "./tenants";
 
+/** A tappable button on a flex card. kind: "message" sends `value` as a chat
+ *  message; "url" opens it. */
+export type FlexButton = { label: string; kind: string; value: string };
+
 /** One bubble inside a carousel card. */
 export type CarouselItem = {
   headline: string;
@@ -35,9 +39,13 @@ export const flexCards = pgTable(
     priceLabel: text("price_label"),
     imageUrl: text("image_url"),
     buttonLabel: text("button_label"),
+    // Legacy single button (kept for old cards). New cards use `buttons` (array).
     // "message" → button sends buttonValue as a chat message; "url" → opens it.
     buttonKind: text("button_kind").notNull().default("message"),
     buttonValue: text("button_value"),
+    // Multiple buttons per card (e.g. สั่งซื้อ + รายละเอียด). Falls back to the
+    // single buttonLabel/Value above when empty.
+    buttons: jsonb("buttons").$type<FlexButton[]>(),
     items: jsonb("items").$type<CarouselItem[]>(),
     // When a customer's message contains this keyword, the bot sends this card in
     // the chat (LINE Flex / FB template). Empty = never auto-sent (broadcast only).

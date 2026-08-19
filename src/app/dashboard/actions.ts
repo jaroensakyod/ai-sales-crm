@@ -618,6 +618,7 @@ export async function updateAiSettingsAction(formData: FormData) {
     replyTone: String(formData.get("replyTone") ?? "").trim() || null,
     replyMode: String(formData.get("replyMode") ?? "").trim() || null,
     emojiLevel: String(formData.get("emojiLevel") ?? "").trim() || null,
+    botGender: formData.get("botGender") === "male" ? "male" : "female",
     // Unchecked checkboxes submit nothing → false. A hidden "1" marker before each
     // checkbox lets us tell "form submitted with box off" from "field not on form".
     followupCartRecovery: formData.get("followupCartRecovery") === "on",
@@ -974,9 +975,25 @@ export async function saveFlexCardAction(formData: FormData) {
   if (!name || !headline) {
     redirect(`/dashboard/${slug}/flex-cards?error=empty`);
   }
-  const buttonKind = formData.get("buttonKind") === "url" ? "url" : "message";
   const styleRaw = String(formData.get("style") ?? "plain");
   const style = ["plain", "promo", "minimal"].includes(styleRaw) ? styleRaw : "plain";
+  // Multiple buttons arrive as a JSON array from the composer.
+  let buttons: { label: string; kind: string; value: string }[] = [];
+  try {
+    const parsed = JSON.parse(String(formData.get("buttons") ?? "[]"));
+    if (Array.isArray(parsed)) {
+      buttons = parsed
+        .filter((b) => b && typeof b.label === "string" && typeof b.value === "string")
+        .map((b) => ({
+          label: String(b.label).slice(0, 20),
+          kind: b.kind === "url" ? "url" : "message",
+          value: String(b.value),
+        }))
+        .slice(0, 3); // LINE flex footer stays readable at ≤3 buttons
+    }
+  } catch {
+    buttons = [];
+  }
   await createFlexCard(db, tenant.id, {
     name,
     kind: "single",
@@ -985,9 +1002,7 @@ export async function saveFlexCardAction(formData: FormData) {
     body: String(formData.get("body") ?? "").trim() || null,
     priceLabel: String(formData.get("priceLabel") ?? "").trim() || null,
     imageUrl: toImageUrl(formData.get("imageUrl")),
-    buttonLabel: String(formData.get("buttonLabel") ?? "").trim() || null,
-    buttonKind,
-    buttonValue: String(formData.get("buttonValue") ?? "").trim() || null,
+    buttons: buttons.length ? buttons : null,
     triggerKeyword: String(formData.get("triggerKeyword") ?? "").trim() || null,
   });
   redirect(`/dashboard/${slug}/flex-cards?ok=saved`);

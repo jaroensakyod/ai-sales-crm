@@ -2,7 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
 import { flexCards } from "@/db/schema";
-import type { CarouselItem } from "@/db/tables/flexCards";
+import type { CarouselItem, FlexButton } from "@/db/tables/flexCards";
 import type {
   CustomFlexCard,
   FlexStyle,
@@ -58,6 +58,7 @@ export type FlexCardInput = {
   buttonLabel?: string | null;
   buttonKind?: string;
   buttonValue?: string | null;
+  buttons?: FlexButton[] | null;
   items?: CarouselItem[] | null;
   triggerKeyword?: string | null;
 };
@@ -142,16 +143,32 @@ export function flexCardToMessageCard(card: FlexCard): MessageCard {
     };
   }
 
-  return itemToCustomCard(
-    {
-      headline: card.headline ?? card.name,
-      body: card.body ?? undefined,
-      priceLabel: card.priceLabel ?? undefined,
-      imageUrl: card.imageUrl ?? undefined,
-      buttonLabel: card.buttonLabel ?? undefined,
-      buttonKind: card.buttonKind,
-      buttonValue: card.buttonValue ?? undefined,
-    },
+  // Multiple buttons (new) take priority; fall back to the single legacy button.
+  const actions =
+    card.buttons && card.buttons.length > 0
+      ? card.buttons
+          .filter((b) => b.label && b.value)
+          .map((b) =>
+            b.kind === "url"
+              ? { label: b.label, url: b.value }
+              : { label: b.label, text: b.value },
+          )
+      : card.buttonLabel && card.buttonValue
+        ? [
+            card.buttonKind === "url"
+              ? { label: card.buttonLabel, url: card.buttonValue }
+              : { label: card.buttonLabel, text: card.buttonValue },
+          ]
+        : [];
+
+  return {
+    kind: "custom_flex",
+    imageUrl: card.imageUrl,
+    headline: card.headline ?? card.name,
+    body: card.body ?? undefined,
+    priceLabel: card.priceLabel ?? undefined,
     style,
-  );
+    actions,
+    fallback: [card.headline, card.priceLabel].filter(Boolean).join(" "),
+  };
 }

@@ -169,6 +169,13 @@
       "when": 1787030285512,
       "tag": "0023_dazzling_marvel_zombies",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1787131329162,
+      "tag": "0024_optimal_machine_man",
+      "breakpoints": true
     }
   ]
 }

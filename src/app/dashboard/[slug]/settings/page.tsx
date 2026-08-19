@@ -237,6 +237,13 @@ export default async function SettingsPage({
             </span>
           </label>
           <label>
+            เพศของบอท (คุมคำลงท้าย ค่ะ/ครับ)
+            <select name="botGender" defaultValue={aiSettings?.botGender ?? "female"}>
+              <option value="female">ผู้หญิง — ลงท้าย “ค่ะ”</option>
+              <option value="male">ผู้ชาย — ลงท้าย “ครับ”</option>
+            </select>
+          </label>
+          <label>
             การใช้อิโมจิ
             <select name="emojiLevel" defaultValue={aiSettings?.emojiLevel ?? ""}>
               {EMOJI_LEVELS.map((e) => (

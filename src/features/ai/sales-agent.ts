@@ -48,6 +48,8 @@ export function buildSalesSystemPrompt(args: {
   history?: { direction: "INBOUND" | "OUTBOUND"; body: string }[];
 }): string {
   const discount = args.settings?.discountAuthority ?? "0";
+  // Keep the Thai polite particle consistent (was drifting between ค่ะ/ครับ).
+  const particle = args.settings?.botGender === "male" ? "ครับ" : "ค่ะ";
   const catalogLines = args.catalog
     .map((p) => {
       const price = `${Number(p.price).toLocaleString("th-TH")} ${p.currency}`;
@@ -81,6 +83,7 @@ export function buildSalesSystemPrompt(args: {
     "ห้ามใช้ Markdown หรือสัญลักษณ์จัดรูปแบบเด็ดขาด เช่น **ตัวหนา** * # หรือหัวข้อเลขข้อ (LINE โชว์เป็นตัวอักษรดิบ ดูเป็นบอททันที) — เขียนข้อความธรรมดาล้วน",
     "อย่ายัดรายการสินค้าทั้งหมดมาในครั้งเดียว ถ้าลูกค้าถามกว้าง ๆ (เช่น 'มีอะไรบ้าง') ให้ถามกลับสั้น ๆ ว่าสนใจแนวไหนหรืองบเท่าไหร่ แล้วค่อยแนะนำ 1 อย่างที่เหมาะ",
     emojiInstruction(args.emojiLevel),
+    `ลงท้ายประโยคด้วยคำสุภาพ "${particle}" อย่างสม่ำเสมอทุกข้อความ ห้ามสลับใช้ ค่ะ/ครับ ปนกันเด็ดขาด`,
     "ห้ามอ้างสรรพคุณเกินจริงหรือกล่าวอ้างว่า 'รักษา' โรคใด ๆ เด็ดขาด (ข้อกำหนด อย./สคบ.)",
     `ห้ามเสนอส่วนลดเกิน ${Number(discount).toLocaleString("th-TH")} บาท และห้ามสัญญาโปรโมชั่นที่ไม่มีข้อมูลรองรับ`,
     "ราคาและสต็อกให้ยึดข้อมูลในระบบเท่านั้น ห้ามเดาหรือกุตัวเลขขึ้นเอง",

@@ -102,6 +102,9 @@ export const tenantAiSettings = pgTable(
     replyTone: text("reply_tone"), // preset bot personality (see features/ai/tone.ts)
     replyMode: text("reply_mode"), // sales behaviour: push/close level (features/ai/reply-mode.ts)
     emojiLevel: text("emoji_level"), // NONE | LITTLE | NORMAL — merchant controls emoji usage
+    // "female" → ends sentences with ค่ะ, "male" → ครับ. Keeps the Thai polite
+    // particle consistent (was drifting between ค่ะ/ครับ). Default female.
+    botGender: text("bot_gender"),
     // Welcome / promo banner: sent automatically on the customer's first
     // greeting or "what do you sell?" — no need for them to ask for a picture.
     welcomeImageUrl: text("welcome_image_url"),

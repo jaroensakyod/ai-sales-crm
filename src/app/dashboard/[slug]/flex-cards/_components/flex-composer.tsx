@@ -31,9 +31,9 @@ export function FlexComposer({
   const [body, setBody] = useState("");
   const [priceLabel, setPriceLabel] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [buttonLabel, setButtonLabel] = useState("");
-  const [buttonKind, setButtonKind] = useState("message");
-  const [buttonValue, setButtonValue] = useState("");
+  const [buttons, setButtons] = useState<
+    { label: string; kind: string; value: string }[]
+  >([{ label: "สั่งซื้อเลย", kind: "message", value: "" }]);
   const [style, setStyle] = useState("plain");
   const [captions, setCaptions] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
@@ -46,9 +46,21 @@ export function FlexComposer({
     setBody(p.description);
     setPriceLabel(p.price ? `เพียง ${p.price.toLocaleString("th-TH")} บาท` : "");
     setImageUrl(p.imageUrl);
-    setButtonLabel("สั่งซื้อเลย");
-    setButtonKind("message");
-    setButtonValue(`สั่งซื้อ ${p.name}`);
+    setButtons([
+      { label: "สั่งซื้อเลย", kind: "message", value: `สั่งซื้อ ${p.name}` },
+      { label: "รายละเอียด", kind: "message", value: `รายละเอียด ${p.name}` },
+    ]);
+  }
+
+  function updateButton(i: number, patch: Partial<{ label: string; kind: string; value: string }>) {
+    setButtons((cur) => cur.map((b, j) => (j === i ? { ...b, ...patch } : b)));
+  }
+  function addButton() {
+    if (buttons.length >= 3) return;
+    setButtons((cur) => [...cur, { label: "", kind: "message", value: "" }]);
+  }
+  function removeButton(i: number) {
+    setButtons((cur) => cur.filter((_, j) => j !== i));
   }
 
   function askAiCaptions() {
@@ -182,38 +194,68 @@ export function FlexComposer({
             onChange={(e) => setImageUrl(e.target.value)}
             placeholder="https://..."
           />
+          <span className="muted" style={{ fontSize: "0.78rem" }}>
+            แนะนำรูป <strong>อัตราส่วน 20:13</strong> เช่น <strong>1024 × 666 px</strong>{" "}
+            (แนวนอน) — รูปจะถูกครอปให้พอดีอัตโนมัติ ถ้าใช้ขนาดอื่นอาจโดนตัดขอบ
+          </span>
         </label>
-        <div className="row">
-          <label style={{ flex: 2 }}>
-            ปุ่ม (ข้อความบนปุ่ม)
-            <input
-              name="buttonLabel"
-              value={buttonLabel}
-              onChange={(e) => setButtonLabel(e.target.value)}
-              placeholder="เช่น สั่งซื้อเลย"
-            />
-          </label>
-          <label style={{ flex: 1 }}>
-            ปุ่มทำอะไร
-            <select
-              name="buttonKind"
-              value={buttonKind}
-              onChange={(e) => setButtonKind(e.target.value)}
-            >
-              <option value="message">ส่งข้อความ</option>
-              <option value="url">เปิดลิงก์</option>
-            </select>
-          </label>
+
+        <input type="hidden" name="buttons" value={JSON.stringify(buttons)} />
+        <div style={{ marginTop: 4 }}>
+          <span style={{ fontWeight: 500, fontSize: "0.9rem" }}>ปุ่มในการ์ด (สูงสุด 3)</span>
+          <div className="stack-sm" style={{ marginTop: 6 }}>
+            {buttons.map((b, i) => (
+              <div
+                key={i}
+                style={{ border: "0.5px solid #e5e7eb", borderRadius: 8, padding: 8 }}
+              >
+                <div className="row" style={{ gap: 8 }}>
+                  <label style={{ flex: 2, margin: 0 }}>
+                    ข้อความบนปุ่ม
+                    <input
+                      value={b.label}
+                      onChange={(e) => updateButton(i, { label: e.target.value })}
+                      placeholder="เช่น สั่งซื้อเลย"
+                    />
+                  </label>
+                  <label style={{ flex: 1, margin: 0 }}>
+                    ทำอะไร
+                    <select
+                      value={b.kind}
+                      onChange={(e) => updateButton(i, { kind: e.target.value })}
+                    >
+                      <option value="message">ส่งข้อความ</option>
+                      <option value="url">เปิดลิงก์</option>
+                    </select>
+                  </label>
+                </div>
+                <label style={{ margin: "6px 0 0" }}>
+                  {b.kind === "url" ? "ลิงก์ปลายทาง (URL)" : "ข้อความที่ปุ่มจะส่ง"}
+                  <input
+                    value={b.value}
+                    onChange={(e) => updateButton(i, { value: e.target.value })}
+                    placeholder={b.kind === "url" ? "https://..." : "เช่น สั่งซื้ออีบุ๊ก"}
+                  />
+                </label>
+                {buttons.length > 1 ? (
+                  <button
+                    type="button"
+                    className="danger sm"
+                    style={{ marginTop: 6 }}
+                    onClick={() => removeButton(i)}
+                  >
+                    ลบปุ่มนี้
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {buttons.length < 3 ? (
+            <button type="button" className="sm" style={{ marginTop: 8 }} onClick={addButton}>
+              + เพิ่มปุ่ม
+            </button>
+          ) : null}
         </div>
-        <label>
-          {buttonKind === "url" ? "ลิงก์ปลายทาง (URL)" : "ข้อความที่ปุ่มจะส่ง"}
-          <input
-            name="buttonValue"
-            value={buttonValue}
-            onChange={(e) => setButtonValue(e.target.value)}
-            placeholder={buttonKind === "url" ? "https://..." : "เช่น สนใจสั่งอีบุ๊ก"}
-          />
-        </label>
         <label>
           คำที่ให้บอทส่งการ์ดนี้อัตโนมัติ (trigger — เว้นว่างได้)
           <input
@@ -261,12 +303,20 @@ export function FlexComposer({
             <img
               src={imageUrl}
               alt=""
-              style={{ width: "100%", height: 150, objectFit: "cover", display: "block" }}
+              // Match LINE's hero: 20:13 ratio, cover — so the preview crops
+              // exactly like the real card.
+              style={{
+                width: "100%",
+                aspectRatio: "20 / 13",
+                objectFit: "cover",
+                display: "block",
+              }}
             />
           ) : (
             <div
               style={{
-                height: 120,
+                width: "100%",
+                aspectRatio: "20 / 13",
                 background: "#f0f0f0",
                 display: "flex",
                 alignItems: "center",
@@ -275,7 +325,7 @@ export function FlexComposer({
                 fontSize: 13,
               }}
             >
-              รูปการ์ด (ถ้ามี)
+              รูป 20:13 (เช่น 1024×666)
             </div>
           )}
           <div style={{ padding: "14px 16px" }}>
@@ -290,23 +340,26 @@ export function FlexComposer({
                 {priceLabel}
               </div>
             ) : null}
-            {buttonLabel ? (
-              <div
-                style={{
-                  marginTop: 14,
-                  textAlign: "center",
-                  padding: "9px",
-                  borderRadius: 8,
-                  ...(style === "minimal"
-                    ? { border: `1px solid ${theme.accent}`, color: theme.accent }
-                    : { background: theme.accent, color: "#fff" }),
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
-                {buttonLabel}
-              </div>
-            ) : null}
+            {buttons
+              .filter((b) => b.label.trim())
+              .map((b, i) => (
+                <div
+                  key={i}
+                  style={{
+                    marginTop: i === 0 ? 14 : 8,
+                    textAlign: "center",
+                    padding: "9px",
+                    borderRadius: 8,
+                    ...(style === "minimal" || i > 0
+                      ? { border: `1px solid ${theme.accent}`, color: theme.accent }
+                      : { background: theme.accent, color: "#fff" }),
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                >
+                  {b.label}
+                </div>
+              ))}
           </div>
         </div>
       </div>

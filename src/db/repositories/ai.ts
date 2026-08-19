@@ -23,6 +23,7 @@ export async function updateTenantAiSettings(
     replyTone?: string | null;
     replyMode?: string | null;
     emojiLevel?: string | null;
+    botGender?: string | null;
     welcomeImageUrl?: string | null;
     welcomeMessage?: string | null;
     followupCartRecovery?: boolean;
