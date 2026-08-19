@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { listOwnerTenants } from "@/db/repositories/owners";
+import { isAdmin } from "@/features/admin/auth";
 import { getOwnerSession } from "@/features/auth/owner";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,11 @@ export default async function DashboardHome() {
   // Must be signed in — an owner only ever sees their OWN stores (never a global
   // list of every merchant's store, which the old fallback leaked).
   const owner = await getOwnerSession();
-  if (!owner) redirect("/login");
+  if (!owner) {
+    // A platform super-admin manages stores from /admin, not this owner list.
+    if (await isAdmin()) redirect("/admin");
+    redirect("/login");
+  }
   const db = createDbClient();
   const rows = await listOwnerTenants(db, owner.ownerId);
 

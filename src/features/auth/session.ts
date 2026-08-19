@@ -5,6 +5,7 @@ import { createDbClient } from "@/db/client";
 import { claimTenantOwner, getTenantBySlug } from "@/db/repositories/tenants";
 import { signSession, verifySession, type SessionPayload } from "@/lib/session";
 import { roleCan, type Permission, type Role } from "@/features/team/roles";
+import { isAdmin } from "@/features/admin/auth";
 
 import { getOwnerSession } from "./owner";
 
@@ -59,6 +60,20 @@ export async function requireTenantAuth(slug: string): Promise<SessionPayload> {
       tenantSlug: slug,
       role: "OWNER",
       exp: Date.now() + 365 * 24 * 60 * 60 * 1000,
+    };
+  }
+
+  // Platform super-admin (shared DASHBOARD_PASSWORD) can open any store to
+  // support/inspect it — bypasses the ownership check but never claims the store.
+  if (await isAdmin()) {
+    const db = createDbClient();
+    const tenant = await getTenantBySlug(db, slug);
+    return {
+      userId: "",
+      tenantId: tenant?.id ?? "",
+      tenantSlug: slug,
+      role: "OWNER",
+      exp: Date.now() + 24 * 60 * 60 * 1000,
     };
   }
 
