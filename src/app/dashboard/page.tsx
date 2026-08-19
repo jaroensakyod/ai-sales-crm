@@ -1,20 +1,19 @@
-import { asc } from "drizzle-orm";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { listOwnerTenants } from "@/db/repositories/owners";
-import { tenants } from "@/db/schema";
 import { getOwnerSession } from "@/features/auth/owner";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardHome() {
-  const db = createDbClient();
+  // Must be signed in — an owner only ever sees their OWN stores (never a global
+  // list of every merchant's store, which the old fallback leaked).
   const owner = await getOwnerSession();
-  // Signed-in owners see only their own stores; otherwise (open/demo mode) all.
-  const rows = owner
-    ? await listOwnerTenants(db, owner.ownerId)
-    : await db.select().from(tenants).orderBy(asc(tenants.name));
+  if (!owner) redirect("/login");
+  const db = createDbClient();
+  const rows = await listOwnerTenants(db, owner.ownerId);
 
   return (
     <>
@@ -44,8 +43,7 @@ export default async function DashboardHome() {
         <p className="muted">เลือกร้านเพื่อเข้าไปจัดการแดชบอร์ด</p>
         {rows.length === 0 ? (
           <p className="muted">
-            ยังไม่มีร้าน — กด “เปิดร้านใหม่” หรือรัน <code className="url">npm run db:seed</code>{" "}
-            เพื่อสร้างร้านตัวอย่าง
+            ยังไม่มีร้าน — กด “เปิดร้านใหม่” เพื่อเริ่มต้นใช้งานได้เลย
           </p>
         ) : (
           <div className="action-grid">

@@ -132,20 +132,24 @@ export async function createStoreAction(formData: FormData) {
   )[];
   const dpa = formData.get("dpa") === "on";
 
+  // Must be signed in to create a store — otherwise anyone could spam orphan
+  // (unowned) stores, and the new store would belong to no one.
+  const owner = await getOwnerSession();
+  if (!owner) redirect("/login");
+
   if (!name || !slug || !dpa) {
     redirect("/dashboard/new?error=missing");
   }
 
   const h = await headers();
   const db = createDbClient();
-  const owner = await getOwnerSession();
   let created = false;
   try {
     await createStore(db, {
       name,
       slug,
       businessTypes,
-      ownerId: owner?.ownerId ?? null,
+      ownerId: owner.ownerId,
       ip: h.get("x-forwarded-for") ?? undefined,
       userAgent: h.get("user-agent") ?? undefined,
     });

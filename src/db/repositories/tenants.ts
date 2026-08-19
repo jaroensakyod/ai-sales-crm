@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
 import { tenants, users } from "@/db/schema";
@@ -14,6 +14,20 @@ export async function createTenant(
 export async function getTenantBySlug(db: DbClient, slug: string) {
   const [row] = await db.select().from(tenants).where(eq(tenants.slug, slug));
   return row ?? null;
+}
+
+/** Claim an orphan store (ownerId null) for an owner — used when a logged-in
+ *  owner first opens a store that predates ownership. Only sets it when still
+ *  unowned, so it can never steal a store that already has an owner. */
+export async function claimTenantOwner(
+  db: DbClient,
+  tenantId: string,
+  ownerId: string,
+) {
+  await db
+    .update(tenants)
+    .set({ ownerId, updatedAt: new Date() })
+    .where(and(eq(tenants.id, tenantId), isNull(tenants.ownerId)));
 }
 
 export async function updateTenant(

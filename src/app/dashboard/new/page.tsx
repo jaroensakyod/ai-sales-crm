@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { getOwnerSession } from "@/features/auth/owner";
 
 import { createStoreAction } from "../actions";
 
@@ -9,6 +12,7 @@ export default async function NewStorePage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  if (!(await getOwnerSession())) redirect("/login");
   const { error } = await searchParams;
   return (
     <>
