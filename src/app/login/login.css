@@ -17,3 +17,7 @@
 
 .login-alt { display: block; margin-top: 14px; font-size: 14px; color: var(--primary); font-weight: 600; }
 .login-fine { margin: 22px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+
+.login-email { display: flex; flex-direction: column; gap: 10px; }
+.login-email input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 15px; }
+.login-email input:focus { outline: none; border-color: var(--primary); }

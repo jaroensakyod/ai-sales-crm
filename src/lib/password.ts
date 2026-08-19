@@ -1,22 +1,27 @@
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 
-/**
- * Password hashing with scrypt (built-in, no dependency).
- * Format: scrypt$<saltHex>$<hashHex>
- */
+// Password hashing with Node's built-in scrypt (no external dependency). Format:
+// "<saltHex>:<hashHex>". scrypt is memory-hard and a sound choice for passwords.
+
 const KEYLEN = 64;
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(password, salt, KEYLEN);
-  return `scrypt$${salt.toString("hex")}$${hash.toString("hex")}`;
+  return `${salt.toString("hex")}:${hash.toString("hex")}`;
 }
 
 export function verifyPassword(password: string, stored: string): boolean {
-  const parts = stored.split("$");
-  if (parts.length !== 3 || parts[0] !== "scrypt") return false;
-  const salt = Buffer.from(parts[1], "hex");
-  const expected = Buffer.from(parts[2], "hex");
-  const actual = scryptSync(password, salt, expected.length);
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
+  const [saltHex, hashHex] = stored.split(":");
+  if (!saltHex || !hashHex) return false;
+  let salt: Buffer;
+  let expected: Buffer;
+  try {
+    salt = Buffer.from(saltHex, "hex");
+    expected = Buffer.from(hashHex, "hex");
+  } catch {
+    return false;
+  }
+  const actual = scryptSync(password, salt, KEYLEN);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }

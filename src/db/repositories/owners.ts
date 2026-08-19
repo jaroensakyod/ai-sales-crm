@@ -5,6 +5,36 @@ import { owners, tenants } from "@/db/schema";
 
 type Provider = "LINE" | "FACEBOOK";
 
+/** Look up an email/password owner by email (providerId = lowercased email). */
+export async function getEmailOwner(db: DbClient, email: string) {
+  const [row] = await db
+    .select()
+    .from(owners)
+    .where(
+      and(eq(owners.provider, "EMAIL"), eq(owners.providerId, email.toLowerCase())),
+    );
+  return row ?? null;
+}
+
+/** Create an email/password owner. Caller hashes the password first. */
+export async function createEmailOwner(
+  db: DbClient,
+  input: { email: string; passwordHash: string; displayName?: string },
+) {
+  const email = input.email.toLowerCase();
+  const [row] = await db
+    .insert(owners)
+    .values({
+      provider: "EMAIL",
+      providerId: email,
+      email,
+      displayName: input.displayName ?? email,
+      passwordHash: input.passwordHash,
+    })
+    .returning();
+  return row;
+}
+
 export type SocialProfile = {
   provider: Provider;
   providerId: string;
