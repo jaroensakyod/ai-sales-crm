@@ -1,35 +1,32 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { listReviews, REVIEW_CAP } from "@/db/repositories/reviews";
 import { getTenantBySlug } from "@/db/repositories/tenants";
-import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 
 import { addReviewAction, deleteReviewAction } from "../../actions";
-import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReviewsPage({
-  params,
-  searchParams,
+/** Content only (no Shell) — rendered inside the combined /marketing page. */
+export async function ReviewsSection({
+  slug,
+  ok,
+  error,
 }: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  slug: string;
+  ok?: string;
+  error?: string;
 }) {
-  const { slug } = await params;
-  const { ok, error } = await searchParams;
-  const session = await requireTenantAuth(slug);
-  await requirePermission(session, "edit_sales");
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) notFound();
+  if (!tenant) return null;
 
   const reviews = await listReviews(db, tenant.id);
   const full = reviews.length >= REVIEW_CAP;
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
+    <>
       <h1>รีวิวลูกค้า</h1>
       <p className="muted">
         อัปโหลดรูปรีวิว/แคปหน้าจอ — บอทจะส่งให้ลูกค้าเมื่อถามหารีวิว ·{" "}
@@ -103,6 +100,16 @@ export default async function ReviewsPage({
           </button>
         </form>
       )}
-    </Shell>
+    </>
   );
+}
+
+/** Old standalone route → now merged into /marketing. */
+export default async function ReviewsPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  redirect(`/dashboard/${slug}/marketing`);
 }

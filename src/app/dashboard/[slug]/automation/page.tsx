@@ -1,9 +1,8 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { listRules } from "@/db/repositories/automation";
 import { getTenantBySlug } from "@/db/repositories/tenants";
-import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 import { TRIGGER_LABELS, type Action, type Trigger } from "@/features/automation/types";
 
 import {
@@ -11,26 +10,19 @@ import {
   deleteAutomationAction,
   toggleAutomationAction,
 } from "../../actions";
-import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
 
-export default async function AutomationPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-  const session = await requireTenantAuth(slug);
-  await requirePermission(session, "manage_settings");
+/** Content only (no Shell) — rendered inside the combined /ai-tools page. */
+export async function AutomationSection({ slug }: { slug: string }) {
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) notFound();
+  if (!tenant) return null;
 
   const rules = await listRules(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
+    <>
       <h1>ระบบอัตโนมัติ</h1>
       <p className="muted">
         ตั้งกฎ “เมื่อเกิดเหตุการณ์ → ส่งข้อความติดตามอัตโนมัติ” (ส่งตามกฎ 24 ชม.ของ Meta)
@@ -137,6 +129,16 @@ export default async function AutomationPage({
           เพิ่มกฎ
         </button>
       </form>
-    </Shell>
+    </>
   );
+}
+
+/** Old standalone route → now merged into /ai-tools. */
+export default async function AutomationPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  redirect(`/dashboard/${slug}/ai-tools`);
 }

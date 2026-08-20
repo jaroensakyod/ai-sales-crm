@@ -1,34 +1,27 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { listPromotions } from "@/db/repositories/promotions";
 import { getTenantBySlug } from "@/db/repositories/tenants";
-import { requireTenantAuth } from "@/features/auth/session";
 
 import {
   createPromotionAction,
   deletePromotionAction,
   togglePromotionAction,
 } from "../../actions";
-import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
 
-export default async function PromotionsPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-  const session = await requireTenantAuth(slug);
+/** Content only (no Shell) — rendered inside the combined /marketing page. */
+export async function PromotionsSection({ slug }: { slug: string }) {
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) notFound();
+  if (!tenant) return null;
 
   const promos = await listPromotions(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
+    <>
       <h1>โปรโมชั่น</h1>
       <p className="muted">
         โปรที่เปิดอยู่ AI จะเสนอให้ลูกค้าเองในแชท
@@ -111,6 +104,16 @@ export default async function PromotionsPage({
           เพิ่มโปรโมชั่น
         </button>
       </form>
-    </Shell>
+    </>
   );
+}
+
+/** Old standalone route → now merged into /marketing. */
+export default async function PromotionsPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  redirect(`/dashboard/${slug}/marketing`);
 }

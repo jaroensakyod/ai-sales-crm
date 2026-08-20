@@ -195,7 +195,10 @@ export default async function SettingsPage({
         </form>
 
         <h2>ตั้งค่าผู้ช่วยขาย AI</h2>
-        <div className="card" style={{ background: "#f7fbff", borderColor: "#cfe4ff" }}>
+        <div
+          className="card"
+          style={{ background: "#f7fbff", borderColor: "#cfe4ff", color: "#1e3a5f" }}
+        >
           <strong>อยากให้ AI ตอบเก่งขึ้น? ทำ 4 อย่างนี้ 👇</strong>
           <ol style={{ margin: "8px 0 0", paddingLeft: 18, lineHeight: 1.7 }}>
             <li>
@@ -215,7 +218,7 @@ export default async function SettingsPage({
               และโปรโมชั่นปัจจุบัน
             </li>
           </ol>
-          <p className="muted" style={{ margin: "8px 0 0", fontSize: "0.82rem" }}>
+          <p style={{ margin: "8px 0 0", fontSize: "0.82rem", color: "#4a6a8a" }}>
             หมายเหตุ: AI จะไม่ส่งเลขบัญชีเอง — ลูกค้าต้องกดปุ่ม “ยืนยันสั่งซื้อ” ก่อน
             ระบบถึงส่งข้อมูลการโอนให้ (กันบอทพ่นเลขบัญชีมั่ว)
           </p>

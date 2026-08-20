@@ -1,34 +1,32 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { listOpenGaps } from "@/db/repositories/gaps";
 import { getTenantBySlug } from "@/db/repositories/tenants";
-import { requireTenantAuth } from "@/features/auth/session";
 import { hasGeminiApiKey } from "@/lib/env";
 
 import { answerGapAction } from "../../actions";
-import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
 
-export default async function GapsPage({
-  params,
-  searchParams,
+/** Content only (no Shell) — rendered inside the combined /ai-tools page. */
+export async function GapsSection({
+  slug,
+  ok,
+  error,
 }: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  slug: string;
+  ok?: string;
+  error?: string;
 }) {
-  const { slug } = await params;
-  const { ok, error } = await searchParams;
-  const session = await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) notFound();
+  if (!tenant) return null;
 
   const gaps = await listOpenGaps(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
+    <>
       <h1>Knowledge Gap Inbox</h1>
         <p className="muted">
           คำถามที่ AI ตอบไม่ได้ ตอบครั้งเดียวแล้วระบบจะเรียนรู้ (เพิ่มเข้าคลังความรู้อัตโนมัติ)
@@ -66,6 +64,16 @@ export default async function GapsPage({
             </form>
           ))
         )}
-    </Shell>
+    </>
   );
+}
+
+/** Old standalone route → now merged into /ai-tools. */
+export default async function GapsPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  redirect(`/dashboard/${slug}/ai-tools`);
 }

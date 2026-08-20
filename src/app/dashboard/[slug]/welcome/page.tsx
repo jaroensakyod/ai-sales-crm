@@ -1,34 +1,30 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { getTenantAiSettings } from "@/db/repositories/ai";
 import { getTenantBySlug } from "@/db/repositories/tenants";
-import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 
 import { clearWelcomeBannerAction, saveWelcomeBannerAction } from "../../actions";
-import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
 
-export default async function WelcomePage({
-  params,
-  searchParams,
+/** Content only (no Shell) — rendered inside the combined /marketing page. */
+export async function WelcomeSection({
+  slug,
+  ok,
+  error,
 }: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  slug: string;
+  ok?: string;
+  error?: string;
 }) {
-  const { slug } = await params;
-  const { ok, error } = await searchParams;
-  const session = await requireTenantAuth(slug);
-  await requirePermission(session, "edit_sales");
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) notFound();
-
+  if (!tenant) return null;
   const settings = await getTenantAiSettings(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
+    <>
       <h1>หน้าต้อนรับ / โปรโมท</h1>
       <p className="muted">
         ตั้งรูปโปรโมทไว้ — พอลูกค้าทักแรกด้วยคำว่า “สวัสดี” หรือถาม “มีสินค้าอะไรบ้าง”
@@ -85,6 +81,16 @@ export default async function WelcomePage({
           บันทึก
         </button>
       </form>
-    </Shell>
+    </>
   );
+}
+
+/** Old standalone route → now merged into /marketing. */
+export default async function WelcomePage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  redirect(`/dashboard/${slug}/marketing`);
 }

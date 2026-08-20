@@ -251,7 +251,7 @@ export async function answerGapAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
 
   if (!hasGeminiApiKey()) {
-    redirect(`/dashboard/${slug}/gaps?error=nokey`);
+    redirect(`/dashboard/${slug}/ai-tools?error=nokey`);
   }
   let ok = false;
   try {
@@ -259,7 +259,7 @@ export async function answerGapAction(formData: FormData) {
   } catch {
     // ingest failed
   }
-  redirect(`/dashboard/${slug}/gaps?${ok ? "ok=1" : "error=1"}`);
+  redirect(`/dashboard/${slug}/ai-tools?${ok ? "ok=1" : "error=1"}`);
 }
 
 export async function changePlanAction(formData: FormData) {
@@ -425,7 +425,7 @@ export async function addReviewAction(formData: FormData) {
   const authorName = String(formData.get("authorName") ?? "");
   const file = formData.get("image");
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
-  const base = `/dashboard/${slug}/reviews`;
+  const base = `/dashboard/${slug}/marketing`;
 
   let imageUrl: string | null = null;
   if (file instanceof File && file.size > 0) {
@@ -449,7 +449,7 @@ export async function deleteReviewAction(formData: FormData) {
   const id = String(formData.get("reviewId") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deleteReview(db, tenant.id, id);
-  redirect(`/dashboard/${slug}/reviews?ok=deleted`);
+  redirect(`/dashboard/${slug}/marketing?ok=deleted`);
 }
 
 // ---- Welcome / promo banner ----------------------------------------------
@@ -462,7 +462,7 @@ export async function saveWelcomeBannerAction(formData: FormData) {
   const message = String(formData.get("message") ?? "").trim();
   const file = formData.get("image");
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
-  const base = `/dashboard/${slug}/welcome`;
+  const base = `/dashboard/${slug}/marketing`;
 
   const update: { welcomeMessage: string | null; welcomeImageUrl?: string } = {
     welcomeMessage: message || null,
@@ -488,7 +488,7 @@ export async function clearWelcomeBannerAction(formData: FormData) {
     welcomeImageUrl: null,
     welcomeMessage: null,
   });
-  redirect(`/dashboard/${slug}/welcome?ok=cleared`);
+  redirect(`/dashboard/${slug}/marketing?ok=cleared`);
 }
 
 export async function addVariantAction(formData: FormData) {
@@ -588,7 +588,7 @@ export async function createPromotionAction(formData: FormData) {
       value,
     });
   }
-  redirect(`/dashboard/${slug}/promotions`);
+  redirect(`/dashboard/${slug}/marketing`);
 }
 
 export async function togglePromotionAction(formData: FormData) {
@@ -596,7 +596,7 @@ export async function togglePromotionAction(formData: FormData) {
   const id = String(formData.get("promotionId") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await togglePromotion(db, tenant.id, id);
-  redirect(`/dashboard/${slug}/promotions`);
+  redirect(`/dashboard/${slug}/marketing`);
 }
 
 export async function deletePromotionAction(formData: FormData) {
@@ -604,7 +604,7 @@ export async function deletePromotionAction(formData: FormData) {
   const id = String(formData.get("promotionId") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deletePromotion(db, tenant.id, id);
-  redirect(`/dashboard/${slug}/promotions`);
+  redirect(`/dashboard/${slug}/marketing`);
 }
 
 export async function updateAiSettingsAction(formData: FormData) {
@@ -722,7 +722,7 @@ export async function createTagAction(formData: FormData) {
   if (name && guidance && keywords.length > 0) {
     await createTag(db, tenant.id, { name, keywords, guidance });
   }
-  redirect(`/dashboard/${slug}/tags`);
+  redirect(`/dashboard/${slug}/ai-tools`);
 }
 
 export async function addPresetTagAction(formData: FormData) {
@@ -737,7 +737,7 @@ export async function addPresetTagAction(formData: FormData) {
       guidance: preset.guidance,
     });
   }
-  redirect(`/dashboard/${slug}/tags`);
+  redirect(`/dashboard/${slug}/ai-tools`);
 }
 
 export async function toggleTagAction(formData: FormData) {
@@ -745,7 +745,7 @@ export async function toggleTagAction(formData: FormData) {
   const id = String(formData.get("tagId") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   await toggleTag(db, tenant.id, id);
-  redirect(`/dashboard/${slug}/tags`);
+  redirect(`/dashboard/${slug}/ai-tools`);
 }
 
 export async function deleteTagAction(formData: FormData) {
@@ -753,7 +753,7 @@ export async function deleteTagAction(formData: FormData) {
   const id = String(formData.get("tagId") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   await deleteTag(db, tenant.id, id);
-  redirect(`/dashboard/${slug}/tags`);
+  redirect(`/dashboard/${slug}/ai-tools`);
 }
 
 export async function createAutomationAction(formData: FormData) {
@@ -780,7 +780,7 @@ export async function createAutomationAction(formData: FormData) {
       action: { type: "SCHEDULE_FOLLOWUP", delayHours, message, category },
     });
   }
-  redirect(`/dashboard/${slug}/automation`);
+  redirect(`/dashboard/${slug}/ai-tools`);
 }
 
 export async function toggleAutomationAction(formData: FormData) {
@@ -788,7 +788,7 @@ export async function toggleAutomationAction(formData: FormData) {
   const id = String(formData.get("ruleId") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   await toggleRule(db, tenant.id, id);
-  redirect(`/dashboard/${slug}/automation`);
+  redirect(`/dashboard/${slug}/ai-tools`);
 }
 
 export async function deleteAutomationAction(formData: FormData) {
@@ -796,7 +796,7 @@ export async function deleteAutomationAction(formData: FormData) {
   const id = String(formData.get("ruleId") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   await deleteRule(db, tenant.id, id);
-  redirect(`/dashboard/${slug}/automation`);
+  redirect(`/dashboard/${slug}/ai-tools`);
 }
 
 // ---- Booking -------------------------------------------------------------

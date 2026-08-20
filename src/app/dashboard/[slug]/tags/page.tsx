@@ -1,9 +1,8 @@
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { listTags } from "@/db/repositories/tags";
 import { getTenantBySlug } from "@/db/repositories/tenants";
-import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 
 import { PRESET_TAGS } from "@/features/tags/presets";
 
@@ -13,26 +12,19 @@ import {
   deleteTagAction,
   toggleTagAction,
 } from "../../actions";
-import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
 
-export default async function TagsPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
-  const session = await requireTenantAuth(slug);
-  await requirePermission(session, "manage_settings");
+/** Content only (no Shell) — rendered inside the combined /ai-tools page. */
+export async function TagsSection({ slug }: { slug: string }) {
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
-  if (!tenant) notFound();
+  if (!tenant) return null;
 
   const tags = await listTags(db, tenant.id);
 
   return (
-    <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
+    <>
       <h1>แท็กคุมคำตอบ AI (Tag + RAG)</h1>
       <p className="muted">
         เมื่อข้อความลูกค้าตรงกับ “คำที่จับ” ระบบจะบังคับให้ AI ตอบตาม “แนวทาง” ที่ตั้งไว้
@@ -131,6 +123,16 @@ export default async function TagsPage({
           เพิ่มแท็ก
         </button>
       </form>
-    </Shell>
+    </>
   );
+}
+
+/** Old standalone route → now merged into /ai-tools. */
+export default async function TagsPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  redirect(`/dashboard/${slug}/ai-tools`);
 }
