@@ -7,6 +7,7 @@ import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 import { getEntitlements } from "@/features/billing/entitlements";
 
 import { createCourseAction, deleteCourseAction } from "../../actions";
+import { KnowledgeSection } from "../_components/knowledge-section";
 import { Shell } from "../_components/shell";
 import { UpgradeNotice } from "../_components/upgrade-notice";
 
@@ -21,10 +22,13 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default async function CoursesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
   const { slug } = await params;
+  const { ok, error } = await searchParams;
   const session = await requireTenantAuth(slug);
   await requirePermission(session, "edit_sales");
   const db = createDbClient();
@@ -173,6 +177,7 @@ export default async function CoursesPage({
           </table>
         </div>
       )}
+      <KnowledgeSection slug={slug} tenantId={tenant.id} category="course" back="courses" label="คอร์ส" ok={ok} error={error} />
     </Shell>
   );
 }

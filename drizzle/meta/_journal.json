@@ -183,6 +183,13 @@
       "when": 1787137079674,
       "tag": "0025_good_doctor_strange",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1787194745278,
+      "tag": "0026_strange_richard_fisk",
+      "breakpoints": true
     }
   ]
 }

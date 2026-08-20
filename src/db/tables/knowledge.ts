@@ -32,6 +32,9 @@ export const knowledgeDocuments = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: tenantId(),
     title: text("title").notNull(),
+    // Which part of the shop this knowledge is for — the dashboard shows each
+    // category on its own feature page. RAG search still spans all categories.
+    category: text("category").notNull().default("general"),
     sourceType: knowledgeSourceTypeEnum("source_type").notNull(),
     sourceUrl: text("source_url"),
     status: knowledgeStatusEnum("status").notNull().default("PROCESSING"),

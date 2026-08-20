@@ -12,6 +12,7 @@ import {
   deleteServiceAction,
   setAppointmentStatusAction,
 } from "../../actions";
+import { KnowledgeSection } from "../_components/knowledge-section";
 import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
@@ -202,6 +203,7 @@ export default async function BookingPage({
           </button>
         </form>
       )}
+      <KnowledgeSection slug={slug} tenantId={tenant.id} category="booking" back="booking" label="จองคิว" ok={ok} error={error} />
     </Shell>
   );
 }

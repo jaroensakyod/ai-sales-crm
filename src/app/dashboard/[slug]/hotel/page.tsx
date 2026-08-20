@@ -11,6 +11,7 @@ import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 import { getEntitlements } from "@/features/billing/entitlements";
 
 import { createRoomAction, deleteRoomAction } from "../../actions";
+import { KnowledgeSection } from "../_components/knowledge-section";
 import { Shell } from "../_components/shell";
 import { UpgradeNotice } from "../_components/upgrade-notice";
 
@@ -44,10 +45,10 @@ export default async function HotelPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; ok?: string; error?: string }>;
 }) {
   const { slug } = await params;
-  const { date } = await searchParams;
+  const { date, ok, error } = await searchParams;
   const session = await requireTenantAuth(slug);
   await requirePermission(session, "edit_sales");
   const db = createDbClient();
@@ -246,6 +247,7 @@ export default async function HotelPage({
           </table>
         </div>
       )}
+      <KnowledgeSection slug={slug} tenantId={tenant.id} category="hotel" back="hotel" label="โรงแรม" ok={ok} error={error} />
     </Shell>
   );
 }

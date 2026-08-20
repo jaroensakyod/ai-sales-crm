@@ -71,6 +71,7 @@ export async function ingestKnowledge(
     title: string;
     text: string;
     sourceType?: (typeof knowledgeDocuments.sourceType.enumValues)[number];
+    category?: string;
   },
   deps: { embed?: EmbedFn } = {},
 ): Promise<{ documentId: string; chunkCount: number }> {
@@ -78,6 +79,7 @@ export async function ingestKnowledge(
   const doc = await createKnowledgeDocument(db, tenantId, {
     title: input.title,
     sourceType: input.sourceType ?? "TEXT",
+    category: input.category ?? "general",
   });
 
   try {

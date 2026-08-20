@@ -4,21 +4,17 @@ import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { getTenantAiSettings } from "@/db/repositories/ai";
-import { listKnowledgeDocuments } from "@/db/repositories/knowledge";
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { channels } from "@/db/schema";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 import { TONE_OPTIONS } from "@/features/ai/tone";
 import { EMOJI_LEVELS, REPLY_MODES } from "@/features/ai/reply-mode";
-import { hasGeminiApiKey } from "@/lib/env";
 
 import {
-  addKnowledgeAction,
   connectFacebookAction,
   connectInstagramAction,
   connectLineAction,
-  deleteKnowledgeAction,
   updateAiSettingsAction,
   updatePaymentSettingsAction,
   updateStoreInfoAction,
@@ -59,7 +55,6 @@ export default async function SettingsPage({
     .from(channels)
     .where(eq(channels.tenantId, tenant.id));
   const aiSettings = await getTenantAiSettings(db, tenant.id);
-  const knowledgeDocs = await listKnowledgeDocuments(db, tenant.id);
   const pay = await getPaymentSettings(db, tenant.id);
 
   const h = await headers();
@@ -210,8 +205,8 @@ export default async function SettingsPage({
               PDF / เล่มปกแข็ง) ระบบจะให้ลูกค้าเลือกและออกออเดอร์ตามราคาที่ตั้งไว้
             </li>
             <li>
-              เพิ่ม <strong>“คลังความรู้”</strong> ด้านล่างสำหรับคำถามที่ถามบ่อย (นโยบายส่ง
-              การรับประกัน วิธีสั่ง ฯลฯ)
+              เพิ่ม <strong>“คลังความรู้”</strong> ในแต่ละหน้าฟังก์ชั่น (สินค้า/คอร์ส ฯลฯ)
+              สำหรับคำถามที่ถามบ่อย (นโยบายส่ง การรับประกัน วิธีสั่ง ฯลฯ)
             </li>
             <li>
               เขียน <strong>“ข้อมูล/คำแนะนำเพิ่มเติม”</strong> ด้านล่างให้ AI รู้สไตล์ร้าน
@@ -446,63 +441,6 @@ export default async function SettingsPage({
           </label>
           <button type="submit" style={{ marginTop: 12 }}>
             เชื่อม Instagram
-          </button>
-        </form>
-
-        <h2>คลังความรู้ (AI ใช้ค้นตอบ FAQ)</h2>
-        {knowledgeDocs.length === 0 ? (
-          <p className="muted">ยังไม่มีคลังความรู้ — เพิ่มด้านล่าง</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>หัวข้อ</th>
-                  <th>สถานะ</th>
-                  <th>ชิ้นข้อมูล</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {knowledgeDocs.map((d) => (
-                  <tr key={d.id}>
-                    <td>{d.title}</td>
-                    <td>
-                      <span className="badge open">{d.status}</span>
-                    </td>
-                    <td>{d.chunkCount}</td>
-                    <td>
-                      <form action={deleteKnowledgeAction}>
-                        <input type="hidden" name="slug" value={slug} />
-                        <input type="hidden" name="documentId" value={d.id} />
-                        <button type="submit" className="danger sm">
-                          ลบ
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <h2>เพิ่มความรู้ใหม่</h2>
-        {!hasGeminiApiKey() ? (
-          <p className="muted">ต้องตั้งค่า GEMINI_API_KEY ก่อนจึงจะอัปโหลดได้</p>
-        ) : null}
-        <form action={addKnowledgeAction} className="card">
-          <input type="hidden" name="slug" value={slug} />
-          <label>
-            หัวข้อ
-            <input name="title" required placeholder="เช่น นโยบายจัดส่ง" />
-          </label>
-          <label>
-            เนื้อหา (วางข้อความ FAQ/นโยบายร้าน)
-            <textarea name="text" rows={6} required />
-          </label>
-          <button type="submit" style={{ marginTop: 12 }}>
-            เพิ่มความรู้
           </button>
         </form>
     </Shell>

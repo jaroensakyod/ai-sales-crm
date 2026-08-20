@@ -11,6 +11,7 @@ import {
   deleteProductAction,
   updateProductAction,
 } from "../../actions";
+import { KnowledgeSection } from "../_components/knowledge-section";
 import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
@@ -20,10 +21,10 @@ export default async function ProductsPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ ok?: string }>;
+  searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
   const { slug } = await params;
-  const { ok } = await searchParams;
+  const { ok, error } = await searchParams;
   const session = await requireTenantAuth(slug);
   const db = createDbClient();
   const tenant = await getTenantBySlug(db, slug);
@@ -165,6 +166,7 @@ export default async function ProductsPage({
           เพิ่มสินค้า
         </button>
       </form>
+      <KnowledgeSection slug={slug} tenantId={tenant.id} category="product" back="products" label="สินค้า" ok={ok} error={error} />
     </Shell>
   );
 }

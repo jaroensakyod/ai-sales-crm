@@ -215,33 +215,45 @@ export async function connectInstagramAction(formData: FormData) {
   redirect(`/dashboard/${slug}/settings?${ok ? "ok=ig" : "error=ig"}`);
 }
 
+// Knowledge lives on each feature page now (products/booking/hotel/courses).
+// `back` is the route segment to return to; `category` tags the document so each
+// page shows only its own knowledge (RAG still searches across all categories).
+const KNOWLEDGE_ROUTES = new Set(["products", "booking", "hotel", "courses"]);
+function knowledgeBack(slug: string, back: string): string {
+  const seg = KNOWLEDGE_ROUTES.has(back) ? back : "products";
+  return `/dashboard/${slug}/${seg}`;
+}
+
 export async function addKnowledgeAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const title = String(formData.get("title") ?? "").trim();
   const text = String(formData.get("text") ?? "").trim();
-  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  const category = String(formData.get("category") ?? "general").trim() || "general";
+  const back = knowledgeBack(slug, String(formData.get("back") ?? "products"));
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
 
   if (!hasGeminiApiKey()) {
-    redirect(`/dashboard/${slug}/settings?error=nokey`);
+    redirect(`${back}?error=nokey`);
   }
   let ok = false;
   try {
     if (title && text) {
-      await ingestKnowledge(db, tenant.id, { title, text });
+      await ingestKnowledge(db, tenant.id, { title, text, category });
       ok = true;
     }
   } catch {
     // embedding/ingest failed
   }
-  redirect(`/dashboard/${slug}/settings?${ok ? "ok=knowledge" : "error=knowledge"}`);
+  redirect(`${back}?${ok ? "ok=knowledge" : "error=knowledge"}`);
 }
 
 export async function deleteKnowledgeAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const documentId = String(formData.get("documentId") ?? "");
-  const { db, tenant } = await tenantForSlug(slug, "manage_settings");
+  const back = knowledgeBack(slug, String(formData.get("back") ?? "products"));
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   await deleteKnowledgeDocument(db, tenant.id, documentId);
-  redirect(`/dashboard/${slug}/settings?ok=knowledge-deleted`);
+  redirect(`${back}?ok=knowledge-deleted`);
 }
 
 export async function answerGapAction(formData: FormData) {

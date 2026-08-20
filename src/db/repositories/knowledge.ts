@@ -3,7 +3,11 @@ import { and, cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
 import type { DbClient } from "@/db/client";
 import { knowledgeChunks, knowledgeDocuments } from "@/db/schema";
 
-export async function listKnowledgeDocuments(db: DbClient, tenantId: string) {
+export async function listKnowledgeDocuments(
+  db: DbClient,
+  tenantId: string,
+  category?: string,
+) {
   return db
     .select({
       id: knowledgeDocuments.id,
@@ -17,7 +21,14 @@ export async function listKnowledgeDocuments(db: DbClient, tenantId: string) {
       )`,
     })
     .from(knowledgeDocuments)
-    .where(eq(knowledgeDocuments.tenantId, tenantId))
+    .where(
+      category
+        ? and(
+            eq(knowledgeDocuments.tenantId, tenantId),
+            eq(knowledgeDocuments.category, category),
+          )
+        : eq(knowledgeDocuments.tenantId, tenantId),
+    )
     .orderBy(desc(knowledgeDocuments.createdAt));
 }
 
@@ -44,6 +55,7 @@ export async function createKnowledgeDocument(
     title: string;
     sourceType: (typeof knowledgeDocuments.sourceType.enumValues)[number];
     sourceUrl?: string;
+    category?: string;
   },
 ) {
   const [row] = await db
