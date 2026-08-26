@@ -1,4 +1,5 @@
 import type { DbClient } from "@/db/client";
+import { getTenantAiSettings } from "@/db/repositories/ai";
 import { getLineChannelContext } from "@/db/repositories/line";
 import { decryptSecret } from "@/lib/crypto";
 import {
@@ -144,6 +145,32 @@ export async function processLineWebhook(
 
   for (const event of events) {
     const userId = event.source?.userId;
+
+    // New friend added the OA → greet immediately with a big welcome Flex card
+    // (built from the shop's welcome image + message). This fires on the LINE
+    // "follow" event, before any message — no need for the customer to say "สวัสดี".
+    if (event.type === "follow" && userId && event.replyToken) {
+      const s = await getTenantAiSettings(db, tenantId);
+      const welcomeText = s?.welcomeMessage?.trim();
+      if (welcomeText || s?.welcomeImageUrl) {
+        const card: MessageCard = {
+          kind: "custom_flex",
+          imageUrl: s?.welcomeImageUrl ?? null,
+          headline: "ยินดีต้อนรับค่ะ 🎉",
+          body: welcomeText || undefined,
+          style: "promo",
+          actions: [],
+          fallback: welcomeText || "ยินดีต้อนรับค่ะ 🎉",
+        };
+        await getReplyCard()(event.replyToken, card);
+        processed++;
+        replied++;
+      } else {
+        skipped++;
+      }
+      continue;
+    }
+
     const fromUser = event.type === "message" && event.source?.type === "user";
     const isText = fromUser && event.message?.type === "text";
     const isImage = fromUser && event.message?.type === "image";
