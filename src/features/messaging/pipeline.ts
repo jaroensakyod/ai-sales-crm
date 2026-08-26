@@ -101,20 +101,34 @@ const BACK_TO_AI: QuickReply = {
 function productCarousel(
   products: Awaited<ReturnType<typeof loadProducts>>,
 ): MessageCard {
-  const cards = products.slice(0, 10).map((p) => ({
+  const cards = products.slice(0, 10).map((p) => {
+    // Show the variant options (สี/ไซซ์/รุ่น) right on the card, each with its own
+    // price, so the customer sees the choices without asking.
+    const variantLines = (p.variants ?? [])
+      .map((v) => {
+        const vp =
+          v.price != null
+            ? ` — ${Number(v.price).toLocaleString("th-TH")} บาท`
+            : "";
+        return `• ${v.name}${vp}`;
+      })
+      .join("\n");
+    const body = [p.description ?? "", variantLines].filter(Boolean).join("\n") || undefined;
+    return {
     kind: "custom_flex" as const,
     imageUrl: p.imageUrl ?? null,
     headline: p.name,
-    // Include the product description so the auto catalog looks the same as a
-    // merchant-built carousel (both show info) — no more "one has text, one doesn't".
-    body: p.description ?? undefined,
+    // Description + variant options so the auto catalog matches a merchant-built
+    // carousel (both show info) — no more "one has text, one doesn't".
+    body,
     priceLabel: p.price
       ? `เพียง ${Number(p.price).toLocaleString("th-TH")} บาท`
       : undefined,
     style: "plain" as const,
     actions: [{ label: "สั่งซื้อเลย", text: `สั่งซื้อ ${p.name}` }],
     fallback: p.name,
-  }));
+    };
+  });
   return {
     kind: "carousel",
     cards,
