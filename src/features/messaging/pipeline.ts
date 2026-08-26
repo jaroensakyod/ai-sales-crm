@@ -413,6 +413,15 @@ export async function handleInboundText(
         await recordOutboundMessage(db, args.tenantId, conversation.id, {
           body: `[ส่งการ์ดสินค้า] ${product.name}`,
         });
+        // Send the detailed product knowledge as a SEPARATE bubble (kept off the
+        // card so the card stays compact) — the "รายละเอียดส่งแยก" behaviour.
+        const detail = product.aiKnowledge?.trim();
+        if (detail) {
+          await args.send(args.externalId, detail);
+          await recordOutboundMessage(db, args.tenantId, conversation.id, {
+            body: detail,
+          });
+        }
       }
     }
     return { status: "processed", replied: true };

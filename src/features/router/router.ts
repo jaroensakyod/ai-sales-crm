@@ -65,7 +65,13 @@ export async function routeMessage(
           const cross = await suggestCrossSells(db, ctx.tenantId, product.id);
           if (cross.length > 0) {
             const spark = emojiAllowed(settings?.emojiLevel) ? "💡 " : "";
-            replyText += ` ${spark}ลูกค้าส่วนใหญ่ซื้อ "${cross[0].name}" คู่กันด้วยค่ะ`;
+            // Suggest up to 2 curated pairs (by weight) — a bit more cross-sell
+            // without overwhelming the customer.
+            const names = cross
+              .slice(0, 2)
+              .map((c) => `"${c.name}"`)
+              .join(" หรือ ");
+            replyText += ` ${spark}ลูกค้าส่วนใหญ่ซื้อ ${names} คู่กันด้วยค่ะ`;
           }
         }
       }
