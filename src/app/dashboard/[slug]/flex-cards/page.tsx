@@ -10,6 +10,7 @@ import { getEntitlements } from "@/features/billing/entitlements";
 import {
   broadcastFlexCardAction,
   deleteFlexCardAction,
+  editFlexCardAction,
   updateFlexCardTriggerAction,
 } from "../../actions";
 import { Shell } from "../_components/shell";
@@ -23,6 +24,7 @@ const OK_MSG: Record<string, string> = {
   deleted: "ลบการ์ดแล้ว",
   broadcast: "ส่งบรอดแคสต์การ์ดให้เพื่อน LINE แล้ว",
   trigger: "ตั้งคำ trigger เรียบร้อยแล้ว — ลูกค้าพิมพ์คำนี้แล้วบอทจะส่งการ์ดให้",
+  edited: "แก้ไขการ์ดเรียบร้อยแล้ว",
 };
 const ERR_MSG: Record<string, string> = {
   empty: "กรุณากรอกชื่อการ์ดและหัวข้อ",
@@ -136,6 +138,52 @@ export default async function FlexCardsPage({
                   บันทึกคำ
                 </button>
               </form>
+
+              {c.kind !== "carousel" ? (
+                <details style={{ marginTop: 10 }}>
+                  <summary style={{ cursor: "pointer", fontSize: "0.85rem" }}>
+                    ✏️ แก้ไขเนื้อหาการ์ด
+                  </summary>
+                  <form action={editFlexCardAction} style={{ marginTop: 8 }}>
+                    <input type="hidden" name="slug" value={slug} />
+                    <input type="hidden" name="cardId" value={c.id} />
+                    <label>
+                      ชื่อการ์ด (ภายใน)
+                      <input name="name" defaultValue={c.name} required />
+                    </label>
+                    <label>
+                      สไตล์
+                      <select name="style" defaultValue={c.style ?? "plain"}>
+                        <option value="plain">เรียบ (Plain)</option>
+                        <option value="promo">โปรโมชั่น (สีส้ม)</option>
+                        <option value="minimal">มินิมอล</option>
+                      </select>
+                    </label>
+                    <label>
+                      หัวข้อ (headline)
+                      <input name="headline" defaultValue={c.headline ?? ""} />
+                    </label>
+                    <label>
+                      รายละเอียด
+                      <textarea name="body" rows={2} defaultValue={c.body ?? ""} />
+                    </label>
+                    <label>
+                      ข้อความราคา
+                      <input name="priceLabel" defaultValue={c.priceLabel ?? ""} />
+                    </label>
+                    <label>
+                      ลิงก์รูป (URL)
+                      <input name="imageUrl" type="url" defaultValue={c.imageUrl ?? ""} />
+                    </label>
+                    <p className="muted" style={{ fontSize: "0.78rem", margin: "4px 0 8px" }}>
+                      * ปุ่มบนการ์ดยังแก้ที่นี่ไม่ได้ — ถ้าต้องแก้ปุ่ม ให้ลบแล้วสร้างใหม่
+                    </p>
+                    <button type="submit" className="sm">
+                      บันทึกการแก้ไข
+                    </button>
+                  </form>
+                </details>
+              ) : null}
 
               {canBroadcast ? (
                 <form

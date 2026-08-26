@@ -8,6 +8,7 @@ import { getTenantBySlug } from "@/db/repositories/tenants";
 import {
   addReviewAction,
   deleteReviewAction,
+  editReviewAction,
   updateReviewStyleAction,
 } from "../../actions";
 
@@ -42,6 +43,7 @@ export async function ReviewsSection({
 
       {ok === "added" ? <p className="ok">เพิ่มรีวิวแล้ว</p> : null}
       {ok === "deleted" ? <p className="ok">ลบรีวิวแล้ว</p> : null}
+      {ok === "edited" ? <p className="ok">แก้ไขรีวิวแล้ว</p> : null}
       {ok === "reviewstyle" ? <p className="ok">บันทึกสไตล์การ์ดรีวิวแล้ว</p> : null}
 
       <form action={updateReviewStyleAction} className="card" style={{ marginBottom: 16 }}>
@@ -85,8 +87,28 @@ export async function ReviewsSection({
                   style={{ width: "100%", borderRadius: 8, marginBottom: 8 }}
                 />
               ) : null}
-              {r.caption ? <p style={{ margin: "0 0 6px" }}>&ldquo;{r.caption}&rdquo;</p> : null}
-              {r.authorName ? <div className="muted" style={{ fontSize: "0.85rem" }}>— {r.authorName}</div> : null}
+              <details style={{ marginTop: 4 }}>
+                <summary style={{ cursor: "pointer", fontSize: "0.85rem" }}>
+                  {r.caption ? `“${r.caption}”` : "— ไม่มีคำบรรยาย —"}
+                  {r.authorName ? ` — ${r.authorName}` : ""}{" "}
+                  <span className="muted">(แก้ไข)</span>
+                </summary>
+                <form action={editReviewAction} style={{ marginTop: 8 }}>
+                  <input type="hidden" name="slug" value={slug} />
+                  <input type="hidden" name="reviewId" value={r.id} />
+                  <label>
+                    คำบรรยายใต้รูป
+                    <textarea name="caption" rows={2} defaultValue={r.caption ?? ""} />
+                  </label>
+                  <label>
+                    ชื่อลูกค้า
+                    <input name="authorName" defaultValue={r.authorName ?? ""} />
+                  </label>
+                  <button type="submit" className="sm" style={{ marginTop: 6 }}>
+                    บันทึกการแก้ไข
+                  </button>
+                </form>
+              </details>
               <form action={deleteReviewAction} style={{ marginTop: 8 }}>
                 <input type="hidden" name="slug" value={slug} />
                 <input type="hidden" name="reviewId" value={r.id} />

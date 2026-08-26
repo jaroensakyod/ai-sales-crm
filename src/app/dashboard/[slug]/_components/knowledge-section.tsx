@@ -5,7 +5,11 @@ import {
 } from "@/db/repositories/knowledge";
 import { hasGeminiApiKey } from "@/lib/env";
 
-import { addKnowledgeAction, deleteKnowledgeAction } from "../../actions";
+import {
+  addKnowledgeAction,
+  deleteKnowledgeAction,
+  editKnowledgeAction,
+} from "../../actions";
 
 /**
  * Per-feature knowledge base. Each feature page (products/booking/hotel/courses)
@@ -44,6 +48,7 @@ export async function KnowledgeSection({
         ข้อมูล/FAQ ของ{label} ที่ให้ AI ใช้ตอบลูกค้า (เช่น นโยบาย เงื่อนไข วิธีใช้)
       </p>
       {ok === "knowledge" ? <p className="ok">เพิ่มความรู้แล้ว</p> : null}
+      {ok === "knowledge-edited" ? <p className="ok">แก้ไขความรู้แล้ว</p> : null}
       {ok === "knowledge-deleted" ? <p className="ok">ลบแล้ว</p> : null}
       {error === "knowledge" ? <p className="error">เพิ่มไม่สำเร็จ ลองใหม่</p> : null}
       {error === "nokey" ? (
@@ -70,17 +75,28 @@ export async function KnowledgeSection({
                     {(d.sourceText ?? contents[d.id]) ? (
                       <details>
                         <summary style={{ cursor: "pointer" }}>{d.title}</summary>
-                        <pre
-                          style={{
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-word",
-                            marginTop: 8,
-                            fontSize: "0.85rem",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          {d.sourceText ?? contents[d.id]}
-                        </pre>
+                        <form action={editKnowledgeAction} style={{ marginTop: 8 }}>
+                          <input type="hidden" name="slug" value={slug} />
+                          <input type="hidden" name="documentId" value={d.id} />
+                          <input type="hidden" name="category" value={category} />
+                          <input type="hidden" name="back" value={back} />
+                          <label>
+                            หัวข้อ
+                            <input name="title" defaultValue={d.title} required />
+                          </label>
+                          <label>
+                            เนื้อหา
+                            <textarea
+                              name="text"
+                              rows={6}
+                              required
+                              defaultValue={d.sourceText ?? contents[d.id]}
+                            />
+                          </label>
+                          <button type="submit" className="sm" style={{ marginTop: 6 }}>
+                            บันทึกการแก้ไข
+                          </button>
+                        </form>
                       </details>
                     ) : (
                       d.title

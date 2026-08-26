@@ -15,7 +15,7 @@ import { createCourse, deleteCourse } from "@/db/repositories/course";
 import { randomBytes } from "node:crypto";
 
 import { setConversationHandling } from "@/db/repositories/conversations";
-import { createReview, deleteReview } from "@/db/repositories/reviews";
+import { createReview, deleteReview, updateReview } from "@/db/repositories/reviews";
 import {
   createWebhookEndpoint,
   deleteWebhookEndpoint,
@@ -39,6 +39,7 @@ import {
 import {
   createFlexCard,
   deleteFlexCard,
+  updateFlexCard,
   flexCardToMessageCard,
   getFlexCard,
   updateFlexCardTrigger,
@@ -246,6 +247,30 @@ export async function addKnowledgeAction(formData: FormData) {
     // embedding/ingest failed
   }
   redirect(`${back}?${ok ? "ok=knowledge" : "error=knowledge"}`);
+}
+
+/** Edit a knowledge document: replace it (delete + re-ingest) so the new text is
+ *  re-chunked and re-embedded. IDs change, but the content/title update cleanly. */
+export async function editKnowledgeAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const documentId = String(formData.get("documentId") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  const text = String(formData.get("text") ?? "").trim();
+  const category = String(formData.get("category") ?? "general").trim() || "general";
+  const back = knowledgeBack(slug, String(formData.get("back") ?? "products"));
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+
+  if (!hasGeminiApiKey()) redirect(`${back}?error=nokey`);
+  if (!title || !text) redirect(`${back}?error=knowledge`);
+  let ok = false;
+  try {
+    await ingestKnowledge(db, tenant.id, { title, text, category });
+    await deleteKnowledgeDocument(db, tenant.id, documentId);
+    ok = true;
+  } catch {
+    // embedding/ingest failed — keep the old doc untouched
+  }
+  redirect(`${back}?${ok ? "ok=knowledge-edited" : "error=knowledge"}`);
 }
 
 export async function deleteKnowledgeAction(formData: FormData) {
@@ -457,6 +482,16 @@ export async function addReviewAction(formData: FormData) {
   const result = await createReview(db, tenant.id, { imageUrl, caption, authorName });
   if (!result.ok) redirect(`${base}?error=${result.reason}`);
   redirect(`${base}?ok=added`);
+}
+
+export async function editReviewAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("reviewId") ?? "");
+  const caption = String(formData.get("caption") ?? "");
+  const authorName = String(formData.get("authorName") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  await updateReview(db, tenant.id, id, { caption, authorName });
+  redirect(`/dashboard/${slug}/marketing?ok=edited`);
 }
 
 export async function deleteReviewAction(formData: FormData) {
@@ -1113,6 +1148,24 @@ export async function updateFlexCardTriggerAction(formData: FormData) {
     : "contains";
   await updateFlexCardTrigger(db, tenant.id, id, kw, match);
   redirect(`/dashboard/${slug}/flex-cards?ok=trigger`);
+}
+
+/** Edit a saved single card's content (headline/body/price/image/style). */
+export async function editFlexCardAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("cardId") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const styleRaw = String(formData.get("style") ?? "plain");
+  const style = ["plain", "promo", "minimal"].includes(styleRaw) ? styleRaw : "plain";
+  await updateFlexCard(db, tenant.id, id, {
+    name: String(formData.get("name") ?? "").trim() || undefined,
+    style,
+    headline: String(formData.get("headline") ?? "").trim() || null,
+    body: String(formData.get("body") ?? "").trim() || null,
+    priceLabel: String(formData.get("priceLabel") ?? "").trim() || null,
+    imageUrl: toImageUrl(formData.get("imageUrl")),
+  });
+  redirect(`/dashboard/${slug}/flex-cards?ok=edited`);
 }
 
 /** Broadcast a saved Flex card to all LINE friends (same quota + confirm rules

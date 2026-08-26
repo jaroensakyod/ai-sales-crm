@@ -54,6 +54,23 @@ export async function createReview(
   return { ok: true, id: row.id };
 }
 
+/** Edit a review's caption/author (the image stays — reviews are screenshots and
+ *  re-uploading just to fix a typo would be wasteful). */
+export async function updateReview(
+  db: DbClient,
+  tenantId: string,
+  id: string,
+  input: { caption?: string | null; authorName?: string | null },
+) {
+  await db
+    .update(reviews)
+    .set({
+      caption: input.caption?.trim() || null,
+      authorName: input.authorName?.trim() || null,
+    })
+    .where(and(eq(reviews.tenantId, tenantId), eq(reviews.id, id)));
+}
+
 export async function deleteReview(db: DbClient, tenantId: string, id: string) {
   await db
     .delete(reviews)
