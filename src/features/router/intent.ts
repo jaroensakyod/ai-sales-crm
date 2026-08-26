@@ -99,6 +99,7 @@ export type ProductLike = {
   stock: number | null;
   currency: string;
   description?: string | null;
+  aiKnowledge?: string | null;
   imageUrl?: string | null;
   variants?: VariantLike[];
 };

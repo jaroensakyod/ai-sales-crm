@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "ai_knowledge" text;

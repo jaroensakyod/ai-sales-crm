@@ -24,6 +24,10 @@ export const products = pgTable(
     sku: text("sku"),
     name: text("name").notNull(),
     description: text("description"),
+    // Deep per-product knowledge the AI reads to answer questions, kept SEPARATE
+    // from `description` so it never bloats the Flex card (cards show `description`
+    // only; the AI catalog also feeds this in). Sent as its own bubble on request.
+    aiKnowledge: text("ai_knowledge"),
     // AI never invents price/stock — it reads these live from the DB (docs/02-plan.md).
     price: numeric("price", { precision: 12, scale: 2 }).notNull().default("0"),
     currency: text("currency").notNull().default("THB"),

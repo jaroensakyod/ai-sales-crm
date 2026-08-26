@@ -1,5 +1,8 @@
 import { createDbClient } from "@/db/client";
-import { listKnowledgeDocuments } from "@/db/repositories/knowledge";
+import {
+  getKnowledgeContents,
+  listKnowledgeDocuments,
+} from "@/db/repositories/knowledge";
 import { hasGeminiApiKey } from "@/lib/env";
 
 import { addKnowledgeAction, deleteKnowledgeAction } from "../../actions";
@@ -28,6 +31,11 @@ export async function KnowledgeSection({
 }) {
   const db = createDbClient();
   const docs = await listKnowledgeDocuments(db, tenantId, category);
+  const contents = await getKnowledgeContents(
+    db,
+    tenantId,
+    docs.map((d) => d.id),
+  );
 
   return (
     <section style={{ marginTop: 28 }}>
@@ -58,7 +66,26 @@ export async function KnowledgeSection({
             <tbody>
               {docs.map((d) => (
                 <tr key={d.id}>
-                  <td>{d.title}</td>
+                  <td>
+                    {(d.sourceText ?? contents[d.id]) ? (
+                      <details>
+                        <summary style={{ cursor: "pointer" }}>{d.title}</summary>
+                        <pre
+                          style={{
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                            marginTop: 8,
+                            fontSize: "0.85rem",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {d.sourceText ?? contents[d.id]}
+                        </pre>
+                      </details>
+                    ) : (
+                      d.title
+                    )}
+                  </td>
                   <td>
                     <span className="badge open">{d.status}</span>
                   </td>

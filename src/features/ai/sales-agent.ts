@@ -56,6 +56,11 @@ export function buildSalesSystemPrompt(args: {
       const stock =
         p.stock == null ? "" : p.stock > 0 ? ` (คงเหลือ ${p.stock})` : " (สินค้าหมด)";
       const desc = p.description ? ` — ${p.description}` : "";
+      // Deep product knowledge (kept off the Flex card) — indented so the AI can
+      // answer detailed "what is this / how does it work" questions accurately.
+      const knowledge = p.aiKnowledge?.trim()
+        ? `\n    ℹ️ ${p.aiKnowledge.trim().replace(/\n+/g, " ")}`
+        : "";
       // Variants (e.g. an ebook's PDF vs hardcover) each with their own price so
       // the AI can explain the options without inventing numbers.
       const variants = (p.variants ?? [])
@@ -67,7 +72,7 @@ export function buildSalesSystemPrompt(args: {
           return `\n    • ${v.name}: ${vp}`;
         })
         .join("");
-      return `- ${p.name}: ${price}${stock}${desc}${variants}`;
+      return `- ${p.name}: ${price}${stock}${desc}${knowledge}${variants}`;
     })
     .join("\n");
 

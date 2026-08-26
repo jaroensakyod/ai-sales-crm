@@ -148,8 +148,16 @@ export default async function ProductsPage({
           </label>
         </div>
         <label>
-          รายละเอียด
-          <textarea name="description" rows={2} placeholder="รายละเอียดสินค้า สำหรับให้ AI แนะนำ" />
+          รายละเอียดสั้น ๆ (แสดงบนการ์ด Flex)
+          <textarea name="description" rows={2} placeholder="เช่น ลิปเนื้อแมตต์ ติดทน 8 ชม. ไม่ตกร่อง" />
+        </label>
+        <label>
+          คลังความรู้สินค้า (AI อ่านไว้ตอบเชิงลึก — ไม่ขึ้นบนการ์ด ใส่ยาวได้)
+          <textarea
+            name="aiKnowledge"
+            rows={4}
+            placeholder="ใส่ข้อมูลละเอียด: ส่วนผสม/สเปก วิธีใช้ คำถามที่ลูกค้าถามบ่อย ข้อควรระวัง ฯลฯ"
+          />
         </label>
         <label>
           ลิงก์รูปสินค้า (URL)

@@ -136,8 +136,16 @@ export default async function CoursesPage({
           <input name="schedule" placeholder="เช่น ทุกวันเสาร์ 10:00-12:00 เริ่ม 1 ก.ย." />
         </label>
         <label>
-          รายละเอียด (AI ใช้แนะนำ)
+          รายละเอียดสั้น ๆ (แสดงบนการ์ด)
           <textarea name="description" rows={2} placeholder="เช่น สอนโดยครูมืออาชีพ รับผู้เริ่มต้น" />
+        </label>
+        <label>
+          คลังความรู้คอร์ส (AI อ่านไว้ตอบเชิงลึก — ไม่ขึ้นบนการ์ด ใส่ยาวได้)
+          <textarea
+            name="aiKnowledge"
+            rows={4}
+            placeholder="ใส่ข้อมูลละเอียด: เนื้อหาที่สอน วิทยากร สิ่งที่ได้รับ เงื่อนไข คำถามที่ถามบ่อย ฯลฯ"
+          />
         </label>
         <label>
           ลิงก์รูปคอร์ส (URL)

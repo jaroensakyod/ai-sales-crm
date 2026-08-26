@@ -22,6 +22,7 @@ export async function createCourse(
     capacity: number;
     schedule?: string | null;
     description?: string | null;
+    aiKnowledge?: string | null;
     imageUrl?: string | null;
   },
 ) {

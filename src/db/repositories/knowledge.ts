@@ -1,4 +1,4 @@
-import { and, cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
+import { and, cosineDistance, desc, eq, gt, inArray, sql } from "drizzle-orm";
 
 import type { DbClient } from "@/db/client";
 import { knowledgeChunks, knowledgeDocuments } from "@/db/schema";
@@ -13,6 +13,7 @@ export async function listKnowledgeDocuments(
       id: knowledgeDocuments.id,
       title: knowledgeDocuments.title,
       sourceType: knowledgeDocuments.sourceType,
+      sourceText: knowledgeDocuments.sourceText,
       status: knowledgeDocuments.status,
       createdAt: knowledgeDocuments.createdAt,
       chunkCount: sql<number>`(
@@ -30,6 +31,38 @@ export async function listKnowledgeDocuments(
         : eq(knowledgeDocuments.tenantId, tenantId),
     )
     .orderBy(desc(knowledgeDocuments.createdAt));
+}
+
+/**
+ * Reconstruct the saved text for a set of documents by stitching their chunks
+ * back together (ordered as they were ingested). Used to let the merchant VIEW
+ * what they saved — `listKnowledgeDocuments` intentionally omits the body.
+ * Returns a map of documentId → full content.
+ */
+export async function getKnowledgeContents(
+  db: DbClient,
+  tenantId: string,
+  documentIds: string[],
+): Promise<Record<string, string>> {
+  if (documentIds.length === 0) return {};
+  const rows = await db
+    .select({
+      documentId: knowledgeChunks.documentId,
+      content: knowledgeChunks.content,
+    })
+    .from(knowledgeChunks)
+    .where(
+      and(
+        eq(knowledgeChunks.tenantId, tenantId),
+        inArray(knowledgeChunks.documentId, documentIds),
+      ),
+    )
+    .orderBy(knowledgeChunks.createdAt);
+  const byDoc: Record<string, string[]> = {};
+  for (const r of rows) (byDoc[r.documentId] ??= []).push(r.content);
+  return Object.fromEntries(
+    Object.entries(byDoc).map(([id, parts]) => [id, parts.join("\n\n")]),
+  );
 }
 
 /** Delete a document and its chunks (chunks cascade on document delete). */
@@ -55,6 +88,7 @@ export async function createKnowledgeDocument(
     title: string;
     sourceType: (typeof knowledgeDocuments.sourceType.enumValues)[number];
     sourceUrl?: string;
+    sourceText?: string;
     category?: string;
   },
 ) {

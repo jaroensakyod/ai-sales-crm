@@ -25,6 +25,9 @@ export const courses = pgTable(
     tenantId: tenantId(),
     name: text("name").notNull(),
     description: text("description"),
+    // Deep knowledge the AI reads to answer questions about this course — kept
+    // separate from the short `description` shown on cards (same split as products).
+    aiKnowledge: text("ai_knowledge"),
     schedule: text("schedule"),
     price: numeric("price", { precision: 12, scale: 2 }).notNull().default("0"),
     currency: text("currency").notNull().default("THB"),

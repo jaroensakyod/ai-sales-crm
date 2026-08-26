@@ -79,6 +79,7 @@ export async function ingestKnowledge(
   const doc = await createKnowledgeDocument(db, tenantId, {
     title: input.title,
     sourceType: input.sourceType ?? "TEXT",
+    sourceText: input.text,
     category: input.category ?? "general",
   });
 

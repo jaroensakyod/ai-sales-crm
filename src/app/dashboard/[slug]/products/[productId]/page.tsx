@@ -86,12 +86,21 @@ export default async function EditProductPage({
           </label>
         </div>
         <label>
-          รายละเอียดสินค้า (AI ใช้แนะนำลูกค้า — ใส่จุดเด่น วิธีใช้ ฯลฯ)
+          รายละเอียดสั้น ๆ (แสดงบนการ์ด Flex — ควรสั้น กระชับ)
           <textarea
             name="description"
-            rows={4}
+            rows={2}
             defaultValue={product.description ?? ""}
             placeholder="เช่น ลิปเนื้อแมตต์ ติดทน 8 ชม. ไม่ตกร่อง เหมาะกับผิวทุกโทน"
+          />
+        </label>
+        <label>
+          คลังความรู้สินค้า (AI อ่านไว้ตอบเชิงลึก — ไม่ขึ้นบนการ์ด ใส่ยาวได้)
+          <textarea
+            name="aiKnowledge"
+            rows={6}
+            defaultValue={product.aiKnowledge ?? ""}
+            placeholder="ใส่ข้อมูลละเอียด: ส่วนผสม/สเปก วิธีใช้ คำถามที่ลูกค้าถามบ่อย ข้อควรระวัง ฯลฯ — บอทจะดึงตรงนี้ไปตอบ แต่จะไม่ยัดลงการ์ดให้รก"
           />
         </label>
         <label>

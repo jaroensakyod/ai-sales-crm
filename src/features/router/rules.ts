@@ -21,6 +21,7 @@ export async function loadProducts(
       stock: products.stock,
       currency: products.currency,
       description: products.description,
+      aiKnowledge: products.aiKnowledge,
       imageUrl: products.imageUrl,
     })
     .from(products)

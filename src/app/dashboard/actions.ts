@@ -362,6 +362,7 @@ export async function createProductAction(formData: FormData) {
       stock: parseStock(formData.get("stock")),
       sku: String(formData.get("sku") ?? "").trim() || null,
       description: String(formData.get("description") ?? "").trim() || null,
+      aiKnowledge: String(formData.get("aiKnowledge") ?? "").trim() || null,
       imageUrl: toImageUrl(formData.get("imageUrl")),
     });
   }
@@ -392,6 +393,7 @@ export async function editProductAction(formData: FormData) {
     stock: parseStock(formData.get("stock")),
     sku: String(formData.get("sku") ?? "").trim() || null,
     description: String(formData.get("description") ?? "").trim() || null,
+    aiKnowledge: String(formData.get("aiKnowledge") ?? "").trim() || null,
     imageUrl: toImageUrl(formData.get("imageUrl")),
     isActive: formData.get("isActive") === "on",
   });
@@ -1192,6 +1194,7 @@ export async function createCourseAction(formData: FormData) {
       capacity: Math.max(1, parseInt(String(formData.get("capacity") ?? "20"), 10) || 20),
       schedule: String(formData.get("schedule") ?? "").trim() || null,
       description: String(formData.get("description") ?? "").trim() || null,
+      aiKnowledge: String(formData.get("aiKnowledge") ?? "").trim() || null,
       imageUrl: toImageUrl(formData.get("imageUrl")),
     });
   }

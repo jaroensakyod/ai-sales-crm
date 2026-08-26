@@ -37,6 +37,9 @@ export const knowledgeDocuments = pgTable(
     category: text("category").notNull().default("general"),
     sourceType: knowledgeSourceTypeEnum("source_type").notNull(),
     sourceUrl: text("source_url"),
+    // The original text the merchant pasted, kept verbatim so the dashboard can
+    // show it back (and later edit it) without stitching embedded chunks.
+    sourceText: text("source_text"),
     status: knowledgeStatusEnum("status").notNull().default("PROCESSING"),
     error: text("error"),
     ...timestamps,

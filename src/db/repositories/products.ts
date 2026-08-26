@@ -20,6 +20,7 @@ export async function createProduct(
     stock?: number | null;
     sku?: string | null;
     description?: string | null;
+    aiKnowledge?: string | null;
     imageUrl?: string | null;
   },
 ) {
@@ -40,6 +41,7 @@ export async function updateProduct(
     stock?: number | null;
     sku?: string | null;
     description?: string | null;
+    aiKnowledge?: string | null;
     imageUrl?: string | null;
     isActive?: boolean;
   },
