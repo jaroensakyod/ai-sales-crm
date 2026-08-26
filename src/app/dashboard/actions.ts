@@ -466,6 +466,18 @@ export async function deleteReviewAction(formData: FormData) {
   redirect(`/dashboard/${slug}/marketing?ok=deleted`);
 }
 
+/** Merchant picks the Flex style used for the review carousel (2+ image reviews). */
+export async function updateReviewStyleAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const style = String(formData.get("reviewCardStyle") ?? "plain");
+  const reviewCardStyle = ["plain", "promo", "minimal"].includes(style)
+    ? style
+    : "plain";
+  await updateTenantAiSettings(db, tenant.id, { reviewCardStyle });
+  redirect(`/dashboard/${slug}/marketing?ok=reviewstyle`);
+}
+
 // ---- Welcome / promo banner ----------------------------------------------
 
 /** Set the promo banner (image + message) the bot auto-sends on a first

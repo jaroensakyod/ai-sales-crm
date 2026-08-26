@@ -37,7 +37,11 @@ import { matchProduct } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { routeMessage } from "@/features/router/router";
 import type { RouterHandlers } from "@/features/router/types";
-import type { MessageCard, SendCardFn } from "@/features/messaging/cards";
+import type {
+  FlexStyle,
+  MessageCard,
+  SendCardFn,
+} from "@/features/messaging/cards";
 import {
   findFlexCardByTrigger,
   flexCardToMessageCard,
@@ -596,6 +600,33 @@ export async function handleInboundText(
   // token is single-use); falls back to text testimonials, else lets the AI answer.
   if (wantsReview(args.text)) {
     const revs = await listReviews(db, args.tenantId);
+
+    // 2+ image reviews and a card-capable channel → swipeable Flex carousel of
+    // reviews (one bubble each). Style is the merchant's choice (reviews page).
+    const imaged = revs.filter((r) => r.imageUrl);
+    if (imaged.length >= 2 && args.sendCard) {
+      const s = await getTenantAiSettings(db, args.tenantId);
+      const style = (s?.reviewCardStyle as FlexStyle | null) ?? "plain";
+      const cards = imaged.slice(0, 10).map((r) => ({
+        kind: "custom_flex" as const,
+        imageUrl: r.imageUrl,
+        headline: r.authorName ? `รีวิวจาก ${r.authorName}` : "รีวิวจากลูกค้า",
+        body: r.caption ?? undefined,
+        style,
+        actions: [],
+        fallback: r.caption ?? "รีวิวจากลูกค้า",
+      }));
+      await args.sendCard(args.externalId, {
+        kind: "carousel",
+        cards,
+        fallback: "รีวิวจากลูกค้าค่ะ",
+      });
+      await recordOutboundMessage(db, args.tenantId, conversation.id, {
+        body: `[ส่งรีวิว] ${cards.length} รายการ`,
+      });
+      return { status: "processed", replied: true };
+    }
+
     const withImage = revs.find((r) => r.imageUrl);
     if (withImage?.imageUrl && args.sendImage) {
       const caption = withImage.caption

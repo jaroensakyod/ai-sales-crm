@@ -1,10 +1,15 @@
 import { redirect } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
+import { getTenantAiSettings } from "@/db/repositories/ai";
 import { listReviews, REVIEW_CAP } from "@/db/repositories/reviews";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 
-import { addReviewAction, deleteReviewAction } from "../../actions";
+import {
+  addReviewAction,
+  deleteReviewAction,
+  updateReviewStyleAction,
+} from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +29,8 @@ export async function ReviewsSection({
 
   const reviews = await listReviews(db, tenant.id);
   const full = reviews.length >= REVIEW_CAP;
+  const settings = await getTenantAiSettings(db, tenant.id);
+  const imagedCount = reviews.filter((r) => r.imageUrl).length;
 
   return (
     <>
@@ -35,6 +42,26 @@ export async function ReviewsSection({
 
       {ok === "added" ? <p className="ok">เพิ่มรีวิวแล้ว</p> : null}
       {ok === "deleted" ? <p className="ok">ลบรีวิวแล้ว</p> : null}
+      {ok === "reviewstyle" ? <p className="ok">บันทึกสไตล์การ์ดรีวิวแล้ว</p> : null}
+
+      <form action={updateReviewStyleAction} className="card" style={{ marginBottom: 16 }}>
+        <input type="hidden" name="slug" value={slug} />
+        <label>
+          สไตล์การ์ดรีวิว (เมื่อมีรีวิวรูปตั้งแต่ 2 อัน บอทจะส่งเป็นการ์ด Flex เลื่อนดูได้)
+          <select name="reviewCardStyle" defaultValue={settings?.reviewCardStyle ?? "plain"}>
+            <option value="plain">เรียบ (Plain)</option>
+            <option value="promo">โปรโมชั่น (สีส้ม)</option>
+            <option value="minimal">มินิมอล</option>
+          </select>
+        </label>
+        <p className="muted" style={{ fontSize: "0.8rem", margin: "4px 0 8px" }}>
+          ตอนนี้มีรีวิวที่มีรูป {imagedCount} อัน{" "}
+          {imagedCount >= 2 ? "→ จะส่งเป็นการ์ด Flex" : "(ต้องมี 2 อันขึ้นไปถึงจะเป็นการ์ด)"}
+        </p>
+        <button type="submit" className="sm">
+          บันทึกสไตล์
+        </button>
+      </form>
       {error === "cap" ? (
         <p className="error">ครบจำนวนสูงสุด {REVIEW_CAP} รีวิวแล้ว — ลบตัวเก่าก่อนถึงจะเพิ่มได้</p>
       ) : null}

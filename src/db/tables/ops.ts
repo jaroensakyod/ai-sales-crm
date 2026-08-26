@@ -109,6 +109,9 @@ export const tenantAiSettings = pgTable(
     // greeting or "what do you sell?" — no need for them to ask for a picture.
     welcomeImageUrl: text("welcome_image_url"),
     welcomeMessage: text("welcome_message"),
+    // Flex style for the review carousel sent when a customer asks for reviews
+    // (2+ image reviews → swipeable card). "plain" | "promo" | "minimal".
+    reviewCardStyle: text("review_card_style"),
     // Follow-up (push) toggles — each auto push costs 1 LINE message per recipient,
     // so the merchant can turn off chasing people who haven't bought yet to save
     // quota. Default on to preserve existing behaviour.

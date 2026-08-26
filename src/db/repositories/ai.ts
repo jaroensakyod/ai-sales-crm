@@ -26,6 +26,7 @@ export async function updateTenantAiSettings(
     botGender?: string | null;
     welcomeImageUrl?: string | null;
     welcomeMessage?: string | null;
+    reviewCardStyle?: string | null;
     followupCartRecovery?: boolean;
     followupReviewRequest?: boolean;
     followupReminder?: boolean;
