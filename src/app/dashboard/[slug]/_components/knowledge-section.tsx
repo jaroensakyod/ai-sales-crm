@@ -72,35 +72,38 @@ export async function KnowledgeSection({
               {docs.map((d) => (
                 <tr key={d.id}>
                   <td>
-                    {(d.sourceText ?? contents[d.id]) ? (
-                      <details>
-                        <summary style={{ cursor: "pointer" }}>{d.title}</summary>
-                        <form action={editKnowledgeAction} style={{ marginTop: 8 }}>
-                          <input type="hidden" name="slug" value={slug} />
-                          <input type="hidden" name="documentId" value={d.id} />
-                          <input type="hidden" name="category" value={category} />
-                          <input type="hidden" name="back" value={back} />
-                          <label>
-                            หัวข้อ
-                            <input name="title" defaultValue={d.title} required />
-                          </label>
-                          <label>
-                            เนื้อหา
-                            <textarea
-                              name="text"
-                              rows={6}
-                              required
-                              defaultValue={d.sourceText ?? contents[d.id]}
-                            />
-                          </label>
-                          <button type="submit" className="sm" style={{ marginTop: 6 }}>
-                            บันทึกการแก้ไข
-                          </button>
-                        </form>
-                      </details>
-                    ) : (
-                      d.title
-                    )}
+                    <details>
+                      <summary style={{ cursor: "pointer" }}>
+                        {d.title}
+                        {!(d.sourceText ?? contents[d.id]) ? (
+                          <span className="muted" style={{ fontSize: "0.78rem" }}>
+                            {" "}(ไม่มีเนื้อหาเดิม — พิมพ์ใส่แล้วบันทึกได้)
+                          </span>
+                        ) : null}
+                      </summary>
+                      <form action={editKnowledgeAction} style={{ marginTop: 8 }}>
+                        <input type="hidden" name="slug" value={slug} />
+                        <input type="hidden" name="documentId" value={d.id} />
+                        <input type="hidden" name="category" value={category} />
+                        <input type="hidden" name="back" value={back} />
+                        <label>
+                          หัวข้อ
+                          <input name="title" defaultValue={d.title} required />
+                        </label>
+                        <label>
+                          เนื้อหา
+                          <textarea
+                            name="text"
+                            rows={6}
+                            required
+                            defaultValue={d.sourceText ?? contents[d.id] ?? ""}
+                          />
+                        </label>
+                        <button type="submit" className="sm" style={{ marginTop: 6 }}>
+                          บันทึกการแก้ไข
+                        </button>
+                      </form>
+                    </details>
                   </td>
                   <td>
                     <span className="badge open">{d.status}</span>

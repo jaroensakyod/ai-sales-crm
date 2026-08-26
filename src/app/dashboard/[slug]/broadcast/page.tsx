@@ -2,12 +2,17 @@ import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
 import { listScheduledBroadcasts } from "@/db/repositories/broadcasts";
+import { listFlexCards } from "@/db/repositories/flexCards";
 import { getConnectedLineChannel } from "@/db/repositories/line";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 import { getEntitlements } from "@/features/billing/entitlements";
 
-import { broadcastLineAction, cancelScheduledBroadcastAction } from "../../actions";
+import {
+  broadcastFlexCardAction,
+  broadcastLineAction,
+  cancelScheduledBroadcastAction,
+} from "../../actions";
 import { Shell } from "../_components/shell";
 import { UpgradeNotice } from "../_components/upgrade-notice";
 
@@ -51,11 +56,13 @@ export default async function BroadcastPage({
 
   const line = await getConnectedLineChannel(db, tenant.id);
   const scheduled = await listScheduledBroadcasts(db, tenant.id);
+  const flexCards = await listFlexCards(db, tenant.id);
 
   const okText: Record<string, string> = {
     "1": "ส่ง broadcast เรียบร้อยแล้ว ✅",
     scheduled: "ตั้งเวลายิงโปรฯ เรียบร้อยแล้ว ⏰",
     cancelled: "ยกเลิกรายการที่ตั้งเวลาไว้แล้ว",
+    broadcast: "ส่งการ์ด Flex ให้เพื่อน LINE แล้ว ✅",
   };
   const errText: Record<string, string> = {
     empty: "ยังไม่ได้พิมพ์ข้อความหรือใส่รูป",
@@ -65,6 +72,8 @@ export default async function BroadcastPage({
     badtime: "เวลาที่ตั้งไม่ถูกต้อง (ต้องเป็นเวลาในอนาคต)",
     richnoimage: "Rich Message ต้องใส่ลิงก์รูปแบนเนอร์ด้วย (รูปคือพื้นที่ที่กดได้)",
     richnoschedule: "Rich Message (กดรูปเปิดลิงก์) ยังตั้งเวลาล่วงหน้าไม่ได้ — ยิงทันทีเท่านั้น",
+    nocard: "ยังไม่ได้เลือกการ์ด",
+    notfound: "ไม่พบการ์ดที่เลือก",
   };
 
   return (
@@ -143,6 +152,46 @@ export default async function BroadcastPage({
           </button>
         </form>
       )}
+
+      {line ? (
+        <>
+          <h2 style={{ marginTop: 24 }}>ยิงการ์ด Flex (การ์ดเมสเสจ)</h2>
+          <p className="muted" style={{ fontSize: "0.88rem" }}>
+            ส่งการ์ดที่ออกแบบไว้ในหน้า “การ์ด Flex” ให้เพื่อน LINE ทั้งหมด (มีปุ่มกด/ลิงก์ในตัว)
+          </p>
+          {flexCards.length === 0 ? (
+            <p className="muted">
+              ยังไม่มีการ์ด — สร้างก่อนที่หน้า “การ์ด Flex” แล้วค่อยกลับมายิง
+            </p>
+          ) : (
+            <form action={broadcastFlexCardAction} className="card">
+              <input type="hidden" name="slug" value={slug} />
+              <input type="hidden" name="from" value="broadcast" />
+              <label>
+                เลือกการ์ด
+                <select name="cardId" required defaultValue="">
+                  <option value="" disabled>
+                    — เลือกการ์ดที่จะยิง —
+                  </option>
+                  {flexCards.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.kind === "carousel" ? " (ชุดการ์ด)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="inline" style={{ marginTop: 8 }}>
+                <input type="checkbox" name="confirm" />
+                ยืนยันส่งการ์ดนี้ถึงผู้ติดตามทั้งหมด (ยิงทันที ยกเลิกไม่ได้ และนับโควตา)
+              </label>
+              <button type="submit" className="danger" style={{ marginTop: 12 }}>
+                ยิงการ์ด Flex
+              </button>
+            </form>
+          )}
+        </>
+      ) : null}
 
       {scheduled.length > 0 ? (
         <>

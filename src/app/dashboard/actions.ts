@@ -1181,28 +1181,33 @@ export async function editFlexCardAction(formData: FormData) {
 export async function broadcastFlexCardAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const id = String(formData.get("cardId") ?? "");
+  // The same action serves both the flex-cards page and the broadcast page —
+  // send the merchant back to whichever they came from.
+  const page = String(formData.get("from") ?? "") === "broadcast" ? "broadcast" : "flex-cards";
+  const base = `/dashboard/${slug}/${page}`;
   const { db, tenant } = await tenantForSlug(slug, "manage_settings");
   if (!(await getEntitlements(db, tenant.id)).promoBroadcast) {
-    redirect(`/dashboard/${slug}/flex-cards?error=plan`);
+    redirect(`${base}?error=plan`);
   }
   if (formData.get("confirm") !== "on") {
-    redirect(`/dashboard/${slug}/flex-cards?error=confirm`);
+    redirect(`${base}?error=confirm`);
   }
+  if (!id) redirect(`${base}?error=nocard`);
   const card = await getFlexCard(db, tenant.id, id);
-  if (!card) redirect(`/dashboard/${slug}/flex-cards?error=notfound`);
+  if (!card) redirect(`${base}?error=notfound`);
   const line = await getConnectedLineChannel(db, tenant.id);
-  if (!line) redirect(`/dashboard/${slug}/flex-cards?error=nochannel`);
+  if (!line) redirect(`${base}?error=nochannel`);
   try {
     const token = decryptSecret(line.connection.accessTokenEncrypted);
     await broadcastFlex(createLineClient(token), flexCardToMessageCard(card));
   } catch {
-    redirect(`/dashboard/${slug}/flex-cards?error=send`);
+    redirect(`${base}?error=send`);
   }
   await recordUsageEvent(db, tenant.id, {
     type: "line_broadcast",
     meta: { flexCardId: card.id },
   });
-  redirect(`/dashboard/${slug}/flex-cards?ok=broadcast`);
+  redirect(`${base}?ok=broadcast`);
 }
 
 // ── Quick-reply menu (merchant-defined tap buttons) ──────────────────────────
