@@ -403,6 +403,18 @@ export async function handleInboundText(
     await recordOutboundMessage(db, args.tenantId, conversation.id, {
       body: tapped.reply,
     });
+    // Button linked to a product → also send that product's card (shortcut to it).
+    if (tapped.productId && args.sendCard) {
+      const product = (await loadProducts(db, args.tenantId)).find(
+        (p) => p.id === tapped.productId,
+      );
+      if (product) {
+        await args.sendCard(args.externalId, productCarousel([product]));
+        await recordOutboundMessage(db, args.tenantId, conversation.id, {
+          body: `[ส่งการ์ดสินค้า] ${product.name}`,
+        });
+      }
+    }
     return { status: "processed", replied: true };
   }
 

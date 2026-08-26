@@ -31,6 +31,7 @@ export async function createQuickReply(
     reply: string;
     keywords?: string | null;
     matchType?: string;
+    productId?: string | null;
     sortOrder?: number;
   },
 ) {

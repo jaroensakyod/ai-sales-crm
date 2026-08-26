@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
+import { listProducts } from "@/db/repositories/products";
 import { listQuickReplies } from "@/db/repositories/quickReplies";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
@@ -26,6 +27,7 @@ export default async function QuickRepliesPage({
   if (!tenant) notFound();
 
   const items = await listQuickReplies(db, tenant.id);
+  const products = await listProducts(db, tenant.id);
 
   return (
     <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
@@ -73,6 +75,17 @@ export default async function QuickRepliesPage({
             </select>
           </label>
         </div>
+        <label>
+          ผูกกับสินค้า (ไม่บังคับ — แตะปุ่มแล้วบอทส่งการ์ดสินค้านี้ให้ด้วย)
+          <select name="productId" defaultValue="">
+            <option value="">— ไม่ผูกสินค้า —</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="submit" style={{ marginTop: 10 }}>
           เพิ่มปุ่ม
         </button>

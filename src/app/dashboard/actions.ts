@@ -1212,7 +1212,15 @@ export async function createQuickReplyAction(formData: FormData) {
   const matchType = String(formData.get("matchType") ?? "exact") === "contains"
     ? "contains"
     : "exact";
-  await createQuickReply(db, tenant.id, { label, reply, keywords, matchType, sortOrder });
+  const productId = String(formData.get("productId") ?? "").trim() || null;
+  await createQuickReply(db, tenant.id, {
+    label,
+    reply,
+    keywords,
+    matchType,
+    productId,
+    sortOrder,
+  });
   redirect(`/dashboard/${slug}/quick-replies?ok=saved`);
 }
 

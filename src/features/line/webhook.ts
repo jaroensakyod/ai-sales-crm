@@ -159,7 +159,9 @@ export async function processLineWebhook(
           headline: "ยินดีต้อนรับค่ะ 🎉",
           body: welcomeText || undefined,
           style: "promo",
-          actions: [],
+          // Tappable button → sends "ดูสินค้า", which the pipeline answers with the
+          // product carousel, so the new friend can browse products right away.
+          actions: [{ label: "🛍️ ดูสินค้า", text: "ดูสินค้า" }],
           fallback: welcomeText || "ยินดีต้อนรับค่ะ 🎉",
         };
         await getReplyCard()(event.replyToken, card);
