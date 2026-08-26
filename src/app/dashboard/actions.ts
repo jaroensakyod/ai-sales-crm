@@ -1155,7 +1155,11 @@ export async function createQuickReplyAction(formData: FormData) {
     redirect(`/dashboard/${slug}/quick-replies?error=empty`);
   }
   const sortOrder = Number(formData.get("sortOrder") ?? 0) || 0;
-  await createQuickReply(db, tenant.id, { label, reply, sortOrder });
+  const keywords = String(formData.get("keywords") ?? "").trim() || null;
+  const matchType = String(formData.get("matchType") ?? "exact") === "contains"
+    ? "contains"
+    : "exact";
+  await createQuickReply(db, tenant.id, { label, reply, keywords, matchType, sortOrder });
   redirect(`/dashboard/${slug}/quick-replies?ok=saved`);
 }
 

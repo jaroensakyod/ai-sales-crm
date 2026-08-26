@@ -24,7 +24,10 @@ import {
 import { getTenantAiSettings } from "@/db/repositories/ai";
 import { createKnowledgeGap, findOpenGap } from "@/db/repositories/gaps";
 import { listReviews } from "@/db/repositories/reviews";
-import { listActiveQuickReplies } from "@/db/repositories/quickReplies";
+import {
+  listActiveQuickReplies,
+  quickReplyMatches,
+} from "@/db/repositories/quickReplies";
 import { addLeadEvent } from "@/db/repositories/leads";
 import {
   applyConsentReply,
@@ -380,9 +383,7 @@ export async function handleInboundText(
   // the chips attached to the final reply. A tap sends the label back verbatim;
   // match it exactly and answer with the canned reply (self-service, no human).
   const menu = await listActiveQuickReplies(db, args.tenantId);
-  const tapped = menu.find(
-    (m) => m.label.trim().toLowerCase() === args.text.trim().toLowerCase(),
-  );
+  const tapped = menu.find((m) => quickReplyMatches(m, args.text));
   if (tapped) {
     await args.send(args.externalId, tapped.reply, menuChips(menu));
     await recordOutboundMessage(db, args.tenantId, conversation.id, {

@@ -52,7 +52,7 @@ export default async function QuickRepliesPage({
           </label>
         </div>
         <label>
-          คำตอบเมื่อลูกค้ากดปุ่มนี้
+          คำตอบเมื่อลูกค้ากดปุ่มนี้ (หรือพิมพ์คำที่ตั้งไว้)
           <textarea
             name="reply"
             rows={3}
@@ -60,6 +60,19 @@ export default async function QuickRepliesPage({
             placeholder="เช่น ร้านเปิดทุกวัน 9:00–20:00 น. ค่ะ สั่งซื้อได้ตลอด 24 ชม. ผ่านแชทนี้เลยนะคะ 😊"
           />
         </label>
+        <div className="row" style={{ marginTop: 4, gap: 8, flexWrap: "wrap" }}>
+          <label style={{ flex: 2, minWidth: 200, margin: 0 }}>
+            คำที่ลูกค้าพิมพ์แล้วตอบอัตโนมัติ (ไม่บังคับ · หลายคำคั่นด้วย , )
+            <input name="keywords" placeholder="เช่น เวลาเปิด, กี่โมง, เปิดกี่โมง" />
+          </label>
+          <label style={{ minWidth: 150, margin: 0 }}>
+            รูปแบบการจับคำ
+            <select name="matchType" defaultValue="exact">
+              <option value="exact">พิมพ์ตรงเป๊ะ</option>
+              <option value="contains">มีคำนี้ในข้อความ</option>
+            </select>
+          </label>
+        </div>
         <button type="submit" style={{ marginTop: 10 }}>
           เพิ่มปุ่ม
         </button>

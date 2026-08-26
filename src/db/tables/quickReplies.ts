@@ -16,6 +16,13 @@ export const quickReplies = pgTable(
     tenantId: tenantId(),
     label: text("label").notNull(), // shown on the chip (LINE caps at 20 chars)
     reply: text("reply").notNull(), // canned answer sent when tapped
+    // Extra trigger keyword(s) (comma/newline separated) that also fire this reply
+    // when a customer TYPES them — not just tapping the chip. Empty = label only.
+    keywords: text("keywords"),
+    // How keywords match a typed message: "exact" (whole message equals) or
+    // "contains" (message includes the keyword). Default "exact". The chip label
+    // always matches exactly regardless, so tapping a chip keeps working.
+    matchType: text("match_type").notNull().default("exact"),
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
     ...timestamps,
