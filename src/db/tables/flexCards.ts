@@ -47,9 +47,13 @@ export const flexCards = pgTable(
     // single buttonLabel/Value above when empty.
     buttons: jsonb("buttons").$type<FlexButton[]>(),
     items: jsonb("items").$type<CarouselItem[]>(),
-    // When a customer's message contains this keyword, the bot sends this card in
-    // the chat (LINE Flex / FB template). Empty = never auto-sent (broadcast only).
+    // Keyword(s) that auto-send this card in chat (LINE Flex / FB template).
+    // Multiple keywords separated by comma or newline — any one match triggers.
+    // Empty = never auto-sent (broadcast only).
     triggerKeyword: text("trigger_keyword"),
+    // How keywords match the customer's message: "contains" (message includes the
+    // keyword) or "exact" (whole message equals the keyword). Default "contains".
+    triggerMatch: text("trigger_match").notNull().default("contains"),
     ...timestamps,
   },
   (t) => [index("flex_cards_tenant_idx").on(t.tenantId)],

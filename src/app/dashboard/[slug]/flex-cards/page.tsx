@@ -118,12 +118,19 @@ export default async function FlexCardsPage({
                 <input type="hidden" name="slug" value={slug} />
                 <input type="hidden" name="cardId" value={c.id} />
                 <label style={{ flex: 1, minWidth: 180, margin: 0 }}>
-                  คำที่ให้บอทส่งการ์ดนี้อัตโนมัติ
+                  คำที่ให้บอทส่งการ์ดนี้อัตโนมัติ (ใส่ได้หลายคำ คั่นด้วย , หรือขึ้นบรรทัดใหม่)
                   <input
                     name="triggerKeyword"
                     defaultValue={c.triggerKeyword ?? ""}
-                    placeholder="เช่น โปรโมชั่น"
+                    placeholder="เช่น โปรโมชั่น, โปร, ส่วนลด"
                   />
+                </label>
+                <label style={{ minWidth: 140, margin: 0 }}>
+                  รูปแบบการจับคำ
+                  <select name="triggerMatch" defaultValue={c.triggerMatch ?? "contains"}>
+                    <option value="contains">มีคำนี้ในข้อความ</option>
+                    <option value="exact">พิมพ์ตรงเป๊ะทั้งข้อความ</option>
+                  </select>
                 </label>
                 <button type="submit" className="sm">
                   บันทึกคำ

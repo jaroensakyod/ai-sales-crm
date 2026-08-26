@@ -1,0 +1,1 @@
+ALTER TABLE "flex_cards" ADD COLUMN "trigger_match" text DEFAULT 'contains' NOT NULL;

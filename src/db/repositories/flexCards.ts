@@ -27,22 +27,35 @@ export async function getFlexCard(db: DbClient, tenantId: string, id: string) {
   return row ?? null;
 }
 
-/** First card whose (non-empty) trigger keyword appears in the message. Used by
- *  the chat pipeline to auto-send a merchant card. Pure substring, case-folded. */
+/** Split a trigger field into individual keywords (comma- or newline-separated). */
+function splitKeywords(raw: string | null | undefined): string[] {
+  return (raw ?? "")
+    .split(/[,\n]/)
+    .map((k) => k.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/** First card triggered by the message. Each card may list several keywords
+ *  (comma/newline separated); a card matches if ANY keyword matches under its
+ *  mode: "exact" = whole message equals the keyword, else substring ("contains").
+ *  Used by the chat pipeline to auto-send a merchant card. */
 export async function findFlexCardByTrigger(
   db: DbClient,
   tenantId: string,
   text: string,
 ): Promise<FlexCard | null> {
-  const n = text.toLowerCase();
+  const n = text.trim().toLowerCase();
   const rows = await db
     .select()
     .from(flexCards)
     .where(eq(flexCards.tenantId, tenantId))
     .orderBy(desc(flexCards.createdAt));
   for (const row of rows) {
-    const kw = row.triggerKeyword?.trim().toLowerCase();
-    if (kw && n.includes(kw)) return row;
+    const keywords = splitKeywords(row.triggerKeyword);
+    if (keywords.length === 0) continue;
+    const exact = row.triggerMatch === "exact";
+    const hit = keywords.some((kw) => (exact ? n === kw : n.includes(kw)));
+    if (hit) return row;
   }
   return null;
 }
@@ -61,6 +74,7 @@ export type FlexCardInput = {
   buttons?: FlexButton[] | null;
   items?: CarouselItem[] | null;
   triggerKeyword?: string | null;
+  triggerMatch?: string;
 };
 
 export async function createFlexCard(
@@ -82,10 +96,11 @@ export async function updateFlexCardTrigger(
   tenantId: string,
   id: string,
   triggerKeyword: string | null,
+  triggerMatch: string = "contains",
 ) {
   await db
     .update(flexCards)
-    .set({ triggerKeyword, updatedAt: new Date() })
+    .set({ triggerKeyword, triggerMatch, updatedAt: new Date() })
     .where(and(eq(flexCards.tenantId, tenantId), eq(flexCards.id, id)));
 }
 

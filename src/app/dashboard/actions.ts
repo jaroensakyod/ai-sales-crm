@@ -1085,7 +1085,10 @@ export async function updateFlexCardTriggerAction(formData: FormData) {
   const id = String(formData.get("cardId") ?? "");
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   const kw = String(formData.get("triggerKeyword") ?? "").trim() || null;
-  await updateFlexCardTrigger(db, tenant.id, id, kw);
+  const match = String(formData.get("triggerMatch") ?? "contains") === "exact"
+    ? "exact"
+    : "contains";
+  await updateFlexCardTrigger(db, tenant.id, id, kw, match);
   redirect(`/dashboard/${slug}/flex-cards?ok=trigger`);
 }
 
