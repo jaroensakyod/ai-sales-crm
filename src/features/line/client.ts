@@ -217,6 +217,35 @@ export async function broadcastPromo(
   await client.broadcast({ messages });
 }
 
+/**
+ * Rich Message broadcast: a big banner image where tapping anywhere opens a link
+ * (LINE "rich message" / clickable image). Implemented as a Flex bubble with a
+ * full-width hero image carrying a URI action — this needs no multi-resolution
+ * imagemap hosting, and the whole image is one clickable link. An optional text
+ * message is sent after it.
+ */
+export async function broadcastRichImage(
+  client: LineClient,
+  input: { imageUrl: string; linkUrl: string; text?: string },
+): Promise<void> {
+  const bubble: messagingApi.FlexBubble = {
+    type: "bubble",
+    hero: {
+      type: "image",
+      url: input.imageUrl,
+      size: "full",
+      aspectRatio: "20:13",
+      aspectMode: "cover",
+      action: { type: "uri", label: "เปิดลิงก์", uri: input.linkUrl },
+    },
+  };
+  const messages: messagingApi.Message[] = [
+    { type: "flex", altText: input.text?.slice(0, 400) || "โปรโมชั่น", contents: bubble },
+  ];
+  if (input.text) messages.push({ type: "text", text: input.text });
+  await client.broadcast({ messages });
+}
+
 // ── Flex cards ──────────────────────────────────────────────────────────────
 
 function flexButtons(

@@ -33,6 +33,7 @@ import { enqueueWebhookEvent } from "@/features/webhooks/dispatch";
 import {
   broadcastFlex,
   broadcastPromo,
+  broadcastRichImage,
   createLineClient,
 } from "@/features/line/client";
 import {
@@ -958,9 +959,13 @@ export async function broadcastLineAction(formData: FormData) {
   }
   const raw = String(formData.get("message") ?? "").trim();
   const imageUrl = toImageUrl(formData.get("imageUrl"));
+  const linkRaw = String(formData.get("linkUrl") ?? "").trim();
+  const linkUrl = /^https?:\/\//i.test(linkRaw) ? linkRaw : null;
   const confirmed = formData.get("confirm") === "on";
   if (!raw && !imageUrl) redirect(`/dashboard/${slug}/broadcast?error=empty`);
   if (!confirmed) redirect(`/dashboard/${slug}/broadcast?error=confirm`);
+  // Rich Message (tap image → open link) needs an image to be the clickable area.
+  if (linkUrl && !imageUrl) redirect(`/dashboard/${slug}/broadcast?error=richnoimage`);
 
   const line = await getConnectedLineChannel(db, tenant.id);
   if (!line) redirect(`/dashboard/${slug}/broadcast?error=nochannel`);
@@ -971,6 +976,8 @@ export async function broadcastLineAction(formData: FormData) {
   // Thailand time (+07:00) since shops are Thai, and store the real instant.
   const schedStr = String(formData.get("scheduledAt") ?? "").trim();
   if (schedStr) {
+    // Rich Message (clickable-image link) can't be scheduled yet — send it now.
+    if (linkUrl) redirect(`/dashboard/${slug}/broadcast?error=richnoschedule`);
     const at = new Date(`${schedStr}:00+07:00`);
     if (Number.isNaN(at.getTime()) || at.getTime() <= Date.now()) {
       redirect(`/dashboard/${slug}/broadcast?error=badtime`);
@@ -983,14 +990,18 @@ export async function broadcastLineAction(formData: FormData) {
     redirect(`/dashboard/${slug}/broadcast?ok=scheduled`);
   }
   try {
-    const token = decryptSecret(line.connection.accessTokenEncrypted);
-    await broadcastPromo(createLineClient(token), { text, imageUrl });
+    const client = createLineClient(decryptSecret(line.connection.accessTokenEncrypted));
+    if (linkUrl && imageUrl) {
+      await broadcastRichImage(client, { imageUrl, linkUrl, text: text || undefined });
+    } else {
+      await broadcastPromo(client, { text, imageUrl });
+    }
   } catch {
     redirect(`/dashboard/${slug}/broadcast?error=send`);
   }
   await recordUsageEvent(db, tenant.id, {
     type: "line_broadcast",
-    meta: { chars: text.length, hasImage: Boolean(imageUrl) },
+    meta: { chars: text.length, hasImage: Boolean(imageUrl), rich: Boolean(linkUrl) },
   });
   redirect(`/dashboard/${slug}/broadcast?ok=1`);
 }

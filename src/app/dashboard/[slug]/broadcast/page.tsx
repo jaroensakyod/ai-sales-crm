@@ -63,6 +63,8 @@ export default async function BroadcastPage({
     nochannel: "ยังไม่ได้เชื่อม LINE OA",
     send: "ส่งไม่สำเร็จ ลองใหม่อีกครั้ง",
     badtime: "เวลาที่ตั้งไม่ถูกต้อง (ต้องเป็นเวลาในอนาคต)",
+    richnoimage: "Rich Message ต้องใส่ลิงก์รูปแบนเนอร์ด้วย (รูปคือพื้นที่ที่กดได้)",
+    richnoschedule: "Rich Message (กดรูปเปิดลิงก์) ยังตั้งเวลาล่วงหน้าไม่ได้ — ยิงทันทีเท่านั้น",
   };
 
   return (
@@ -104,6 +106,17 @@ export default async function BroadcastPage({
             />
             <span className="muted" style={{ fontSize: "0.8rem" }}>
               โปรฯ ที่มีรูปแบนเนอร์ ลูกค้าสนใจมากกว่าข้อความเปล่า
+            </span>
+          </label>
+          <label>
+            ลิงก์เมื่อกดรูป (Rich Message — เว้นว่าง = รูปธรรมดา กดไม่ได้)
+            <input
+              name="linkUrl"
+              type="url"
+              placeholder="https://... (ใส่แล้ว รูปจะกดเปิดลิงก์นี้ได้ทั้งรูป — ยิงทันทีเท่านั้น)"
+            />
+            <span className="muted" style={{ fontSize: "0.8rem" }}>
+              ใส่ลิงก์ = ส่งเป็น Rich Message กดที่รูปเปิดลิงก์ได้ (เช่น หน้าสั่งซื้อ / โปรฯ) · แนะนำรูป 20:13
             </span>
           </label>
           <label>
