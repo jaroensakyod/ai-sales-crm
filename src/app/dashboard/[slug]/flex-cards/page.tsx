@@ -14,6 +14,7 @@ import {
   updateFlexCardTriggerAction,
 } from "../../actions";
 import { Shell } from "../_components/shell";
+import { CardPreview } from "./_components/card-preview";
 import { CarouselComposer } from "./_components/carousel-composer";
 import { FlexComposer } from "./_components/flex-composer";
 
@@ -87,6 +88,29 @@ export default async function FlexCardsPage({
         <div className="stack-sm">
           {cards.map((c) => (
             <div key={c.id} className="card">
+              {c.kind !== "carousel" ? (
+                <div style={{ marginBottom: 12 }}>
+                  <CardPreview
+                    style={c.style ?? "plain"}
+                    headline={c.headline}
+                    body={c.body}
+                    priceLabel={c.priceLabel}
+                    imageUrl={c.imageUrl}
+                    accentColor={c.accentColor}
+                    buttonLabels={
+                      (c.buttons ?? []).map((b) => b.label).filter(Boolean).length
+                        ? (c.buttons ?? []).map((b) => b.label)
+                        : c.buttonLabel
+                          ? [c.buttonLabel]
+                          : []
+                    }
+                  />
+                </div>
+              ) : (
+                <p className="muted" style={{ fontSize: "0.85rem", marginBottom: 8 }}>
+                  🎠 ชุดการ์ด (Carousel) {(c.items ?? []).length} ใบ — เลื่อนดูได้ในแชท
+                </p>
+              )}
               <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
                   <strong>{c.name}</strong>
@@ -158,6 +182,23 @@ export default async function FlexCardsPage({
                         <option value="promo">โปรโมชั่น (สีส้ม)</option>
                         <option value="minimal">มินิมอล</option>
                       </select>
+                    </label>
+                    <label className="inline">
+                      <input
+                        type="checkbox"
+                        name="useCustomColor"
+                        defaultChecked={Boolean(c.accentColor)}
+                      />
+                      ใช้สีเอง
+                    </label>
+                    <label>
+                      สีเอง (ติ๊ก “ใช้สีเอง” ด้านบนก่อน)
+                      <input
+                        name="accentColor"
+                        type="color"
+                        defaultValue={c.accentColor ?? "#185FA5"}
+                        style={{ width: 48, height: 34, padding: 0 }}
+                      />
                     </label>
                     <label>
                       หัวข้อ (headline)

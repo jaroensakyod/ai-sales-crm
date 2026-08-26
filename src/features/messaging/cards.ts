@@ -57,6 +57,8 @@ export type CustomFlexCard = {
   body?: string;
   priceLabel?: string;
   style?: FlexStyle;
+  /** Optional custom accent colour (hex) overriding the style preset. */
+  accentColor?: string | null;
   actions: CardAction[];
   fallback: string;
 };

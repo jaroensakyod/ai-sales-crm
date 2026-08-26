@@ -34,6 +34,8 @@ export const flexCards = pgTable(
     kind: text("kind").notNull().default("single"),
     // Visual preset: "plain" | "promo" | "minimal" — changes colors/header.
     style: text("style").notNull().default("plain"),
+    // Optional custom accent colour (hex) — overrides the preset's accent/price.
+    accentColor: text("accent_color"),
     headline: text("headline"),
     body: text("body"),
     priceLabel: text("price_label"),

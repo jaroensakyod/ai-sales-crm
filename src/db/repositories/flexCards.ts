@@ -64,6 +64,7 @@ export type FlexCardInput = {
   name: string;
   kind?: string;
   style?: string;
+  accentColor?: string | null;
   headline?: string | null;
   body?: string | null;
   priceLabel?: string | null;
@@ -113,6 +114,7 @@ export async function updateFlexCard(
   input: {
     name?: string;
     style?: string;
+    accentColor?: string | null;
     headline?: string | null;
     body?: string | null;
     priceLabel?: string | null;
@@ -204,6 +206,7 @@ export function flexCardToMessageCard(card: FlexCard): MessageCard {
     body: card.body ?? undefined,
     priceLabel: card.priceLabel ?? undefined,
     style,
+    accentColor: card.accentColor ?? null,
     actions,
     fallback: [card.headline, card.priceLabel].filter(Boolean).join(" "),
   };

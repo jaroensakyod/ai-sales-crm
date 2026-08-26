@@ -369,7 +369,11 @@ function styleColors(style: string | undefined) {
 }
 
 function customBubble(card: Extract<MessageCard, { kind: "custom_flex" }>) {
-  const colors = styleColors(card.style);
+  const base = styleColors(card.style);
+  // A custom accent colour (if set) overrides the preset's accent + price.
+  const colors = card.accentColor
+    ? { ...base, accent: card.accentColor, price: card.accentColor }
+    : base;
   const body: messagingApi.FlexComponent[] = [
     { type: "text", text: card.headline, weight: "bold", size: "lg", wrap: true },
   ];

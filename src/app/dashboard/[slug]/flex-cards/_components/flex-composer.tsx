@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { saveFlexCardAction, suggestCaptionsAction } from "../../../actions";
+import { CardPreview } from "./card-preview";
 
 type ProductLite = {
   name: string;
@@ -35,10 +36,9 @@ export function FlexComposer({
     { label: string; kind: string; value: string }[]
   >([{ label: "สั่งซื้อเลย", kind: "message", value: "" }]);
   const [style, setStyle] = useState("plain");
+  const [accentColor, setAccentColor] = useState("");
   const [captions, setCaptions] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
-
-  const theme = STYLES.find((s) => s.key === style) ?? STYLES[0];
 
   function fillFromProduct(p: ProductLite) {
     setName(`การ์ด ${p.name}`);
@@ -110,6 +110,25 @@ export function FlexComposer({
               </option>
             ))}
           </select>
+        </label>
+        <label>
+          สีเอง (ไม่บังคับ — ทับสีของสไตล์)
+          <span className="row" style={{ gap: 8, alignItems: "center" }}>
+            <input
+              type="color"
+              value={accentColor || "#185FA5"}
+              onChange={(e) => setAccentColor(e.target.value)}
+              style={{ width: 48, height: 34, padding: 0 }}
+            />
+            {accentColor ? (
+              <button type="button" className="sm" onClick={() => setAccentColor("")}>
+                ล้างสี (ใช้สไตล์)
+              </button>
+            ) : (
+              <span className="muted" style={{ fontSize: "0.8rem" }}>ยังไม่ได้ตั้งสีเอง</span>
+            )}
+          </span>
+          <input type="hidden" name="accentColor" value={accentColor} />
         </label>
         <label>
           ชื่อการ์ด (สำหรับจัดการภายใน)
@@ -275,93 +294,15 @@ export function FlexComposer({
         <p className="muted" style={{ marginBottom: 8 }}>
           ตัวอย่างบน LINE
         </p>
-        <div
-          style={{
-            maxWidth: 300,
-            background: "#fff",
-            border: "1px solid #e2e2e2",
-            borderRadius: 14,
-            overflow: "hidden",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-          }}
-        >
-          {theme.header ? (
-            <div
-              style={{
-                background: theme.accent,
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                padding: "8px 16px",
-              }}
-            >
-              {theme.header}
-            </div>
-          ) : null}
-          {imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageUrl}
-              alt=""
-              // Match LINE's hero: 20:13 ratio, cover — so the preview crops
-              // exactly like the real card.
-              style={{
-                width: "100%",
-                aspectRatio: "20 / 13",
-                objectFit: "cover",
-                display: "block",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: "100%",
-                aspectRatio: "20 / 13",
-                background: "#f0f0f0",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#aaa",
-                fontSize: 13,
-              }}
-            >
-              รูป 20:13 (เช่น 1024×666)
-            </div>
-          )}
-          <div style={{ padding: "14px 16px" }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#111" }}>
-              {headline || "หัวข้อการ์ด"}
-            </div>
-            {body ? (
-              <div style={{ fontSize: 13, color: "#666", marginTop: 6 }}>{body}</div>
-            ) : null}
-            {priceLabel ? (
-              <div style={{ fontSize: 15, fontWeight: 700, color: theme.price, marginTop: 10 }}>
-                {priceLabel}
-              </div>
-            ) : null}
-            {buttons
-              .filter((b) => b.label.trim())
-              .map((b, i) => (
-                <div
-                  key={i}
-                  style={{
-                    marginTop: i === 0 ? 14 : 8,
-                    textAlign: "center",
-                    padding: "9px",
-                    borderRadius: 8,
-                    ...(style === "minimal" || i > 0
-                      ? { border: `1px solid ${theme.accent}`, color: theme.accent }
-                      : { background: theme.accent, color: "#fff" }),
-                    fontSize: 14,
-                    fontWeight: 600,
-                  }}
-                >
-                  {b.label}
-                </div>
-              ))}
-          </div>
-        </div>
+        <CardPreview
+          style={style}
+          headline={headline}
+          body={body}
+          priceLabel={priceLabel}
+          imageUrl={imageUrl}
+          accentColor={accentColor || null}
+          buttonLabels={buttons.map((b) => b.label)}
+        />
       </div>
     </div>
   );

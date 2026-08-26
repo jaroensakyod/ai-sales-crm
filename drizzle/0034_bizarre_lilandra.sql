@@ -1,0 +1,1 @@
+ALTER TABLE "flex_cards" ADD COLUMN "accent_color" text;

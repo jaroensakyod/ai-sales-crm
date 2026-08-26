@@ -1070,10 +1070,13 @@ export async function saveFlexCardAction(formData: FormData) {
   } catch {
     buttons = [];
   }
+  const accentRaw = String(formData.get("accentColor") ?? "").trim();
+  const accentColor = /^#[0-9a-fA-F]{6}$/.test(accentRaw) ? accentRaw : null;
   await createFlexCard(db, tenant.id, {
     name,
     kind: "single",
     style,
+    accentColor,
     headline,
     body: String(formData.get("body") ?? "").trim() || null,
     priceLabel: String(formData.get("priceLabel") ?? "").trim() || null,
@@ -1157,9 +1160,14 @@ export async function editFlexCardAction(formData: FormData) {
   const { db, tenant } = await tenantForSlug(slug, "edit_sales");
   const styleRaw = String(formData.get("style") ?? "plain");
   const style = ["plain", "promo", "minimal"].includes(styleRaw) ? styleRaw : "plain";
+  const accentRaw = String(formData.get("accentColor") ?? "").trim();
+  const useCustom = formData.get("useCustomColor") === "on";
+  const accentColor =
+    useCustom && /^#[0-9a-fA-F]{6}$/.test(accentRaw) ? accentRaw : null;
   await updateFlexCard(db, tenant.id, id, {
     name: String(formData.get("name") ?? "").trim() || undefined,
     style,
+    accentColor,
     headline: String(formData.get("headline") ?? "").trim() || null,
     body: String(formData.get("body") ?? "").trim() || null,
     priceLabel: String(formData.get("priceLabel") ?? "").trim() || null,
