@@ -1221,12 +1221,16 @@ export async function createQuickReplyAction(formData: FormData) {
     ? "contains"
     : "exact";
   const productId = String(formData.get("productId") ?? "").trim() || null;
+  const imageUrl = toImageUrl(formData.get("imageUrl"));
+  const flexCardId = String(formData.get("flexCardId") ?? "").trim() || null;
   await createQuickReply(db, tenant.id, {
     label,
     reply,
     keywords,
     matchType,
     productId,
+    imageUrl,
+    flexCardId,
     sortOrder,
   });
   redirect(`/dashboard/${slug}/quick-replies?ok=saved`);

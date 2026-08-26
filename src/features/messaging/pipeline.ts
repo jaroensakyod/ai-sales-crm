@@ -48,6 +48,7 @@ import type {
 import {
   findFlexCardByTrigger,
   flexCardToMessageCard,
+  getFlexCard,
 } from "@/db/repositories/flexCards";
 import { tryCheckout, tryConfirmOrder } from "@/features/sales/checkout";
 import { tryBooking } from "@/features/booking/book-from-chat";
@@ -422,6 +423,23 @@ export async function handleInboundText(
             body: detail,
           });
         }
+      }
+    }
+    // Optional image attached to the quick reply.
+    if (tapped.imageUrl && args.sendImage) {
+      await args.sendImage(args.externalId, tapped.imageUrl);
+      await recordOutboundMessage(db, args.tenantId, conversation.id, {
+        body: `[ส่งรูป] ${tapped.imageUrl}`,
+      });
+    }
+    // Optional saved Flex card attached to the quick reply.
+    if (tapped.flexCardId && args.sendCard) {
+      const fc = await getFlexCard(db, args.tenantId, tapped.flexCardId);
+      if (fc) {
+        await args.sendCard(args.externalId, flexCardToMessageCard(fc));
+        await recordOutboundMessage(db, args.tenantId, conversation.id, {
+          body: `[ส่งการ์ด] ${fc.name}`,
+        });
       }
     }
     return { status: "processed", replied: true };

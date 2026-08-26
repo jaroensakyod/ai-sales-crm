@@ -32,6 +32,8 @@ export async function createQuickReply(
     keywords?: string | null;
     matchType?: string;
     productId?: string | null;
+    imageUrl?: string | null;
+    flexCardId?: string | null;
     sortOrder?: number;
   },
 ) {

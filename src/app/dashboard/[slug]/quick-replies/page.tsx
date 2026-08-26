@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { createDbClient } from "@/db/client";
+import { listFlexCards } from "@/db/repositories/flexCards";
 import { listProducts } from "@/db/repositories/products";
 import { listQuickReplies } from "@/db/repositories/quickReplies";
 import { getTenantBySlug } from "@/db/repositories/tenants";
@@ -28,6 +29,7 @@ export default async function QuickRepliesPage({
 
   const items = await listQuickReplies(db, tenant.id);
   const products = await listProducts(db, tenant.id);
+  const flexCards = await listFlexCards(db, tenant.id);
 
   return (
     <Shell slug={slug} tenantName={tenant.name} role={session.role} businessTypes={tenant.businessTypes}>
@@ -82,6 +84,21 @@ export default async function QuickRepliesPage({
             {products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          แนบรูป (ไม่บังคับ — URL รูป https JPG/PNG)
+          <input name="imageUrl" type="url" placeholder="https://... (แนบรูปส่งพร้อมคำตอบ)" />
+        </label>
+        <label>
+          แนบการ์ด Flex (ไม่บังคับ — เลือกการ์ดที่บันทึกไว้)
+          <select name="flexCardId" defaultValue="">
+            <option value="">— ไม่แนบการ์ด —</option>
+            {flexCards.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </select>

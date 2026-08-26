@@ -29,6 +29,10 @@ export const quickReplies = pgTable(
     productId: uuid("product_id").references(() => products.id, {
       onDelete: "set null",
     }),
+    // Optional rich attachments sent along with the reply: an image and/or a saved
+    // Flex card. Lets a quick reply answer with more than plain text.
+    imageUrl: text("image_url"),
+    flexCardId: uuid("flex_card_id"),
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
     ...timestamps,
