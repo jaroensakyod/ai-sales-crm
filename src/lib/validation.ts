@@ -58,6 +58,21 @@ export function toImageUrl(v: unknown): string | null {
 }
 
 /**
+ * Convert a Google Drive share link to a direct-image URL LINE can actually
+ * render. A `drive.google.com/file/d/<id>/view` or `open?id=<id>` link returns
+ * an HTML page (LINE shows nothing), so rewrite it to the `uc?export=view` form.
+ * Any other URL is returned unchanged.
+ */
+export function normalizeImageUrl(url: string): string {
+  const m =
+    url.match(/drive\.google\.com\/file\/d\/([\w-]+)/) ??
+    url.match(/drive\.google\.com\/open\?id=([\w-]+)/) ??
+    url.match(/drive\.google\.com\/uc\?[^#]*\bid=([\w-]+)/);
+  if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+  return url;
+}
+
+/**
  * Strip Markdown so AI replies read like a human typed them in LINE/Messenger
  * (which show `**` and `#` literally, making the bot obvious). Keeps the text.
  */

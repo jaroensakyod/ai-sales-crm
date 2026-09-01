@@ -48,6 +48,7 @@ import type { CarouselItem } from "@/db/tables/flexCards";
 import {
   createQuickReply,
   deleteQuickReply,
+  updateQuickReply,
 } from "@/db/repositories/quickReplies";
 import { suggestCaptions } from "@/features/ai/captions";
 import { decryptSecret } from "@/lib/crypto";
@@ -390,6 +391,7 @@ export async function createProductAction(formData: FormData) {
       description: String(formData.get("description") ?? "").trim() || null,
       aiKnowledge: String(formData.get("aiKnowledge") ?? "").trim() || null,
       imageUrl: toImageUrl(formData.get("imageUrl")),
+      isDigital: formData.get("isDigital") === "on",
     });
   }
   redirect(`/dashboard/${slug}/products?ok=1`);
@@ -421,6 +423,7 @@ export async function editProductAction(formData: FormData) {
     description: String(formData.get("description") ?? "").trim() || null,
     aiKnowledge: String(formData.get("aiKnowledge") ?? "").trim() || null,
     imageUrl: toImageUrl(formData.get("imageUrl")),
+    isDigital: formData.get("isDigital") === "on",
     isActive: formData.get("isActive") === "on",
   });
   redirect(`/dashboard/${slug}/products?ok=1`);
@@ -1239,6 +1242,30 @@ export async function createQuickReplyAction(formData: FormData) {
     sortOrder,
   });
   redirect(`/dashboard/${slug}/quick-replies?ok=saved`);
+}
+
+export async function editQuickReplyAction(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "");
+  const id = String(formData.get("id") ?? "");
+  const { db, tenant } = await tenantForSlug(slug, "edit_sales");
+  const label = String(formData.get("label") ?? "").trim().slice(0, 20);
+  const reply = String(formData.get("reply") ?? "").trim();
+  if (!label || !reply) {
+    redirect(`/dashboard/${slug}/quick-replies?error=empty`);
+  }
+  const matchType = String(formData.get("matchType") ?? "exact") === "contains"
+    ? "contains"
+    : "exact";
+  await updateQuickReply(db, tenant.id, id, {
+    label,
+    reply,
+    keywords: String(formData.get("keywords") ?? "").trim() || null,
+    matchType,
+    productId: String(formData.get("productId") ?? "").trim() || null,
+    imageUrl: toImageUrl(formData.get("imageUrl")),
+    flexCardId: String(formData.get("flexCardId") ?? "").trim() || null,
+  });
+  redirect(`/dashboard/${slug}/quick-replies?ok=edited`);
 }
 
 export async function deleteQuickReplyAction(formData: FormData) {

@@ -7,7 +7,11 @@ import { listQuickReplies } from "@/db/repositories/quickReplies";
 import { getTenantBySlug } from "@/db/repositories/tenants";
 import { requirePermission, requireTenantAuth } from "@/features/auth/session";
 
-import { createQuickReplyAction, deleteQuickReplyAction } from "../../actions";
+import {
+  createQuickReplyAction,
+  deleteQuickReplyAction,
+  editQuickReplyAction,
+} from "../../actions";
 import { Shell } from "../_components/shell";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +43,7 @@ export default async function QuickRepliesPage({
         ไม่ต้องพิมพ์ — ตั้งได้เองว่าปุ่มชื่ออะไรและตอบว่าอะไร (แสดงทั้ง LINE และ Facebook)
       </p>
       {ok === "saved" ? <p className="ok">บันทึกปุ่มแล้ว</p> : null}
+      {ok === "edited" ? <p className="ok">แก้ไขปุ่มแล้ว</p> : null}
       {ok === "deleted" ? <p className="ok">ลบปุ่มแล้ว</p> : null}
       {error === "empty" ? <p className="error">กรุณากรอกทั้งชื่อปุ่มและคำตอบ</p> : null}
 
@@ -142,6 +147,63 @@ export default async function QuickRepliesPage({
                   </button>
                 </form>
               </div>
+              <details style={{ marginTop: 8 }}>
+                <summary style={{ cursor: "pointer", fontSize: "0.85rem" }}>✏️ แก้ไข</summary>
+                <form action={editQuickReplyAction} style={{ marginTop: 8 }}>
+                  <input type="hidden" name="slug" value={slug} />
+                  <input type="hidden" name="id" value={it.id} />
+                  <label>
+                    ชื่อปุ่ม
+                    <input name="label" defaultValue={it.label} required maxLength={20} />
+                  </label>
+                  <label>
+                    คำตอบ
+                    <textarea name="reply" rows={3} required defaultValue={it.reply} />
+                  </label>
+                  <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                    <label style={{ flex: 2, minWidth: 200, margin: 0 }}>
+                      คำที่พิมพ์แล้วตอบอัตโนมัติ (คั่นด้วย ,)
+                      <input name="keywords" defaultValue={it.keywords ?? ""} />
+                    </label>
+                    <label style={{ minWidth: 150, margin: 0 }}>
+                      รูปแบบการจับคำ
+                      <select name="matchType" defaultValue={it.matchType ?? "exact"}>
+                        <option value="exact">พิมพ์ตรงเป๊ะ</option>
+                        <option value="contains">มีคำนี้ในข้อความ</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label>
+                    ผูกกับสินค้า
+                    <select name="productId" defaultValue={it.productId ?? ""}>
+                      <option value="">— ไม่ผูกสินค้า —</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    แนบรูป (URL)
+                    <input name="imageUrl" type="url" defaultValue={it.imageUrl ?? ""} />
+                  </label>
+                  <label>
+                    แนบการ์ด Flex
+                    <select name="flexCardId" defaultValue={it.flexCardId ?? ""}>
+                      <option value="">— ไม่แนบการ์ด —</option>
+                      {flexCards.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit" className="sm" style={{ marginTop: 6 }}>
+                    บันทึกการแก้ไข
+                  </button>
+                </form>
+              </details>
             </div>
           ))}
         </div>

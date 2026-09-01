@@ -62,6 +62,7 @@ import {
   wantsReview,
   wantsWelcome,
 } from "@/features/sales/order-intent";
+import { normalizeImageUrl } from "@/lib/validation";
 
 /** Tappable suggestion chips under a reply; tapping `label` sends `text`. */
 export type QuickReply = { label: string; text: string };
@@ -663,17 +664,29 @@ export async function handleInboundText(
       const style = (s?.reviewCardStyle as FlexStyle | null) ?? "plain";
       const cards = imaged.slice(0, 10).map((r) => ({
         kind: "custom_flex" as const,
-        imageUrl: r.imageUrl,
+        // Normalize Drive-style links so the hero image actually renders on LINE.
+        imageUrl: normalizeImageUrl(r.imageUrl as string),
         headline: r.authorName ? `รีวิวจาก ${r.authorName}` : "รีวิวจากลูกค้า",
         body: r.caption ?? undefined,
         style,
         actions: [],
         fallback: r.caption ?? "รีวิวจากลูกค้า",
       }));
+      // Send the testimonials as TEXT too (a companion bubble) so the customer
+      // always gets the content even if an image fails to render. Buffered
+      // transport delivers text + carousel together (single reply + push).
+      const testimonials = imaged
+        .filter((r) => r.caption)
+        .slice(0, 5)
+        .map((r) => `"${r.caption}"${r.authorName ? ` — ${r.authorName}` : ""}`)
+        .join("\n");
+      if (testimonials) {
+        await args.send(args.externalId, `รีวิวจากลูกค้าของเราค่ะ 😊\n${testimonials}`);
+      }
       await args.sendCard(args.externalId, {
         kind: "carousel",
         cards,
-        fallback: "รีวิวจากลูกค้าค่ะ",
+        fallback: testimonials || "รีวิวจากลูกค้าค่ะ",
       });
       await recordOutboundMessage(db, args.tenantId, conversation.id, {
         body: `[ส่งรีวิว] ${cards.length} รายการ`,
@@ -686,7 +699,7 @@ export async function handleInboundText(
       const caption = withImage.caption
         ? `"${withImage.caption}"${withImage.authorName ? ` — ${withImage.authorName}` : ""}`
         : "รีวิวจากลูกค้าค่ะ";
-      await args.sendImage(args.externalId, withImage.imageUrl, caption);
+      await args.sendImage(args.externalId, normalizeImageUrl(withImage.imageUrl), caption);
       await recordOutboundMessage(db, args.tenantId, conversation.id, {
         body: `[ส่งรีวิว] ${caption}`,
       });

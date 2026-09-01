@@ -4,6 +4,7 @@ import {
   createOrder,
   getOpenOrderForConversation,
   getOrder,
+  orderHasPhysicalItem,
   updateOrderStatus,
 } from "@/db/repositories/orders";
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
@@ -129,23 +130,48 @@ export async function tryCheckout(
   );
 
   if (existing) {
-    const total = Number(existing.total);
     if (existing.status === "PENDING_PAYMENT") {
+      // Already confirmed & awaiting payment → re-send the instruction, don't
+      // silently mutate a locked order.
+      const total = Number(existing.total);
       const paySettings = await getPaymentSettings(db, ctx.tenantId);
+      const hasPhysical = await orderHasPhysicalItem(db, ctx.tenantId, existing.id);
       return {
         orderId: existing.id,
         reply:
           `ออเดอร์เดิมของคุณยอดรวม ${total.toLocaleString("th-TH")} บาทค่ะ ✅\n\n` +
-          buildPaymentInstruction(paySettings, { total }),
+          buildPaymentInstruction(paySettings, { total, hasPhysical }),
       };
     }
-    // DRAFT awaiting confirmation → re-ask.
+    // DRAFT + customer named another product → add it to the SAME order (cart)
+    // and re-summarize with the new running total (fixes the "total didn't update"
+    // bug where a 2nd item was silently dropped).
+    const quantity = parseQuantity(ctx.text);
+    await addOrderItem(db, ctx.tenantId, existing.id, {
+      productId: variant ? undefined : product.id,
+      variantId: variant?.id,
+      quantity,
+    });
+    const detail = await getOrder(db, ctx.tenantId, existing.id);
+    const total = Number(detail?.order.total ?? 0);
+    const displayName = variant ? `${product.name} (${variant.name})` : product.name;
+    const reply =
+      `เพิ่ม ${displayName} จำนวน ${quantity} ชิ้นแล้วค่ะ ` +
+      `ยอดรวมตอนนี้ ${total.toLocaleString("th-TH")} บาท\n\n` +
+      `ยืนยันสั่งซื้อไหมคะ? กดปุ่ม "ยืนยันสั่งซื้อ" ด้านล่างเพื่อรับข้อมูลการโอนได้เลยค่ะ 😊`;
     return {
       orderId: existing.id,
-      reply:
-        `ออเดอร์ของคุณยอดรวม ${total.toLocaleString("th-TH")} บาทค่ะ\n\n` +
-        `ยืนยันสั่งซื้อไหมคะ? กดปุ่ม "ยืนยันสั่งซื้อ" ด้านล่างเพื่อรับข้อมูลการโอนได้เลยค่ะ 😊`,
+      reply,
       awaitingConfirm: true,
+      card: {
+        kind: "order_confirm",
+        title: "ยืนยันคำสั่งซื้อ",
+        productName: displayName,
+        imageUrl: product.imageUrl ?? null,
+        detail: `เพิ่ม ${displayName} • ยอดรวม ${total.toLocaleString("th-TH")} บาท`,
+        actions: [CONFIRM_ACTION, HUMAN_ACTION],
+        fallback: reply,
+      },
     };
   }
 
@@ -215,6 +241,7 @@ export async function tryConfirmOrder(
 
   const total = Number(existing.total);
   const paySettings = await getPaymentSettings(db, ctx.tenantId);
+  const hasPhysical = await orderHasPhysicalItem(db, ctx.tenantId, existing.id);
 
   // Already confirmed (PENDING_PAYMENT) → just re-send the instruction.
   if (existing.status !== "DRAFT") {
@@ -222,7 +249,7 @@ export async function tryConfirmOrder(
       orderId: existing.id,
       reply:
         `ออเดอร์ของคุณยอดรวม ${total.toLocaleString("th-TH")} บาทค่ะ ✅\n\n` +
-        buildPaymentInstruction(paySettings, { total }),
+        buildPaymentInstruction(paySettings, { total, hasPhysical }),
     };
   }
 
@@ -259,7 +286,7 @@ export async function tryConfirmOrder(
 
   const confirmReply =
     `รับทราบค่ะ ยอดชำระ ${total.toLocaleString("th-TH")} บาท ✅\n\n` +
-    buildPaymentInstruction(paySettings, { total });
+    buildPaymentInstruction(paySettings, { total, hasPhysical });
   return {
     orderId: existing.id,
     reply: confirmReply,

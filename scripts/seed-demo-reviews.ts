@@ -11,7 +11,8 @@ import {
 import { getTenantBySlug } from "@/db/repositories/tenants";
 
 const SLUG = "demo-store";
-const drive = (id: string) => `https://lh3.googleusercontent.com/d/${id}=w600`;
+// Direct-view form (matches normalizeImageUrl) so LINE can render the hero image.
+const drive = (id: string) => `https://drive.google.com/uc?export=view&id=${id}`;
 
 // Reviews are review images (screenshots); caption/author are optional extras.
 const REVIEWS = [

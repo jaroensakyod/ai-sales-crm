@@ -35,7 +35,9 @@ export function CarouselComposer({
       body: p.description,
       priceLabel: p.price ? `เพียง ${p.price.toLocaleString("th-TH")} บาท` : "",
       imageUrl: p.imageUrl,
-      buttonLabel: "สั่งซื้อเลย",
+      // Product-specific label (LINE truncates to 20 chars) so every bubble's
+      // button reads for its own product — not an identical "สั่งซื้อเลย".
+      buttonLabel: `สั่งซื้อ ${p.name}`,
       buttonKind: "message",
       buttonValue: `สั่งซื้อ ${p.name}`,
     };

@@ -122,6 +122,14 @@ export default async function EditProductPage({
         ) : null}
         <label className="inline">
           <input
+            name="isDigital"
+            type="checkbox"
+            defaultChecked={product.isDigital}
+          />
+          สินค้าดิจิทัล (ไฟล์/คอร์ส — ไม่มีค่าจัดส่ง ไม่ต้องขอที่อยู่)
+        </label>
+        <label className="inline">
+          <input
             name="isActive"
             type="checkbox"
             defaultChecked={product.isActive}

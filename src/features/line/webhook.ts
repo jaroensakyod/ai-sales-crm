@@ -17,6 +17,9 @@ import {
   createLineClient,
   fetchLineMessageContent,
   fetchLineProfile,
+  pushFlex,
+  pushImage,
+  pushText,
   replyFlex,
   replyImage,
   replyText,
@@ -182,17 +185,57 @@ export async function processLineWebhook(
       continue;
     }
 
-    // LINE replies via the event's single-use token, not the user id.
+    // LINE replies via the event's single-use token, not the user id — and that
+    // token can be spent only ONCE. So we BUFFER every send during this event and
+    // flush once: the first message goes via the reply token (free), the rest via
+    // push (small quota cost) so cards/images after a text actually get delivered.
     const replyToken = event.replyToken;
+    type Pending =
+      | { kind: "text"; text: string; quickReplies?: QuickReply[] }
+      | { kind: "image"; imageUrl: string; caption?: string }
+      | { kind: "card"; card: MessageCard };
+    const pending: Pending[] = [];
     const send: SendFn | undefined = replyToken
-      ? (_to, text, quickReplies) => getReply()(replyToken, text, quickReplies)
+      ? (_to, text, quickReplies) => {
+          pending.push({ kind: "text", text, quickReplies });
+          return Promise.resolve();
+        }
       : undefined;
     const sendImage: SendImageFn | undefined = replyToken
-      ? (_to, imageUrl, caption) => getReplyImage()(replyToken, imageUrl, caption)
+      ? (_to, imageUrl, caption) => {
+          pending.push({ kind: "image", imageUrl, caption });
+          return Promise.resolve();
+        }
       : undefined;
     const sendCard: SendCardFn | undefined = replyToken
-      ? (_to, card) => getReplyCard()(replyToken, card)
+      ? (_to, card) => {
+          pending.push({ kind: "card", card });
+          return Promise.resolve();
+        }
       : undefined;
+    const flushPending = async () => {
+      if (!replyToken || pending.length === 0) return;
+      const [first, ...rest] = pending;
+      pending.length = 0;
+      if (first.kind === "text") await getReply()(replyToken, first.text, first.quickReplies);
+      else if (first.kind === "image")
+        await getReplyImage()(replyToken, first.imageUrl, first.caption);
+      else await getReplyCard()(replyToken, first.card);
+      // The reply token is now spent — deliver any remaining messages via push.
+      if (rest.length > 0 && userId) {
+        try {
+          const client = ensureClient();
+          for (const m of rest) {
+            if (m.kind === "text") await pushText(client, userId, m.text, m.quickReplies);
+            else if (m.kind === "image")
+              await pushImage(client, userId, m.imageUrl, m.caption);
+            else await pushFlex(client, userId, m.card);
+          }
+        } catch {
+          // A follow-up push failed — the first (reply-token) message still landed.
+        }
+      }
+    };
     const at = event.timestamp ? new Date(event.timestamp) : undefined;
 
     // Image (usually a payment slip) — acknowledge + OCR + log for review.
@@ -212,6 +255,7 @@ export async function processLineWebhook(
             messageId,
           ),
       });
+      await flushPending();
       if (result.status === "duplicate") {
         skipped++;
         continue;
@@ -236,6 +280,7 @@ export async function processLineWebhook(
             userId,
             "ขอโทษค่ะ ฟังข้อความเสียงไม่ชัด รบกวนพิมพ์ข้อความมาได้ไหมคะ",
           );
+          await flushPending();
           replied++;
         }
         processed++;
@@ -252,7 +297,9 @@ export async function processLineWebhook(
         routerHandlers: deps.routerHandlers,
         send,
         sendImage,
+        sendCard,
       });
+      await flushPending();
       if (result.status === "duplicate") {
         skipped++;
         continue;
@@ -275,6 +322,7 @@ export async function processLineWebhook(
       sendImage,
       sendCard,
     });
+    await flushPending();
 
     if (result.status === "duplicate") {
       skipped++;

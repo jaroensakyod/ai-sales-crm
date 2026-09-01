@@ -22,6 +22,7 @@ export async function createProduct(
     description?: string | null;
     aiKnowledge?: string | null;
     imageUrl?: string | null;
+    isDigital?: boolean;
   },
 ) {
   const [row] = await db
@@ -43,6 +44,7 @@ export async function updateProduct(
     description?: string | null;
     aiKnowledge?: string | null;
     imageUrl?: string | null;
+    isDigital?: boolean;
     isActive?: boolean;
   },
 ) {

@@ -33,6 +33,9 @@ export const products = pgTable(
     currency: text("currency").notNull().default("THB"),
     stock: integer("stock"),
     imageUrl: text("image_url"), // public HTTPS image (JPEG/PNG) the bot can send
+    // Digital goods (e-book/PDF/course link) — no physical shipping, so the bot
+    // must not append a delivery/EMS note on an order that's all-digital.
+    isDigital: boolean("is_digital").notNull().default(false),
     isActive: boolean("is_active").notNull().default(true),
     attributes: jsonb("attributes"),
     ...timestamps,

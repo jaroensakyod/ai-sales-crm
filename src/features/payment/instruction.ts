@@ -9,13 +9,17 @@ type PaymentSettings = typeof paymentSettings.$inferSelect;
  */
 export function buildPaymentInstruction(
   settings: Partial<PaymentSettings> | null,
-  args: { total: number },
+  args: { total: number; hasPhysical?: boolean },
 ): string {
+  // Default true keeps existing behaviour; an all-digital order passes false so
+  // no shipping/EMS note or address request is shown (risk: PDF orders looked
+  // like they'd ship EMS).
+  const hasPhysical = args.hasPhysical ?? true;
   const lines: string[] = [];
   lines.push(`🧾 สรุปยอดสั่งซื้อ`);
   lines.push(`ยอดชำระ ${args.total.toLocaleString("th-TH")} บาท`);
 
-  if (settings?.shippingNote) {
+  if (hasPhysical && settings?.shippingNote) {
     lines.push(`ขนส่งโดย ${settings.shippingNote}`);
   }
   if (settings?.shopName) {
@@ -44,7 +48,9 @@ export function buildPaymentInstruction(
 
   lines.push("");
   lines.push(
-    `หลังโอน รบกวนแจ้งสลิป 📨 พร้อมชื่อ-ที่อยู่-เบอร์โทร เพื่อจัดส่งนะคะ 🙏`,
+    hasPhysical
+      ? `หลังโอน รบกวนแจ้งสลิป 📨 พร้อมชื่อ-ที่อยู่-เบอร์โทร เพื่อจัดส่งนะคะ 🙏`
+      : `หลังโอน รบกวนแจ้งสลิป 📨 เดี๋ยวทางร้านส่งไฟล์/ลิงก์ให้ทางแชทเลยนะคะ 🙏`,
   );
   if (settings?.instructionExtra) {
     lines.push("");

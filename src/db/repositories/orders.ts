@@ -9,6 +9,7 @@ import {
   orderItems,
   orders,
   payments,
+  products,
 } from "@/db/schema";
 
 /**
@@ -211,6 +212,29 @@ export async function addOrderItem(
 
   await recalcOrderTotals(db, tenantId, orderId);
   return item;
+}
+
+/** True if the order contains at least one physical (non-digital) item — used to
+ *  decide whether to show shipping/EMS + address text. Unknown products count as
+ *  physical (safe default). An empty order is treated as physical. */
+export async function orderHasPhysicalItem(
+  db: DbClient,
+  tenantId: string,
+  orderId: string,
+): Promise<boolean> {
+  const items = await db
+    .select({ productId: orderItems.productId })
+    .from(orderItems)
+    .where(and(eq(orderItems.tenantId, tenantId), eq(orderItems.orderId, orderId)));
+  if (items.length === 0) return true;
+  const ids = items.map((i) => i.productId).filter(Boolean) as string[];
+  if (ids.length === 0) return true;
+  const rows = await db
+    .select({ id: products.id, isDigital: products.isDigital })
+    .from(products)
+    .where(and(eq(products.tenantId, tenantId), inArray(products.id, ids)));
+  const digital = new Map(rows.map((r) => [r.id, r.isDigital]));
+  return items.some((i) => !i.productId || digital.get(i.productId) !== true);
 }
 
 /** Recompute subtotal/total from line items; total = subtotal - discount (>= 0). */

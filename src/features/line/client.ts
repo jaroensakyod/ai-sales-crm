@@ -488,6 +488,21 @@ export async function pushFlex(
   });
 }
 
+/** Push an image (+ optional caption) to a user (counts toward quota). Used to
+ *  deliver a follow-up image when the single-use reply token is already spent. */
+export async function pushImage(
+  client: LineClient,
+  toUserId: string,
+  imageUrl: string,
+  caption?: string,
+): Promise<void> {
+  const messages: messagingApi.Message[] = [
+    { type: "image", originalContentUrl: imageUrl, previewImageUrl: imageUrl },
+  ];
+  if (caption) messages.push({ type: "text", text: caption });
+  await client.pushMessage({ to: toUserId, messages });
+}
+
 /** Broadcast a merchant-designed Flex card to ALL friends of the OA. Counts
  *  toward the monthly quota per recipient (risk #4) — merchant-initiated, gated
  *  by a confirm step in the dashboard. */

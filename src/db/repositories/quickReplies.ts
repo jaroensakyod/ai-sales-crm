@@ -57,6 +57,27 @@ export function quickReplyMatches(
   return keywords.some((kw) => (exact ? n === kw : n.includes(kw)));
 }
 
+export async function updateQuickReply(
+  db: DbClient,
+  tenantId: string,
+  id: string,
+  input: {
+    label?: string;
+    reply?: string;
+    keywords?: string | null;
+    matchType?: string;
+    productId?: string | null;
+    imageUrl?: string | null;
+    flexCardId?: string | null;
+    sortOrder?: number;
+  },
+) {
+  await db
+    .update(quickReplies)
+    .set({ ...input, updatedAt: new Date() })
+    .where(and(eq(quickReplies.tenantId, tenantId), eq(quickReplies.id, id)));
+}
+
 export async function deleteQuickReply(db: DbClient, tenantId: string, id: string) {
   await db
     .delete(quickReplies)

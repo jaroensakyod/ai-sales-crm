@@ -170,6 +170,10 @@ export default async function ProductsPage({
             บอทจะส่งรูปนี้ให้ลูกค้าเมื่อถูกขอดูรูป — ใช้ลิงก์รูปสาธารณะ (เช่นจากเว็บร้าน/Google Drive แบบแชร์)
           </span>
         </label>
+        <label className="inline">
+          <input name="isDigital" type="checkbox" />
+          สินค้าดิจิทัล (ไฟล์/คอร์ส — ไม่มีค่าจัดส่ง ไม่ต้องขอที่อยู่)
+        </label>
         <button type="submit" style={{ marginTop: 12 }}>
           เพิ่มสินค้า
         </button>
