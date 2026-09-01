@@ -10,6 +10,7 @@ import {
   orders,
   payments,
   products,
+  productVariants,
 } from "@/db/schema";
 
 /**
@@ -214,6 +215,27 @@ export async function addOrderItem(
   return item;
 }
 
+/** Remove every line item for a product from an order, then recompute totals.
+ *  Used when the customer switches to a different variant of a product already in
+ *  the cart (remove the old variant line, add the new one). */
+export async function removeOrderItemsByProduct(
+  db: DbClient,
+  tenantId: string,
+  orderId: string,
+  productId: string,
+) {
+  await db
+    .delete(orderItems)
+    .where(
+      and(
+        eq(orderItems.tenantId, tenantId),
+        eq(orderItems.orderId, orderId),
+        eq(orderItems.productId, productId),
+      ),
+    );
+  await recalcOrderTotals(db, tenantId, orderId);
+}
+
 /** True if the order contains at least one physical (non-digital) item — used to
  *  decide whether to show shipping/EMS + address text. Unknown products count as
  *  physical (safe default). An empty order is treated as physical. */
@@ -223,18 +245,44 @@ export async function orderHasPhysicalItem(
   orderId: string,
 ): Promise<boolean> {
   const items = await db
-    .select({ productId: orderItems.productId })
+    .select({ productId: orderItems.productId, variantId: orderItems.variantId })
     .from(orderItems)
     .where(and(eq(orderItems.tenantId, tenantId), eq(orderItems.orderId, orderId)));
   if (items.length === 0) return true;
-  const ids = items.map((i) => i.productId).filter(Boolean) as string[];
-  if (ids.length === 0) return true;
-  const rows = await db
-    .select({ id: products.id, isDigital: products.isDigital })
-    .from(products)
-    .where(and(eq(products.tenantId, tenantId), inArray(products.id, ids)));
-  const digital = new Map(rows.map((r) => [r.id, r.isDigital]));
-  return items.some((i) => !i.productId || digital.get(i.productId) !== true);
+
+  // A variant's own digital flag wins (a book's PDF variant ships nothing while
+  // its physical variant does); otherwise fall back to the product's flag.
+  const variantIds = items.map((i) => i.variantId).filter(Boolean) as string[];
+  const productIds = items.map((i) => i.productId).filter(Boolean) as string[];
+  const variantDigital = new Map<string, boolean>();
+  if (variantIds.length) {
+    const vrows = await db
+      .select({ id: productVariants.id, isDigital: productVariants.isDigital })
+      .from(productVariants)
+      .where(
+        and(
+          eq(productVariants.tenantId, tenantId),
+          inArray(productVariants.id, variantIds),
+        ),
+      );
+    for (const v of vrows) variantDigital.set(v.id, v.isDigital);
+  }
+  const productDigital = new Map<string, boolean>();
+  if (productIds.length) {
+    const prows = await db
+      .select({ id: products.id, isDigital: products.isDigital })
+      .from(products)
+      .where(and(eq(products.tenantId, tenantId), inArray(products.id, productIds)));
+    for (const p of prows) productDigital.set(p.id, p.isDigital);
+  }
+  // An item is digital if its variant OR its product is flagged digital; the
+  // order needs shipping if ANY item is physical (not digital).
+  return items.some((i) => {
+    const digital =
+      (i.variantId ? variantDigital.get(i.variantId) === true : false) ||
+      (i.productId ? productDigital.get(i.productId) === true : false);
+    return !digital;
+  });
 }
 
 /** Recompute subtotal/total from line items; total = subtotal - discount (>= 0). */

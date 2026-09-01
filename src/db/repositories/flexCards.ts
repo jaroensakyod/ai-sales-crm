@@ -145,12 +145,17 @@ function itemToCustomCard(
   },
   style: FlexStyle,
 ): CustomFlexCard {
+  // Old carousels were saved with the full product name as the label, which LINE
+  // truncated to a cut-off "สั่งซื้อ Your Life C". Clamp any over-long label back
+  // to a clean "สั่งซื้อเลย" so existing cards render tidily too (value is unchanged).
+  const label =
+    item.buttonLabel && item.buttonLabel.length <= 20 ? item.buttonLabel : "สั่งซื้อเลย";
   const actions =
     item.buttonLabel && item.buttonValue
       ? [
           item.buttonKind === "url"
-            ? { label: item.buttonLabel, url: item.buttonValue }
-            : { label: item.buttonLabel, text: item.buttonValue },
+            ? { label, url: item.buttonValue }
+            : { label, text: item.buttonValue },
         ]
       : [];
   return {

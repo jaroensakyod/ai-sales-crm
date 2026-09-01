@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { fbCardAttachment } from "@/features/facebook/client";
+import type { MessageCard } from "@/features/messaging/cards";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
 import { normalizeImageUrl } from "@/lib/validation";
 
@@ -53,5 +55,50 @@ describe("buildPaymentInstruction — digital vs physical", () => {
   it("defaults to physical behaviour when hasPhysical is omitted (backward compat)", () => {
     const out = buildPaymentInstruction(settings, { total: 500 });
     expect(out).toContain("EMS ส่งฟรีทั่วไทย");
+  });
+});
+
+describe("Facebook card — buttonless elements", () => {
+  it("omits the empty `buttons` field so Messenger doesn't reject the card", () => {
+    // A review carousel: bubbles with no actions.
+    const card: MessageCard = {
+      kind: "carousel",
+      fallback: "รีวิว",
+      cards: [
+        {
+          kind: "custom_flex",
+          headline: "รีวิวจาก คุณเอ",
+          body: "ดีมาก",
+          imageUrl: "https://cdn.example.com/r1.jpg",
+          actions: [],
+          fallback: "ดีมาก",
+        },
+      ],
+    };
+    const att = fbCardAttachment(card) as {
+      payload: { elements: { buttons?: unknown }[] };
+    };
+    const el = att.payload.elements[0];
+    expect("buttons" in el).toBe(false);
+  });
+
+  it("keeps buttons when actions exist", () => {
+    const card: MessageCard = {
+      kind: "carousel",
+      fallback: "สินค้า",
+      cards: [
+        {
+          kind: "custom_flex",
+          headline: "สินค้า A",
+          imageUrl: "https://cdn.example.com/a.jpg",
+          actions: [{ label: "สั่งซื้อเลย", text: "สั่งซื้อ A" }],
+          fallback: "A",
+        },
+      ],
+    };
+    const att = fbCardAttachment(card) as {
+      payload: { elements: { buttons?: unknown[] }[] };
+    };
+    expect(att.payload.elements[0].buttons).toHaveLength(1);
   });
 });

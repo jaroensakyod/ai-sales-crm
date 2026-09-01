@@ -686,7 +686,9 @@ export async function handleInboundText(
       await args.sendCard(args.externalId, {
         kind: "carousel",
         cards,
-        fallback: testimonials || "รีวิวจากลูกค้าค่ะ",
+        // Short altText only — the testimonials already went out as the companion
+        // text above, so don't repeat them if a channel shows the fallback.
+        fallback: "รีวิวจากลูกค้าค่ะ",
       });
       await recordOutboundMessage(db, args.tenantId, conversation.id, {
         body: `[ส่งรีวิว] ${cards.length} รายการ`,

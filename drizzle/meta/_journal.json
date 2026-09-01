@@ -260,6 +260,13 @@
       "when": 1788265964300,
       "tag": "0036_smiling_betty_brant",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1788268722117,
+      "tag": "0037_yummy_karnak",
+      "breakpoints": true
     }
   ]
 }

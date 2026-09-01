@@ -567,6 +567,7 @@ export async function addVariantAction(formData: FormData) {
       name,
       price: priceRaw ? parsePrice(formData.get("price")) : null,
       stock: parseStock(formData.get("stock")),
+      isDigital: formData.get("isDigital") === "on",
     });
   }
   redirect(`/dashboard/${slug}/products/${productId}`);

@@ -219,6 +219,10 @@ export default async function EditProductPage({
             <input name="stock" type="number" />
           </label>
         </div>
+        <label className="inline">
+          <input name="isDigital" type="checkbox" />
+          ตัวเลือกนี้เป็นดิจิทัล (เช่น PDF — ไม่มีค่าจัดส่ง)
+        </label>
         <button type="submit" style={{ marginTop: 10 }}>
           เพิ่มตัวเลือก
         </button>

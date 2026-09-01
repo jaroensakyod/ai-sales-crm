@@ -58,6 +58,9 @@ export const productVariants = pgTable(
     sku: text("sku"),
     price: numeric("price", { precision: 12, scale: 2 }),
     stock: integer("stock"),
+    // Per-variant digital flag — e.g. a book's "PDF" version ships nothing while
+    // its "รูปเล่ม" version does. Overrides the product-level flag for this variant.
+    isDigital: boolean("is_digital").notNull().default(false),
     attributes: jsonb("attributes"),
     ...timestamps,
   },

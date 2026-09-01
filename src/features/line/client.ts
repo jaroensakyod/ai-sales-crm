@@ -1,6 +1,7 @@
 import { messagingApi } from "@line/bot-sdk";
 
 import type { CardAction, MessageCard } from "@/features/messaging/cards";
+import { normalizeImageUrl } from "@/lib/validation";
 
 /**
  * Build a Messaging API client from an OA's (already decrypted) access token.
@@ -188,8 +189,9 @@ export async function replyImage(
   imageUrl: string,
   caption?: string,
 ): Promise<void> {
+  const url = normalizeImageUrl(imageUrl);
   const messages: messagingApi.Message[] = [
-    { type: "image", originalContentUrl: imageUrl, previewImageUrl: imageUrl },
+    { type: "image", originalContentUrl: url, previewImageUrl: url },
   ];
   if (caption) messages.push({ type: "text", text: caption });
   await client.replyMessage({ replyToken, messages });
@@ -293,7 +295,7 @@ function orderBubble(card: Extract<MessageCard, { kind: "order_confirm" }>) {
   if (card.imageUrl) {
     bubble.hero = {
       type: "image",
-      url: card.imageUrl,
+      url: normalizeImageUrl(card.imageUrl),
       size: "full",
       aspectRatio: "20:13",
       aspectMode: "cover",
@@ -421,7 +423,7 @@ function customBubble(card: Extract<MessageCard, { kind: "custom_flex" }>) {
   if (card.imageUrl) {
     bubble.hero = {
       type: "image",
-      url: card.imageUrl,
+      url: normalizeImageUrl(card.imageUrl),
       size: "full",
       aspectRatio: "20:13",
       aspectMode: "cover",
@@ -496,8 +498,9 @@ export async function pushImage(
   imageUrl: string,
   caption?: string,
 ): Promise<void> {
+  const url = normalizeImageUrl(imageUrl);
   const messages: messagingApi.Message[] = [
-    { type: "image", originalContentUrl: imageUrl, previewImageUrl: imageUrl },
+    { type: "image", originalContentUrl: url, previewImageUrl: url },
   ];
   if (caption) messages.push({ type: "text", text: caption });
   await client.pushMessage({ to: toUserId, messages });

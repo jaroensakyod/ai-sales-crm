@@ -125,14 +125,17 @@ function fbButtons(actions: CardAction[]): FbButton[] {
     );
 }
 
-/** One Messenger generic-template element from a custom card. */
+/** One Messenger generic-template element from a custom card. Messenger REJECTS
+ *  the whole message if an element carries an empty `buttons: []`, so omit the
+ *  field entirely when there are no actions (e.g. review cards have no button). */
 function fbElement(card: Extract<MessageCard, { kind: "custom_flex" }>) {
   const subtitle = [card.body, card.priceLabel].filter(Boolean).join(" • ");
+  const buttons = fbButtons(card.actions);
   return {
     title: card.headline.slice(0, 80),
     ...(card.imageUrl ? { image_url: card.imageUrl } : {}),
     subtitle: subtitle.slice(0, 80),
-    buttons: fbButtons(card.actions),
+    ...(buttons.length ? { buttons } : {}),
   };
 }
 
@@ -176,6 +179,7 @@ export function fbCardAttachment(card: MessageCard) {
   if (card.kind === "custom_flex") {
     const subtitle = [card.body, card.priceLabel].filter(Boolean).join(" • ");
     if (card.imageUrl) {
+      const buttons = fbButtons(card.actions);
       return {
         type: "template",
         payload: {
@@ -185,7 +189,7 @@ export function fbCardAttachment(card: MessageCard) {
               title: card.headline.slice(0, 80),
               image_url: card.imageUrl,
               subtitle: subtitle.slice(0, 80),
-              buttons: fbButtons(card.actions),
+              ...(buttons.length ? { buttons } : {}),
             },
           ],
         },

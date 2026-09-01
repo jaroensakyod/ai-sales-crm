@@ -5,6 +5,7 @@ import {
   getOpenOrderForConversation,
   getOrder,
   orderHasPhysicalItem,
+  removeOrderItemsByProduct,
   updateOrderStatus,
 } from "@/db/repositories/orders";
 import { getPaymentSettings } from "@/db/repositories/payment-settings";
@@ -78,6 +79,24 @@ function buildPaymentCard(
   };
 }
 
+/** The "ยืนยันคำสั่งซื้อ" card shown while a DRAFT awaits confirmation. */
+function buildConfirmCard(
+  productName: string,
+  imageUrl: string | null | undefined,
+  total: number,
+  fallback: string,
+): MessageCard {
+  return {
+    kind: "order_confirm",
+    title: "ยืนยันคำสั่งซื้อ",
+    productName,
+    imageUrl: imageUrl ?? null,
+    detail: `ยอดรวม ${total.toLocaleString("th-TH")} บาท`,
+    actions: [CONFIRM_ACTION, HUMAN_ACTION],
+    fallback,
+  };
+}
+
 function draftSummaryReply(productName: string, quantity: number, total: number) {
   return (
     `รับ ${productName} จำนวน ${quantity} ชิ้น ` +
@@ -143,10 +162,45 @@ export async function tryCheckout(
           buildPaymentInstruction(paySettings, { total, hasPhysical }),
       };
     }
-    // DRAFT + customer named another product → add it to the SAME order (cart)
-    // and re-summarize with the new running total (fixes the "total didn't update"
-    // bug where a 2nd item was silently dropped).
+    // DRAFT order still open. Three cases for the newly-named product:
     const quantity = parseQuantity(ctx.text);
+    const before = await getOrder(db, ctx.tenantId, existing.id);
+    const already = before?.items.find((it) => it.productId === product.id);
+    const displayName = variant ? `${product.name} (${variant.name})` : product.name;
+
+    if (already && variant) {
+      // Same product, a (possibly different) variant named → SWITCH: drop the old
+      // line(s) for this product and add the chosen variant. Fixes "changed to
+      // Premium but the total stayed at the old price".
+      await removeOrderItemsByProduct(db, ctx.tenantId, existing.id, product.id);
+      await addOrderItem(db, ctx.tenantId, existing.id, {
+        variantId: variant.id,
+        quantity,
+      });
+      const detail = await getOrder(db, ctx.tenantId, existing.id);
+      const total = Number(detail?.order.total ?? 0);
+      const reply =
+        `เปลี่ยนเป็น ${displayName} แล้วค่ะ ยอดรวม ${total.toLocaleString("th-TH")} บาท\n\n` +
+        `ยืนยันสั่งซื้อไหมคะ? กดปุ่ม "ยืนยันสั่งซื้อ" ด้านล่างเพื่อรับข้อมูลการโอนได้เลยค่ะ 😊`;
+      return {
+        orderId: existing.id,
+        reply,
+        awaitingConfirm: true,
+        card: buildConfirmCard(displayName, product.imageUrl, total, reply),
+      };
+    }
+
+    if (already) {
+      // Same product re-mentioned without a new variant → don't duplicate; just
+      // re-summarize the current order.
+      const total = Number(before?.order.total ?? 0);
+      const reply =
+        `ออเดอร์ของคุณยอดรวม ${total.toLocaleString("th-TH")} บาทค่ะ\n\n` +
+        `ยืนยันสั่งซื้อไหมคะ? กดปุ่ม "ยืนยันสั่งซื้อ" ด้านล่างเพื่อรับข้อมูลการโอนได้เลยค่ะ 😊`;
+      return { orderId: existing.id, reply, awaitingConfirm: true };
+    }
+
+    // A different product → add it to the SAME order (cart) and re-summarize.
     await addOrderItem(db, ctx.tenantId, existing.id, {
       productId: variant ? undefined : product.id,
       variantId: variant?.id,
@@ -154,7 +208,6 @@ export async function tryCheckout(
     });
     const detail = await getOrder(db, ctx.tenantId, existing.id);
     const total = Number(detail?.order.total ?? 0);
-    const displayName = variant ? `${product.name} (${variant.name})` : product.name;
     const reply =
       `เพิ่ม ${displayName} จำนวน ${quantity} ชิ้นแล้วค่ะ ` +
       `ยอดรวมตอนนี้ ${total.toLocaleString("th-TH")} บาท\n\n` +
@@ -163,15 +216,7 @@ export async function tryCheckout(
       orderId: existing.id,
       reply,
       awaitingConfirm: true,
-      card: {
-        kind: "order_confirm",
-        title: "ยืนยันคำสั่งซื้อ",
-        productName: displayName,
-        imageUrl: product.imageUrl ?? null,
-        detail: `เพิ่ม ${displayName} • ยอดรวม ${total.toLocaleString("th-TH")} บาท`,
-        actions: [CONFIRM_ACTION, HUMAN_ACTION],
-        fallback: reply,
-      },
+      card: buildConfirmCard(displayName, product.imageUrl, total, reply),
     };
   }
 

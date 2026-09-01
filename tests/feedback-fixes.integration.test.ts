@@ -7,6 +7,7 @@ import { upsertLineConnection } from "@/db/repositories/line";
 import { upsertPaymentSettings } from "@/db/repositories/payment-settings";
 import { createReview } from "@/db/repositories/reviews";
 import { createQuickReply } from "@/db/repositories/quickReplies";
+import { addVariant } from "@/db/repositories/products";
 import { channels, products } from "@/db/schema";
 import { computeLineSignature } from "@/features/line/signature";
 import type { LineClient } from "@/features/line/client";
@@ -105,6 +106,24 @@ describe.skipIf(!hasDb)("feedback fixes (integration)", () => {
       // Product linked from a quick reply.
       { tenantId, name: "โทนเนอร์ทดสอบ", price: "390", stock: 10, currency: "THB" },
     ]);
+    // Product with variants for the variant-switch test.
+    const [switcher] = await db
+      .insert(products)
+      .values({ tenantId, name: "หนังสือสลับ", price: "100", currency: "THB" })
+      .returning();
+    await addVariant(db, tenantId, switcher.id, { name: "แบบเอ", price: "100" });
+    await addVariant(db, tenantId, switcher.id, { name: "แบบบี", price: "200" });
+    // Product whose PDF variant is digital (no shipping) but book variant ships.
+    const [guide] = await db
+      .insert(products)
+      .values({ tenantId, name: "คู่มือทดสอบ", price: "300", currency: "THB" })
+      .returning();
+    await addVariant(db, tenantId, guide.id, {
+      name: "พีดีเอฟ",
+      price: "300",
+      isDigital: true,
+    });
+    await addVariant(db, tenantId, guide.id, { name: "เล่มจริง", price: "400" });
   });
 
   afterAll(async () => {
@@ -169,5 +188,28 @@ describe.skipIf(!hasDb)("feedback fixes (integration)", () => {
     expect(text).toContain("300");
     expect(text).not.toContain("EMS ส่งฟรีทั่วไทย");
     expect(text).not.toContain("ที่อยู่");
+  });
+
+  it("switching to a different variant updates the total on confirm", async () => {
+    const user = `Uswitch-${suffix}`;
+    const r1 = await post("สั่งซื้อ หนังสือสลับ แบบเอ", user);
+    expect(allText(r1.replyMsgs)).toContain("100");
+
+    const r2 = await post("ขอเปลี่ยนเป็น แบบบี", user);
+    // Switched from เอ (100) to บี (200) — NOT added (would be 300).
+    expect(allText(r2.replyMsgs)).toContain("200");
+    expect(allText(r2.replyMsgs)).not.toContain("300");
+
+    const r3 = await post("ยืนยันสั่งซื้อ", user);
+    expect(allText(r3.replyMsgs)).toContain("200");
+  });
+
+  it("digital VARIANT (PDF) of a product with a physical variant → no shipping", async () => {
+    const user = `Uvardig-${suffix}`;
+    await post("สั่งซื้อ คู่มือทดสอบ พีดีเอฟ", user);
+    const r = await post("ยืนยันสั่งซื้อ", user);
+    const text = allText(r.replyMsgs);
+    expect(text).toContain("300");
+    expect(text).not.toContain("EMS ส่งฟรีทั่วไทย");
   });
 });

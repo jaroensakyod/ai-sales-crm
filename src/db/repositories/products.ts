@@ -88,7 +88,12 @@ export async function addVariant(
   db: DbClient,
   tenantId: string,
   productId: string,
-  input: { name: string; price?: string | null; stock?: number | null },
+  input: {
+    name: string;
+    price?: string | null;
+    stock?: number | null;
+    isDigital?: boolean;
+  },
 ) {
   await db
     .insert(productVariants)
