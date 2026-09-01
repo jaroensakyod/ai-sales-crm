@@ -15,6 +15,7 @@ import type { RouterHandlers } from "@/features/router/types";
 
 import {
   createLineClient,
+  type LineClient,
   fetchLineMessageContent,
   fetchLineProfile,
   pushFlex,
@@ -61,6 +62,9 @@ export type ProcessDeps = {
   replyImage?: LineReplyImageFn;
   /** Override the Flex-card transport (tests inject a spy). */
   replyCard?: LineReplyCardFn;
+  /** Inject a fake LINE client (tests) so BOTH reply and push calls are captured
+   *  — needed to verify multi-message flows (text via reply + card/image via push). */
+  client?: LineClient;
 };
 
 export type LineWebhookResult =
@@ -98,6 +102,7 @@ export async function processLineWebhook(
   let reply = deps.reply;
   let replyImg = deps.replyImage;
   const ensureClient = () => {
+    if (deps.client) return deps.client;
     const token = decryptSecret(context.connection!.accessTokenEncrypted);
     return createLineClient(token);
   };
