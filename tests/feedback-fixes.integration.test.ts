@@ -124,6 +124,13 @@ describe.skipIf(!hasDb)("feedback fixes (integration)", () => {
       isDigital: true,
     });
     await addVariant(db, tenantId, guide.id, { name: "เล่มจริง", price: "400" });
+    // Variant with a parenthesized label to test token matching ("รูปเล่ม" alone).
+    const [pkg] = await db
+      .insert(products)
+      .values({ tenantId, name: "แพ็กเกจทดสอบ", price: "100", currency: "THB" })
+      .returning();
+    await addVariant(db, tenantId, pkg.id, { name: "Standard (PDF)", price: "100" });
+    await addVariant(db, tenantId, pkg.id, { name: "Premium (รูปเล่ม)", price: "200" });
   });
 
   afterAll(async () => {
@@ -211,5 +218,21 @@ describe.skipIf(!hasDb)("feedback fixes (integration)", () => {
     const text = allText(r.replyMsgs);
     expect(text).toContain("300");
     expect(text).not.toContain("EMS ส่งฟรีทั่วไทย");
+  });
+
+  it("adding a product AFTER confirming (pending) updates the total", async () => {
+    const user = `Uadd-${suffix}`;
+    await post("สั่งซื้อ หนังสือทดสอบ", user); // draft 100
+    await post("ยืนยันสั่งซื้อ", user); // → PENDING_PAYMENT at 100
+    const r = await post("สั่งซื้อ สมุดทดสอบ", user); // add 50 after confirm
+    const text = allText(r.replyMsgs);
+    expect(text).toContain("150"); // 100 + 50, not the stale 100
+  });
+
+  it("variant token: a partial word ('รูปเล่ม') resolves the right variant", async () => {
+    const user = `Utoken-${suffix}`;
+    // "Premium (รูปเล่ม)" = 200; the customer types only "รูปเล่ม".
+    const r = await post("สั่งซื้อ แพ็กเกจทดสอบ รูปเล่ม", user);
+    expect(allText(r.replyMsgs)).toContain("200");
   });
 });

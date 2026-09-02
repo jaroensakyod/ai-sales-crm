@@ -669,6 +669,8 @@ export async function handleInboundText(
         headline: r.authorName ? `รีวิวจาก ${r.authorName}` : "รีวิวจากลูกค้า",
         body: r.caption ?? undefined,
         style,
+        // Review ribbon reads "รวมรีวิว", not the promo style's "โปรพิเศษ".
+        headerText: "รวมรีวิว 🔥",
         actions: [],
         fallback: r.caption ?? "รีวิวจากลูกค้า",
       }));

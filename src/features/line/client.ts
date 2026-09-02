@@ -402,8 +402,10 @@ function customBubble(card: Extract<MessageCard, { kind: "custom_flex" }>) {
     type: "bubble",
     body: { type: "box", layout: "vertical", spacing: "sm", contents: body },
   };
-  // "promo" style adds a coloured ribbon header.
-  if (colors.header) {
+  // "promo" style adds a coloured ribbon header; a card can override the text
+  // (e.g. review cards show "รวมรีวิว" instead of "โปรพิเศษ").
+  const headerLabel = card.headerText ?? colors.header;
+  if (headerLabel) {
     bubble.header = {
       type: "box",
       layout: "vertical",
@@ -412,7 +414,7 @@ function customBubble(card: Extract<MessageCard, { kind: "custom_flex" }>) {
       contents: [
         {
           type: "text",
-          text: colors.header,
+          text: headerLabel,
           color: "#ffffff",
           weight: "bold",
           size: "sm",

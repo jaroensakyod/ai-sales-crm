@@ -150,10 +150,31 @@ export async function tryCheckout(
 
   if (existing) {
     if (existing.status === "PENDING_PAYMENT") {
-      // Already confirmed & awaiting payment → re-send the instruction, don't
-      // silently mutate a locked order.
-      const total = Number(existing.total);
       const paySettings = await getPaymentSettings(db, ctx.tenantId);
+      const before = await getOrder(db, ctx.tenantId, existing.id);
+      const already = before?.items.find((it) => it.productId === product.id);
+      // Customer adds ANOTHER product after confirming → append it to the same
+      // order and re-send the updated payment instruction (cart keeps one order).
+      if (!already) {
+        const quantity = parseQuantity(ctx.text);
+        await addOrderItem(db, ctx.tenantId, existing.id, {
+          productId: variant ? undefined : product.id,
+          variantId: variant?.id,
+          quantity,
+        });
+        const detail = await getOrder(db, ctx.tenantId, existing.id);
+        const total = Number(detail?.order.total ?? 0);
+        const hasPhysical = await orderHasPhysicalItem(db, ctx.tenantId, existing.id);
+        const displayName = variant ? `${product.name} (${variant.name})` : product.name;
+        return {
+          orderId: existing.id,
+          reply:
+            `เพิ่ม ${displayName} แล้วค่ะ ยอดรวมใหม่ ${total.toLocaleString("th-TH")} บาท ✅\n\n` +
+            buildPaymentInstruction(paySettings, { total, hasPhysical }),
+        };
+      }
+      // Same product re-mentioned → just re-send the current instruction.
+      const total = Number(existing.total);
       const hasPhysical = await orderHasPhysicalItem(db, ctx.tenantId, existing.id);
       return {
         orderId: existing.id,

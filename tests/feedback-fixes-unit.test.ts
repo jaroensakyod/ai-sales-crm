@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { fbCardAttachment } from "@/features/facebook/client";
+import { buildFlexMessage } from "@/features/line/client";
 import type { MessageCard } from "@/features/messaging/cards";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
 import { normalizeImageUrl } from "@/lib/validation";
@@ -80,6 +81,22 @@ describe("Facebook card — buttonless elements", () => {
     };
     const el = att.payload.elements[0];
     expect("buttons" in el).toBe(false);
+  });
+
+  it("review card ribbon reads the override text, not the promo default", () => {
+    const card: MessageCard = {
+      kind: "custom_flex",
+      headline: "รีวิวจาก คุณเอ",
+      body: "ดีมาก",
+      style: "promo",
+      headerText: "รวมรีวิว 🔥",
+      actions: [],
+      fallback: "ดีมาก",
+    };
+    const flex = buildFlexMessage(card);
+    const json = JSON.stringify(flex);
+    expect(json).toContain("รวมรีวิว");
+    expect(json).not.toContain("โปรพิเศษ");
   });
 
   it("keeps buttons when actions exist", () => {

@@ -59,6 +59,9 @@ export type CustomFlexCard = {
   style?: FlexStyle;
   /** Optional custom accent colour (hex) overriding the style preset. */
   accentColor?: string | null;
+  /** Optional ribbon header text overriding the style default (e.g. review cards
+   *  show "รวมรีวิว 🔥" instead of the promo style's "โปรพิเศษ 🔥"). */
+  headerText?: string | null;
   actions: CardAction[];
   fallback: string;
 };

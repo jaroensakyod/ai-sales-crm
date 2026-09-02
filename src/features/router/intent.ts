@@ -139,13 +139,21 @@ export function matchProduct<T extends ProductLike>(
   return best?.product ?? null;
 }
 
-/** Match aliases for a variant: full name + SKU (>= 2 chars, so short version
- *  labels like "pdf"/"ปก" still match). */
+/** Match aliases for a variant: full name + SKU, PLUS individual tokens of the
+ *  name (so "Premium (รูปเล่ม)" also matches a customer who types just "รูปเล่ม"
+ *  or "premium", not only the full label). Tokens < 3 chars are dropped to avoid
+ *  spurious hits. */
 function variantAliases(v: VariantLike): string[] {
   const seen = new Set<string>();
-  for (const a of [v.name, v.sku ?? ""]) {
-    const nrm = normalize(a).trim();
+  const add = (s: string) => {
+    const nrm = normalize(s).trim();
     if (nrm.length >= 2) seen.add(nrm);
+  };
+  for (const a of [v.name, v.sku ?? ""]) add(a);
+  // Break the name into words (splitting on spaces, parens, slashes, pipes) so a
+  // partial mention still resolves the variant.
+  for (const token of (v.name ?? "").split(/[\s()/|,]+/)) {
+    if (normalize(token).trim().length >= 3) add(token);
   }
   return [...seen];
 }
