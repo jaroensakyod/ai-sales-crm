@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { fbCardAttachment } from "@/features/facebook/client";
 import { buildFlexMessage } from "@/features/line/client";
 import type { MessageCard } from "@/features/messaging/cards";
+import { matchProductOrVariant, type ProductLike } from "@/features/router/intent";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
 import { normalizeImageUrl } from "@/lib/validation";
 
@@ -56,6 +57,38 @@ describe("buildPaymentInstruction — digital vs physical", () => {
   it("defaults to physical behaviour when hasPhysical is omitted (backward compat)", () => {
     const out = buildPaymentInstruction(settings, { total: 500 });
     expect(out).toContain("EMS ส่งฟรีทั่วไทย");
+  });
+});
+
+describe("variant matching — Thai transliteration of English tiers", () => {
+  const products: ProductLike[] = [
+    {
+      id: "p1",
+      name: "Your Life Code",
+      sku: null,
+      price: "1890",
+      stock: null,
+      currency: "THB",
+      variants: [
+        { id: "v1", name: "Standard (PDF)", sku: null, price: "1890" },
+        { id: "v2", name: "Premium (รูปเล่ม)", sku: null, price: "2390" },
+      ],
+    },
+  ];
+
+  it("matches an English 'Premium' variant when the customer types 'พรีเมียม'", () => {
+    const m = matchProductOrVariant("ขอเปลี่ยนเป็นแบบพรีเมียม", products);
+    expect(m?.variant?.name).toBe("Premium (รูปเล่ม)");
+  });
+
+  it("matches via the Thai token 'รูปเล่ม' too", () => {
+    const m = matchProductOrVariant("เอาแบบรูปเล่มค่ะ", products);
+    expect(m?.variant?.name).toBe("Premium (รูปเล่ม)");
+  });
+
+  it("matches the PDF/Standard variant from 'pdf'", () => {
+    const m = matchProductOrVariant("ขอแบบ pdf", products);
+    expect(m?.variant?.name).toBe("Standard (PDF)");
   });
 });
 

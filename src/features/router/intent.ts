@@ -139,10 +139,22 @@ export function matchProduct<T extends ProductLike>(
   return best?.product ?? null;
 }
 
+/** Common English tier/format labels ↔ how Thai customers usually type them, so
+ *  a variant named "Premium" still matches a customer who writes "พรีเมียม".
+ *  Bidirectional: an English name gains Thai aliases and vice-versa. */
+const TIER_TRANSLITERATIONS: [string, string[]][] = [
+  ["premium", ["พรีเมียม", "พรีเมี่ยม"]],
+  ["standard", ["สแตนดาร์ด", "สแตนดาร์ต", "สแตนดาด"]],
+  ["basic", ["เบสิค", "เบสิก"]],
+  ["deluxe", ["ดีลักซ์", "ดีลักส์"]],
+  ["pdf", ["พีดีเอฟ"]],
+  ["ebook", ["อีบุ๊ค", "อีบุ๊ก", "อีบุค"]],
+];
+
 /** Match aliases for a variant: full name + SKU, PLUS individual tokens of the
  *  name (so "Premium (รูปเล่ม)" also matches a customer who types just "รูปเล่ม"
- *  or "premium", not only the full label). Tokens < 3 chars are dropped to avoid
- *  spurious hits. */
+ *  or "premium"), PLUS Thai/English transliterations of common tier labels.
+ *  Tokens < 3 chars are dropped to avoid spurious hits. */
 function variantAliases(v: VariantLike): string[] {
   const seen = new Set<string>();
   const add = (s: string) => {
@@ -154,6 +166,12 @@ function variantAliases(v: VariantLike): string[] {
   // partial mention still resolves the variant.
   for (const token of (v.name ?? "").split(/[\s()/|,]+/)) {
     if (normalize(token).trim().length >= 3) add(token);
+  }
+  // Add transliteration equivalents in both directions.
+  const nameNrm = normalize(v.name ?? "");
+  for (const [en, thais] of TIER_TRANSLITERATIONS) {
+    if (nameNrm.includes(en)) thais.forEach(add);
+    if (thais.some((t) => nameNrm.includes(t))) add(en);
   }
   return [...seen];
 }
