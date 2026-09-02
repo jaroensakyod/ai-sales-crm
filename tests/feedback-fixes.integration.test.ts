@@ -131,6 +131,13 @@ describe.skipIf(!hasDb)("feedback fixes (integration)", () => {
       .returning();
     await addVariant(db, tenantId, pkg.id, { name: "Standard (PDF)", price: "100" });
     await addVariant(db, tenantId, pkg.id, { name: "Premium (รูปเล่ม)", price: "200" });
+    // Product flagged digital, but its physical variant must still ship (variant
+    // flag wins over the parent product flag).
+    const [mixed] = await db
+      .insert(products)
+      .values({ tenantId, name: "หนังสือผสม", price: "100", currency: "THB", isDigital: true })
+      .returning();
+    await addVariant(db, tenantId, mixed.id, { name: "เล่มกระดาษ", price: "300", isDigital: false });
   });
 
   afterAll(async () => {
@@ -234,5 +241,16 @@ describe.skipIf(!hasDb)("feedback fixes (integration)", () => {
     // "Premium (รูปเล่ม)" = 200; the customer types only "รูปเล่ม".
     const r = await post("สั่งซื้อ แพ็กเกจทดสอบ รูปเล่ม", user);
     expect(allText(r.replyMsgs)).toContain("200");
+  });
+
+  it("physical variant of a DIGITAL product still shows shipping (variant flag wins)", async () => {
+    const user = `Umix-${suffix}`;
+    await post("สั่งซื้อ หนังสือผสม เล่มกระดาษ", user);
+    const r = await post("ยืนยันสั่งซื้อ", user);
+    const text = allText(r.replyMsgs);
+    expect(text).toContain("300");
+    // The book variant ships even though the product is flagged digital.
+    expect(text).toContain("EMS ส่งฟรีทั่วไทย");
+    expect(text).toContain("ที่อยู่");
   });
 });

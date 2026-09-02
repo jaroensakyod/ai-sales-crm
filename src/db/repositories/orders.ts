@@ -275,12 +275,16 @@ export async function orderHasPhysicalItem(
       .where(and(eq(products.tenantId, tenantId), inArray(products.id, productIds)));
     for (const p of prows) productDigital.set(p.id, p.isDigital);
   }
-  // An item is digital if its variant OR its product is flagged digital; the
-  // order needs shipping if ANY item is physical (not digital).
+  // The variant's own flag is authoritative for a variant item (a physical
+  // "Premium (รูปเล่ม)" ships even if its parent product is flagged digital);
+  // only a variant-less item falls back to the product flag. The order needs
+  // shipping if ANY item is physical.
   return items.some((i) => {
-    const digital =
-      (i.variantId ? variantDigital.get(i.variantId) === true : false) ||
-      (i.productId ? productDigital.get(i.productId) === true : false);
+    const digital = i.variantId
+      ? variantDigital.get(i.variantId) === true
+      : i.productId
+        ? productDigital.get(i.productId) === true
+        : false;
     return !digital;
   });
 }
