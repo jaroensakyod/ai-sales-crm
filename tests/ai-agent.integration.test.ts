@@ -82,6 +82,23 @@ describe.skipIf(!hasDb)("AI reason handler (integration, mocked Gemini)", () => 
     expect(run.error).toContain("รักษาสิว");
   });
 
+  it("blocks an unauthorized baht discount and hands off (review #1)", async () => {
+    // Default discount authority is 0, so a self-invented "ลด 100 บาท" is blocked.
+    const generate: GenerateFn = async () => ({
+      text: "โอเคค่ะ ลดให้ 100 บาทเลยนะคะ",
+      inputTokens: 50,
+      outputTokens: 20,
+    });
+    const handler = createAiReasonHandler(db, { generate });
+
+    const answer = await handler({ tenantId, text: "ขอส่วนลดหน่อยแพงจัง" });
+    expect(answer).toBeNull(); // never sends an unauthorized discount
+
+    const run = await latestRun();
+    expect(run.status).toBe("blocked");
+    expect(run.error).toContain("unauthorized discount");
+  });
+
   it("records an error and returns null when Gemini throws", async () => {
     const generate: GenerateFn = async () => {
       throw new Error("gemini 503");

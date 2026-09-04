@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hasPaymentHowToIntent,
   hasPriceIntent,
   hasStockIntent,
+  matchFrustration,
   matchHandoff,
   matchProduct,
   matchProductOrVariant,
@@ -51,6 +53,22 @@ describe("router intent detection", () => {
     expect(matchHandoff("คุยกับแอดมิน")).toBe("คุยกับแอดมิน");
     expect(matchHandoff("ขอคุยกับแอดมินหน่อย")).toBe("คุยกับแอดมิน");
     expect(matchHandoff("talk to a human please")).toBe("talk to a human");
+  });
+
+  it("detects 'how to buy/pay' intent (review #4)", () => {
+    expect(hasPaymentHowToIntent("ซื้อยังไงคะ")).toBe(true);
+    expect(hasPaymentHowToIntent("จ่ายเงินยังไง")).toBe(true);
+    expect(hasPaymentHowToIntent("วิธีสั่งซื้อ")).toBe(true);
+    expect(hasPaymentHowToIntent("how do i pay")).toBe(true);
+    // A plain price question is not a how-to-pay question.
+    expect(hasPaymentHowToIntent("ราคาเท่าไหร่")).toBe(false);
+  });
+
+  it("detects a frustrated customer for handoff (review #2)", () => {
+    expect(matchFrustration("ห่วยมากไม่ตอบสักที")).toBe("ห่วยมาก");
+    expect(matchFrustration("บริการแย่มาก")).toBe("แย่มาก");
+    expect(matchFrustration("worst service ever")).toBe("worst");
+    expect(matchFrustration("สนใจสินค้าค่ะ")).toBeNull();
   });
 });
 

@@ -3,6 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { DbClient } from "@/db/client";
 import { getTenantAiSettings } from "@/db/repositories/ai";
 import { getProduct, getVariant } from "@/db/repositories/products";
+import { formatVariantDisplayName } from "@/lib/product-name";
 import {
   conversations,
   customers,
@@ -186,7 +187,7 @@ export async function addOrderItem(
     productId = variant.productId;
     const product = await getProduct(db, tenantId, variant.productId);
     unitPrice = variant.price ?? product?.price ?? "0";
-    name = `${product?.name ?? "สินค้า"} (${variant.name})`;
+    name = formatVariantDisplayName(product?.name ?? "สินค้า", variant.name);
   } else if (input.productId) {
     const product = await getProduct(db, tenantId, input.productId);
     if (!product) throw new Error("product not found");

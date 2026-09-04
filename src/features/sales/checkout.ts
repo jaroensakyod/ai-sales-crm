@@ -15,6 +15,7 @@ import { enqueueWebhookEvent } from "@/features/webhooks/dispatch";
 import { matchHandoff, matchProductOrVariant } from "@/features/router/intent";
 import { loadProducts } from "@/features/router/rules";
 import { buildPaymentInstruction } from "@/features/payment/instruction";
+import { formatVariantDisplayName } from "@/lib/product-name";
 
 import type { MessageCard } from "@/features/messaging/cards";
 
@@ -165,7 +166,7 @@ export async function tryCheckout(
         const detail = await getOrder(db, ctx.tenantId, existing.id);
         const total = Number(detail?.order.total ?? 0);
         const hasPhysical = await orderHasPhysicalItem(db, ctx.tenantId, existing.id);
-        const displayName = variant ? `${product.name} (${variant.name})` : product.name;
+        const displayName = formatVariantDisplayName(product.name, variant?.name);
         return {
           orderId: existing.id,
           reply:
@@ -187,7 +188,7 @@ export async function tryCheckout(
     const quantity = parseQuantity(ctx.text);
     const before = await getOrder(db, ctx.tenantId, existing.id);
     const already = before?.items.find((it) => it.productId === product.id);
-    const displayName = variant ? `${product.name} (${variant.name})` : product.name;
+    const displayName = formatVariantDisplayName(product.name, variant?.name);
 
     if (already && variant) {
       // Same product, a (possibly different) variant named → SWITCH: drop the old
@@ -258,7 +259,7 @@ export async function tryCheckout(
 
   const detail = await getOrder(db, ctx.tenantId, order.id);
   const total = Number(detail?.order.total ?? 0);
-  const displayName = variant ? `${product.name} (${variant.name})` : product.name;
+  const displayName = formatVariantDisplayName(product.name, variant?.name);
   const reply = draftSummaryReply(displayName, quantity, total);
 
   return {

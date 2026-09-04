@@ -132,6 +132,31 @@ describe.skipIf(!hasDb)("message router (integration)", () => {
     expect(convo.status).toBe("HANDOFF");
   });
 
+  it("L1: answers 'how do I buy/pay?' deterministically (review #4)", async () => {
+    const d = await routeMessage(db, { tenantId, text: "ซื้อยังไงคะ จ่ายเงินยังไง" });
+    expect(d.level).toBe(1);
+    expect(d.source).toBe("rule:payment");
+    expect(d.replyText).toContain("ยืนยันสั่งซื้อ");
+  });
+
+  it("L1: asks which product when price is asked with no product named (review #3)", async () => {
+    const d = await routeMessage(db, { tenantId, text: "ราคาเท่าไหร่คะ" });
+    expect(d.level).toBe(1);
+    expect(d.source).toBe("rule:price_clarify");
+    expect(d.replyText).toContain("ลิปสติกสีแดง Matte");
+  });
+
+  it("L4: a frustrated customer is escalated, never left silent (review #2)", async () => {
+    const d = await routeMessage(db, {
+      tenantId,
+      conversationId,
+      text: "ห่วยมากไม่ตอบสักที",
+    });
+    expect(d.level).toBe(4);
+    expect(d.action).toBe("handoff");
+    expect(d.replyText).toContain("ทีมงาน");
+  });
+
   it("L2/L3: injected handlers answer when rules don't", async () => {
     const l2 = await routeMessage(
       db,

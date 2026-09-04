@@ -31,6 +31,49 @@ type Promotions = Awaited<ReturnType<typeof getActivePromotions>>;
 type Services = Awaited<ReturnType<typeof listServices>>;
 
 /**
+ * Detect a baht discount the bot offered beyond what it's allowed to give.
+ * Returns the offending amount (the largest), or null when everything is within
+ * authority. The model invented "ลด 100 บาท" with zero discount authority and did
+ * it twice (review #1) — a customer screenshots that and claims it — so we catch
+ * it in code and block before it ever sends. Percent promos are governed by the
+ * promotions list, not here; a baht amount that matches an active promotion (or
+ * is within `maxBaht` authority) is allowed.
+ */
+export function detectUnauthorizedDiscount(
+  text: string,
+  maxBaht: number,
+  allowedBaht: Set<number> = new Set(),
+): number | null {
+  // "ส่วนลด/ลด/ลดราคา/ลดพิเศษ/ลดให้/ลดอีก [อีก] <number> บาท" — number must follow
+  // the discount word directly, so a plain price ("ราคา 1,890 บาท") never matches.
+  const re = /(?:ส่วนลด|ลดราคา|ลดพิเศษ|ลดให้|ลดอีก|ลด)\s*(?:อีก\s*)?([0-9][0-9,]*)\s*บาท/g;
+  let worst: number | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const amt = Number(m[1].replace(/,/g, ""));
+    if (Number.isFinite(amt) && amt > maxBaht && !allowedBaht.has(amt)) {
+      worst = Math.max(worst ?? 0, amt);
+    }
+  }
+  return worst;
+}
+
+/**
+ * Force the polite particle to match the bot's gender. The model still leaks a
+ * stray "ครับ" on a female persona now and then (review: happened twice) despite
+ * the prompt rule — so we fix it in code, where it's guaranteed. Only rewrites a
+ * particle at a word/utterance boundary so we never mangle a real word.
+ */
+export function enforcePoliteParticle(
+  text: string,
+  gender?: string | null,
+): string {
+  if (gender === "male") return text; // male persona keeps ครับ
+  // ครับผม / ครับ / คับ / ค้าบ / คร้าบ → ค่ะ, only when it ends a token.
+  return text.replace(/(ครับผม|คร้าบ|ค้าบ|ครับ|คับ)(?=$|[\s.!?…\n,)]|ๆ)/g, "ค่ะ");
+}
+
+/**
  * System prompt with hard guardrails baked in. These are instructions to the
  * model, but the real enforcement is in code (banned-phrase filter below,
  * discount authority checked before any action) — we never trust the model's
@@ -89,10 +132,15 @@ export function buildSalesSystemPrompt(args: {
     "อย่ายัดรายการสินค้าทั้งหมดมาในครั้งเดียว ถ้าลูกค้าถามกว้าง ๆ (เช่น 'มีอะไรบ้าง') ให้ถามกลับสั้น ๆ ว่าสนใจแนวไหนหรืองบเท่าไหร่ แล้วค่อยแนะนำ 1 อย่างที่เหมาะ",
     emojiInstruction(args.emojiLevel),
     `ลงท้ายประโยคด้วยคำสุภาพ "${particle}" อย่างสม่ำเสมอทุกข้อความ ห้ามสลับใช้ ค่ะ/ครับ ปนกันเด็ดขาด`,
+    'อย่าใช้คำลงท้ายน่ารักซ้ำถี่เกินไป โดยเฉพาะคำว่า "น้า" ใช้ได้บ้างเป็นครั้งคราวแต่ไม่ใช่ทุกข้อความ (ลูกค้าสินค้าราคาหลักพันจะรู้สึกว่าโทนเด็กเกินไป) ปกติใช้ "ค่ะ/นะคะ" ก็พอ',
     "ห้ามอ้างสรรพคุณเกินจริงหรือกล่าวอ้างว่า 'รักษา' โรคใด ๆ เด็ดขาด (ข้อกำหนด อย./สคบ.)",
     `ห้ามเสนอส่วนลดเกิน ${Number(discount).toLocaleString("th-TH")} บาท และห้ามสัญญาโปรโมชั่นที่ไม่มีข้อมูลรองรับ`,
     "ราคาและสต็อกให้ยึดข้อมูลในระบบเท่านั้น ห้ามเดาหรือกุตัวเลขขึ้นเอง",
-    "ถ้าไม่แน่ใจหรือเป็นเรื่องคืนเงิน/ร้องเรียน ให้บอกลูกค้าสั้น ๆ ว่าเดี๋ยวให้ทีมงานติดต่อกลับ",
+    "ถ้าลูกค้าถามว่า 'รุ่นไหนดีกว่า/ต่างกันยังไง/เลือกอันไหนดี' ให้เปรียบเทียบให้จริง ๆ โดยใช้ข้อมูลสินค้าที่มีในระบบ (จุดเด่นของแต่ละรุ่น + เหมาะกับใคร) แล้วแนะนำว่ารุ่นไหนเหมาะกับลูกค้ารายนี้ ห้ามตอบว่าเทียบให้ไม่ได้หรือโยนให้ทีมงาน — นี่คือจังหวะที่ลูกค้ากำลังจะตัดสินใจซื้อ",
+    "ถ้าลูกค้าถามวิธีซื้อ/วิธีจ่ายเงิน ให้ตอบวิธีสั่งซื้อได้เลย (แจ้งรุ่นที่ต้องการแล้วกดยืนยันสั่งซื้อ ระบบจะส่งข้อมูลการโอนให้) ห้ามตอบว่าไม่รู้เด็ดขาด",
+    "ถ้าลูกค้าบอกว่าเจ้าอื่นถูกกว่า ให้ตอบเชิงคุณค่า (คุณภาพ บริการหลังการขาย ความน่าเชื่อถือ ของแท้) อย่าเพิ่งโยนให้ทีมงาน และห้ามลดราคาตามทันที",
+    "เรื่องค่าส่ง: สินค้าแบบดิจิทัล/ไฟล์ PDF ไม่มีค่าส่ง ส่วนแบบรูปเล่มถึงจะมีค่าส่ง อย่าเดาว่าลูกค้าเอาแบบไหน ถ้าไม่ชัดให้ถามก่อนว่าต้องการแบบไฟล์หรือแบบเล่ม",
+    "ถ้าไม่แน่ใจหรือเป็นเรื่องคืนเงิน/ร้องเรียน ให้บอกลูกค้าสั้น ๆ ว่าเดี๋ยวให้ทีมงานติดต่อกลับในเวลาทำการ",
   ];
 
   const promoLines = (args.promotions ?? [])
@@ -242,9 +290,27 @@ export function createAiReasonHandler(
     }
 
     const latencyMs = Date.now() - started;
-    const text = toPlainText(result.text.trim());
+    const text = enforcePoliteParticle(
+      toPlainText(result.text.trim()),
+      settings?.botGender,
+    );
     const banned =
       (settings?.bannedPhrases ?? []).find((p) => p && text.includes(p)) ?? null;
+    // Discount authority, enforced in code (not just the prompt): block a baht
+    // discount the bot isn't allowed to give (review #1).
+    const maxBaht = Number(settings?.discountAuthority ?? 0) || 0;
+    const allowedBaht = new Set(
+      (promotions ?? [])
+        .filter((p) => p.type !== "PERCENT")
+        .map((p) => Number(p.value))
+        .filter((n) => Number.isFinite(n)),
+    );
+    const badDiscount = detectUnauthorizedDiscount(text, maxBaht, allowedBaht);
+    const blockReason = banned
+      ? `banned phrase: ${banned}`
+      : badDiscount != null
+        ? `unauthorized discount: ${badDiscount}`
+        : null;
     const costUsd = estimateCostUsd(model, result.inputTokens, result.outputTokens);
 
     await recordAiRun(db, ctx.tenantId, {
@@ -255,8 +321,8 @@ export function createAiReasonHandler(
       outputTokens: result.outputTokens,
       costUsd,
       latencyMs,
-      status: banned ? "blocked" : "ok",
-      error: banned ? `banned phrase: ${banned}` : null,
+      status: blockReason ? "blocked" : "ok",
+      error: blockReason,
     });
     await recordUsageEvent(db, ctx.tenantId, {
       type: "ai_call",
@@ -265,7 +331,7 @@ export function createAiReasonHandler(
     });
 
     // Blocked or empty → don't send; let the router hand off to a human.
-    if (banned || !text) return null;
+    if (blockReason || !text) return null;
     return text;
   };
 }

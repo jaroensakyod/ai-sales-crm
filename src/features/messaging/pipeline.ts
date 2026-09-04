@@ -773,18 +773,27 @@ export async function handleInboundText(
     args.routerHandlers,
   );
 
-  // Append the one-time consent prompt to the first bot reply.
+  // Append the one-time consent prompt to the FIRST bot reply of the conversation
+  // only. Earlier branches (checkout, booking, cards, …) send replies and return
+  // before this point without appending it — so gating on !consent.prompted alone
+  // let the prompt surface several turns in, reading as an odd mid-chat interruption
+  // (review). lastOutboundAt is null only until the bot's very first reply, so this
+  // pins the prompt to that first message and never resurrects it later.
   let replyText = decision.replyText;
-  if (!consent.decided && !consent.prompted) {
+  if (!consent.decided && !consent.prompted && conversation.lastOutboundAt == null) {
     replyText = `${replyText}\n\n${CONSENT_PROMPT}`;
     await markConsentPrompted(db, args.tenantId, customerId);
   }
 
-  // On a normal reply, show the merchant menu + "talk to a human". On a handoff,
-  // offer the reverse — "back to AI" — so a mis-tap is one tap to undo (honoured
-  // only while no admin has taken over; see the resume guard above).
+  // Buttons follow the conversation: a handoff offers "back to AI"; a decision that
+  // carries its own context chips (e.g. product buttons on a "which one?" reply)
+  // shows those; otherwise the merchant's standard menu + "talk to a human".
   const quickReplies =
-    decision.action === "handoff" ? [BACK_TO_AI] : menuChips(menu);
+    decision.action === "handoff"
+      ? [BACK_TO_AI]
+      : decision.chips && decision.chips.length > 0
+        ? [...decision.chips.slice(0, 12), TALK_TO_HUMAN].slice(0, 13)
+        : menuChips(menu);
   await args.send(args.externalId, replyText, quickReplies);
   await recordOutboundMessage(db, args.tenantId, conversation.id, {
     body: replyText,

@@ -4,8 +4,10 @@ import { getTenantAiSettings } from "@/db/repositories/ai";
 import { emojiAllowed, modeAllowsCrossSell } from "@/features/ai/reply-mode";
 
 import {
+  hasPaymentHowToIntent,
   hasPriceIntent,
   hasStockIntent,
+  matchFrustration,
   matchHandoff,
   matchProduct,
 } from "./intent";
@@ -14,11 +16,18 @@ import { suggestCrossSells } from "@/db/repositories/products";
 import { loadProducts, priceAnswer, stockAnswer } from "./rules";
 import type { RouterContext, RouterDecision, RouterHandlers } from "./types";
 
-// Holding messages — the customer never gets left in silence (risk #6).
+// Holding messages — the customer never gets left in silence (risk #6). Both set
+// an expectation of *when* a human replies; "รอสักครู่" alone read badly at 5am
+// with no follow-up in sight (review: handoff gave no callback timeframe).
 const HANDOFF_MESSAGE =
-  "รบกวนรอสักครู่นะคะ ขอส่งเรื่องให้ทีมงานดูแลและติดต่อกลับค่ะ 🙏";
+  "รับเรื่องแล้วนะคะ เดี๋ยวทีมงานติดต่อกลับโดยเร็วที่สุดในเวลาทำการค่ะ 🙏";
 const FALLBACK_MESSAGE =
-  "ขออภัยค่ะ คำถามนี้ขอส่งต่อให้ทีมงานช่วยดูแลนะคะ เดี๋ยวติดต่อกลับค่ะ 🙏";
+  "ขออภัยค่ะ คำถามนี้ขอส่งต่อให้ทีมงานดูแลนะคะ เดี๋ยวติดต่อกลับโดยเร็วที่สุดในเวลาทำการค่ะ 🙏";
+// "How do I buy/pay?" — deterministic so we never say "ไม่รู้" to a buyer. Stays
+// in step with the AI's payment policy: never volunteer bank details, steer to
+// the confirm-order button, and the checkout flow sends the transfer info.
+const PAYMENT_HOWTO_MESSAGE =
+  "สั่งซื้อง่ายมากค่ะ แค่แจ้งรุ่นที่ต้องการแล้วกดยืนยันสั่งซื้อ เดี๋ยวระบบส่งข้อมูลการโอนให้เลยค่ะ";
 
 /**
  * Route one inbound customer message through Levels 1→4:
@@ -45,11 +54,31 @@ export async function routeMessage(
     return handoff(db, ctx, `handoff:${handoffKeyword}`, handoffKeyword, HANDOFF_MESSAGE);
   }
 
+  // Frustrated/angry customer → hand to a human immediately. Staying silent here
+  // is the worst possible move (review #2); a person should take over the thread.
+  const frustration = matchFrustration(text);
+  if (frustration) {
+    return handoff(db, ctx, `handoff:${frustration}`, frustration, HANDOFF_MESSAGE);
+  }
+
   // Level 1: rule-based answers from live DB data.
   const priceIntent = hasPriceIntent(text);
   const stockIntent = hasStockIntent(text);
+
+  // "How do I buy/pay?" — answer deterministically before the AI can drop it.
+  // (Skip if a price/stock question rides along — that gets a real answer below.)
+  if (hasPaymentHowToIntent(text) && !priceIntent && !stockIntent) {
+    return {
+      level: 1,
+      action: "answer",
+      replyText: PAYMENT_HOWTO_MESSAGE,
+      source: "rule:payment",
+    };
+  }
+
   if (priceIntent || stockIntent) {
-    const product = matchProduct(text, await loadProducts(db, ctx.tenantId));
+    const catalog = await loadProducts(db, ctx.tenantId);
+    const product = matchProduct(text, catalog);
     if (product) {
       const parts: string[] = [];
       if (priceIntent) parts.push(priceAnswer(product));
@@ -81,6 +110,40 @@ export async function routeMessage(
         action: "answer",
         replyText,
         source: priceIntent ? "rule:price" : "rule:stock",
+      };
+    }
+
+    // Price/stock asked but no product named. The AI handled this inconsistently
+    // (three "ราคาเท่าไหร่" got nothing; a bare "?" dumped the whole price list) —
+    // review #3. Resolve it deterministically: one product → just answer it; a few
+    // products → ask which one instead of guessing. Only price gets the shortcut
+    // (a bare "มีของไหม" is too vague to pin to a single item).
+    if (catalog.length === 1) {
+      const only = catalog[0];
+      const parts: string[] = [];
+      if (priceIntent) parts.push(priceAnswer(only));
+      if (stockIntent) parts.push(stockAnswer(only));
+      return {
+        level: 1,
+        action: "answer",
+        replyText: parts.join(" "),
+        source: priceIntent ? "rule:price" : "rule:stock",
+      };
+    }
+    if (priceIntent && catalog.length > 1) {
+      const shortlist = catalog.slice(0, 5);
+      const names = shortlist.map((p) => p.name).join(" / ");
+      return {
+        level: 1,
+        action: "answer",
+        replyText: `สนใจตัวไหนดีคะ มี ${names} แจ้งชื่อรุ่นได้เลย เดี๋ยวบอกราคาให้ค่ะ`,
+        source: "rule:price_clarify",
+        // Tappable product chips — tapping asks the price of that exact product, so
+        // the buttons here match what the customer is actually choosing between.
+        chips: shortlist.map((p) => ({
+          label: p.name,
+          text: `${p.name} ราคาเท่าไหร่`,
+        })),
       };
     }
   }

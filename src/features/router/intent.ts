@@ -31,6 +31,59 @@ const STOCK_KEYWORDS = [
   "stock",
 ];
 
+// "How do I buy / pay?" — a strong buying signal the AI kept fluffing (it said
+// "ไม่รู้" even after explaining the transfer flow for the 0% question). Answered
+// deterministically at Level 1 so a ready-to-pay customer never slips (review #4).
+const PAYMENT_HOWTO_KEYWORDS = [
+  "ซื้อยังไง",
+  "ซื้อไง",
+  "สั่งยังไง",
+  "สั่งซื้อยังไง",
+  "สั่งซื้อไง",
+  "จ่ายยังไง",
+  "จ่ายเงินยังไง",
+  "จ่ายไง",
+  "ชำระเงินยังไง",
+  "ชำระยังไง",
+  "โอนยังไง",
+  "โอนเงินยังไง",
+  "วิธีจ่าย",
+  "วิธีชำระ",
+  "วิธีสั่งซื้อ",
+  "วิธีสั่ง",
+  "วิธีการสั่งซื้อ",
+  "วิธีซื้อ",
+  "how to pay",
+  "how do i pay",
+  "how to buy",
+  "how do i buy",
+  "how to order",
+  "how do i order",
+];
+
+// Frustration / anger — the single worst moment to stay silent (review #2: the
+// customer wrote "ห่วยมากไม่ตอบสักที" and got no reply). Escalate to a human so
+// the customer is always acknowledged, even when no other keyword fires.
+const FRUSTRATION_KEYWORDS = [
+  "ห่วยมาก",
+  "ห่วยแตก",
+  "แย่มาก",
+  "โคตรแย่",
+  "บริการแย่",
+  "ไม่ตอบสักที",
+  "ไม่ตอบเลย",
+  "ตอบช้ามาก",
+  "รอนานมาก",
+  "หายไปไหน",
+  "โมโห",
+  "หงุดหงิด",
+  "น่ารำคาญ",
+  "รำคาญ",
+  "terrible",
+  "awful",
+  "worst",
+];
+
 // Refund / dispute / complaint → straight to a human (Message Router Level 4).
 const HANDOFF_KEYWORDS = [
   "คืนเงิน",
@@ -77,6 +130,15 @@ export function hasPriceIntent(text: string): boolean {
 
 export function hasStockIntent(text: string): boolean {
   return containsAny(text, STOCK_KEYWORDS) !== null;
+}
+
+export function hasPaymentHowToIntent(text: string): boolean {
+  return containsAny(text, PAYMENT_HOWTO_KEYWORDS) !== null;
+}
+
+/** Returns the matched frustration keyword, or null. */
+export function matchFrustration(text: string): string | null {
+  return containsAny(text, FRUSTRATION_KEYWORDS);
 }
 
 /** Returns the matched handoff keyword, or null. */
